@@ -30,31 +30,48 @@ def remove_background(image_bytes: bytes) -> bytes:
     import Vision
     from Foundation import NSData
 
-    data = NSData.dataWithBytes_length_(image_bytes, len(image_bytes))
-    # Apply the photo's orientation tag the way browsers do, so the cutout lines up with the picture on screen.
-    image = Quartz.CIImage.imageWithData_options_(data, {Quartz.kCIImageApplyOrientationProperty: True})
-    if image is None:
-        raise RuntimeError("The image couldn't be read for AI cutout.")
-    handler = Vision.VNImageRequestHandler.alloc().initWithCIImage_options_(image, {})
-    request = Vision.VNGenerateForegroundInstanceMaskRequest.alloc().init()
-    ok, err = handler.performRequests_error_([request], None)
-    if not ok:
-        raise RuntimeError(f"AI cutout failed: {err.localizedDescription() if err else 'unknown error'}")
-    results = request.results() or []
-    if not results:
-        raise RuntimeError("AI cutout didn't find a main subject in this image. Use Remove background instead.")
-    obs = results[0]
-    buf, err = obs.generateMaskedImageOfInstances_fromRequestHandler_croppedToInstancesExtent_error_(
-        obs.allInstances(), handler, False, None)
-    if buf is None:
-        raise RuntimeError(f"AI cutout failed: {err.localizedDescription() if err else 'unknown error'}")
-    out = Quartz.CIImage.imageWithCVPixelBuffer_(buf)
-    ctx = Quartz.CIContext.contextWithOptions_(None)
-    cs = Quartz.CGColorSpaceCreateWithName(Quartz.kCGColorSpaceSRGB)
-    png = ctx.PNGRepresentationOfImage_format_colorSpace_options_(out, Quartz.kCIFormatRGBA8, cs, {})
-    if png is None:
-        raise RuntimeError("AI cutout couldn't save its result.")
-    return bytes(png)
+    step = "reading the image"
+    try:
+        data = NSData.dataWithBytes_length_(image_bytes, len(image_bytes))
+        image = Quartz.CIImage.imageWithData_(data)
+        if image is None:
+            raise RuntimeError("The image couldn't be read for AI cutout.")
+        # Turn the photo upright the way browsers do, so the cutout lines up with the picture on screen.
+        step = "reading the photo's orientation"
+        props = image.properties() or {}
+        orientation = props.get("Orientation")
+        if orientation and int(orientation) != 1:
+            image = image.imageByApplyingCGOrientation_(int(orientation))
+
+        step = "finding the subject"
+        handler = Vision.VNImageRequestHandler.alloc().initWithCIImage_options_(image, {})
+        request = Vision.VNGenerateForegroundInstanceMaskRequest.alloc().init()
+        ok, err = handler.performRequests_error_([request], None)
+        if not ok:
+            raise RuntimeError(f"AI cutout failed: {err.localizedDescription() if err else 'unknown error'}")
+        results = request.results() or []
+        if not results:
+            raise RuntimeError("AI cutout didn't find a main subject in this image. Use Remove background instead.")
+
+        step = "cutting out the subject"
+        obs = results[0]
+        buf, err = obs.generateMaskedImageOfInstances_fromRequestHandler_croppedToInstancesExtent_error_(
+            obs.allInstances(), handler, False, None)
+        if buf is None:
+            raise RuntimeError(f"AI cutout failed: {err.localizedDescription() if err else 'unknown error'}")
+
+        step = "saving the cutout"
+        out = Quartz.CIImage.imageWithCVPixelBuffer_(buf)
+        ctx = Quartz.CIContext.contextWithOptions_(None)
+        cs = Quartz.CGColorSpaceCreateWithName(Quartz.kCGColorSpaceSRGB)
+        png = ctx.PNGRepresentationOfImage_format_colorSpace_options_(out, Quartz.kCIFormatRGBA8, cs, {})
+        if png is None:
+            raise RuntimeError("AI cutout couldn't save its result.")
+        return bytes(png)
+    except RuntimeError:
+        raise
+    except Exception as e:  # an Objective-C exception: say which step it came from
+        raise RuntimeError(f"AI cutout failed while {step}: {e}") from e
 
 
 def installed_font_families() -> list[str]:
