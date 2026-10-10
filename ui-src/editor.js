@@ -663,7 +663,14 @@ $("#licModal").addEventListener("pointerdown", e => { if (e.target === $("#licMo
 
 /* ---------- Menu commands and keyboard ---------- */
 const typingIn = el => el && el.closest && el.closest("input:not([type=range]):not([type=checkbox]):not([type=color]), textarea, [contenteditable=true]");
+// The Mac menus call VZ_MENU. A shortcut the page already handled can also reach the menu,
+// so a menu call that repeats the same shortcut within a moment is skipped.
+let lastKeyCmd = { cmd: "", t: 0 };
 window.VZ_MENU = cmd => {
+  if (cmd === lastKeyCmd.cmd && performance.now() - lastKeyCmd.t < 500) return;
+  runCommand(cmd);
+};
+function runCommand(cmd) {
   const typing = typingIn(document.activeElement);
   switch (cmd) {
     case "open": chooseImages(); break;
@@ -686,7 +693,7 @@ window.VZ_MENU = cmd => {
     case "license": openLicense(); break;
     case "deactivate": deactivate(); break;
   }
-};
+}
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") {
     if (picking) { endPick(); return; }
@@ -696,7 +703,7 @@ document.addEventListener("keydown", e => {
   }
   if (typingIn(e.target) || !$("#licModal").hidden) return;
   const mod = e.metaKey || e.ctrlKey, k = e.key.toLowerCase();
-  const run = cmd => { e.preventDefault(); window.VZ_MENU(cmd); };
+  const run = cmd => { e.preventDefault(); lastKeyCmd = { cmd, t: performance.now() }; runCommand(cmd); };
   if (mod && !e.altKey) {
     if (k === "z" && !e.shiftKey) return run("undo");
     if (k === "o") return run("open");
