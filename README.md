@@ -41,7 +41,7 @@ You need a Mac with Python 3.12.
 
 Every push to `main` builds two DMGs, one for Apple silicon Macs and one for Intel Macs. Find them on the **Actions** tab: open the latest run and scroll to **Artifacts**.
 
-Until you add the signing secrets below, the DMGs are unsigned. They're fine for testing on your own Mac (right-click the app and choose **Open** the first time), but don't sell them.
+Until you add the signing secrets below, the DMGs are unsigned. They're fine for testing on your own Mac, but don't sell them. To open an unsigned copy, drag it to Applications and open it once. When macOS blocks it, go to **System Settings > Privacy & Security**, scroll down, and click **Open Anyway** next to the Vectorize message.
 
 ### Set up signing (once)
 
