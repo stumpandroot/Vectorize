@@ -6,6 +6,18 @@ from app.vector_export import svg_to_pdf, svg_to_eps, parse_path
 
 HERE = Path(__file__).parent
 
+
+def _can_render():
+    """The visual comparisons need Pillow, NumPy, CairoSVG, and Poppler's pdftoppm."""
+    try:
+        import cairosvg, numpy, PIL  # noqa: F401
+    except (ImportError, OSError):
+        return False
+    return shutil.which("pdftoppm") is not None
+
+
+CAN_RENDER = _can_render()
+
 def raster_pdf(pdf: bytes, w: int):
     from PIL import Image
     with tempfile.TemporaryDirectory() as d:
@@ -31,13 +43,14 @@ class T(unittest.TestCase):
         self.assertAlmostEqual(segs[-2][-2], 10, places=6)
         self.assertAlmostEqual(segs[-2][-1], 0, places=6)
 
+    @unittest.skipUnless(CAN_RENDER, "Rendering tools not installed")
     def test_pdf_matches_svg(self):
         for name in ("fixture_shapes.svg", "fixture_sample.svg"):
             svg = (HERE / name).read_text()
             d = diff(raster_svg(svg, 600), raster_pdf(svg_to_pdf(svg), 600))
             self.assertLess(d, 0.01, f"{name}: {d:.4f} of pixels differ")
 
-    @unittest.skipUnless(shutil.which("gs"), "Ghostscript not installed")
+    @unittest.skipUnless(CAN_RENDER and shutil.which("gs"), "Ghostscript or rendering tools not installed")
     def test_eps_matches_svg(self):
         svg = (HERE / "fixture_shapes.svg").read_text()
         with tempfile.TemporaryDirectory() as d:

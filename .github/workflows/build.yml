@@ -27,7 +27,9 @@ jobs:
           python-version: "3.12"
       - name: Install test tools
         run: |
-          pip install cryptography playwright==1.48.0
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils ghostscript libcairo2
+          pip install cryptography pillow numpy cairosvg playwright==1.48.0
           python -m playwright install --with-deps chromium
       - name: Build the interface
         run: python ui-src/build.py
