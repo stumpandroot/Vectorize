@@ -81,9 +81,9 @@ jobs:
       - name: Python tests
         run: python -m unittest discover -s tests -v
       - name: Build Vectorize.app
-        run: pyinstaller --noconfirm packaging/Vectorize.spec
+        run: packaging/run_and_report.sh "App build (${{ matrix.label }})" pyinstaller --noconfirm packaging/Vectorize.spec
       - name: Self-test the app
-        run: dist/Vectorize.app/Contents/MacOS/Vectorize --self-test
+        run: packaging/run_and_report.sh "Self-test (${{ matrix.label }})" dist/Vectorize.app/Contents/MacOS/Vectorize --self-test
 
       - name: Add the signing certificate
         if: env.HAS_CERT == 'true'
@@ -120,10 +120,10 @@ jobs:
           if-no-files-found: error
 
       - name: Self-test the signed app
-        run: dist/Vectorize.app/Contents/MacOS/Vectorize --self-test
+        run: packaging/run_and_report.sh "Signed self-test (${{ matrix.label }})" dist/Vectorize.app/Contents/MacOS/Vectorize --self-test
       - name: Open the window and convert the sample
         timeout-minutes: 5
-        run: dist/Vectorize.app/Contents/MacOS/Vectorize --smoke-test
+        run: packaging/run_and_report.sh "Window test (${{ matrix.label }})" dist/Vectorize.app/Contents/MacOS/Vectorize --smoke-test
 
       - name: Note the version for the release
         run: echo "$VZ_VERSION" > version.txt
