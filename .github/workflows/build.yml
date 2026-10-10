@@ -1,0 +1,151 @@
+name: Build Vectorize
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, such as 1.0.0. Leave empty for a test build."
+        required: false
+        default: ""
+
+permissions:
+  contents: write   # lets a tag build attach the DMGs to a GitHub release
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test tools
+        run: |
+          pip install cryptography playwright==1.48.0
+          python -m playwright install --with-deps chromium
+      - name: Build the interface
+        run: python ui-src/build.py
+      - name: Check the committed interface matches its sources
+        run: git diff --exit-code -- ui/index.html || (echo "Run python3 ui-src/build.py and commit ui/index.html." && exit 1)
+      - name: Python tests
+        run: python -m unittest discover -s tests -v
+      - name: Interface tests (web and mock Mac)
+        run: |
+          python tests/ui/test_editor.py
+          python tests/ui/test_native.py
+
+  build:
+    name: Mac app (${{ matrix.label }})
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            label: Apple Silicon
+          - runner: macos-15-intel
+            label: Intel
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 75
+    env:
+      HAS_CERT: ${{ secrets.MACOS_CERTIFICATE != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Set the version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then V="$INPUT_VERSION"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then V="${GITHUB_REF#refs/tags/v}"
+          else V="1.0.0"; fi
+          if ! [[ "$V" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then echo "Use a version like 1.0.0 (got '$V')." && exit 1; fi
+          echo "VZ_VERSION=$V" >> "$GITHUB_ENV"
+          echo "VZ_BUILD=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller==6.11.1
+      - name: Build the interface
+        run: python ui-src/build.py
+      - name: Python tests
+        run: python -m unittest discover -s tests -v
+      - name: Build Vectorize.app
+        run: pyinstaller --noconfirm packaging/Vectorize.spec
+      - name: Self-test the app
+        run: dist/Vectorize.app/Contents/MacOS/Vectorize --self-test
+
+      - name: Add the signing certificate
+        if: env.HAS_CERT == 'true'
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+        run: |
+          KC="$RUNNER_TEMP/vectorize.keychain-db"
+          PW="$(openssl rand -hex 16)"
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$PW" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$PW" "$KC"
+          security import "$RUNNER_TEMP/cert.p12" -P "$MACOS_CERTIFICATE_PWD" -A -t cert -f pkcs12 -k "$KC"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$PW" "$KC"
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+          security find-identity -v -p codesigning "$KC"
+
+      - name: Sign, make the DMG, and notarize
+        id: package
+        env:
+          SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: packaging/sign_and_package.sh
+
+      - name: Upload the DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vectorize-${{ env.VZ_VERSION }}-${{ matrix.runner }}
+          path: ${{ steps.package.outputs.dmg }}
+          if-no-files-found: error
+
+      - name: Self-test the signed app
+        run: dist/Vectorize.app/Contents/MacOS/Vectorize --self-test
+      - name: Open the window and convert the sample
+        timeout-minutes: 5
+        run: dist/Vectorize.app/Contents/MacOS/Vectorize --smoke-test
+
+      - name: Note the version for the release
+        run: echo "$VZ_VERSION" > version.txt
+      - uses: actions/upload-artifact@v4
+        if: matrix.runner == 'macos-15'
+        with:
+          name: version
+          path: version.txt
+
+  release:
+    name: Draft release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.version != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+      - name: Read the version
+        run: echo "VZ_VERSION=$(cat out/version/version.txt)" >> "$GITHUB_ENV"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VZ_VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: Vectorize ${{ env.VZ_VERSION }}
+          files: out/Vectorize-*/*.dmg
+          draft: true

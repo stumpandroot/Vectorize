@@ -1,0 +1,123 @@
+"""Checks that a built Vectorize.app has everything it needs.
+
+Run the built app with --self-test. It prints one line per check and exits
+with 1 if any check fails. The GitHub build runs this before and after signing.
+"""
+from __future__ import annotations
+
+import os
+import struct
+import sys
+import tempfile
+import zlib
+from pathlib import Path
+
+
+def _png(w: int, h: int) -> bytes:
+    """A pale image with a dark disc in the middle, as PNG bytes."""
+    rows = []
+    cx, cy, r = w / 2, h / 2, min(w, h) * 0.3
+    for y in range(h):
+        row = bytearray([0])
+        for x in range(w):
+            inside = (x - cx) ** 2 + (y - cy) ** 2 < r * r
+            row += bytes((30, 35, 64) if inside else (246, 240, 220))
+        rows.append(bytes(row))
+    def chunk(t, d):
+        return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(b"".join(rows))) + chunk(b"IEND", b""))
+
+
+def run() -> int:
+    results = []
+
+    def check(name, fn):
+        try:
+            info = fn()
+            results.append(True)
+            print(f"PASS {name}" + (f": {info}" if info else ""))
+        except Exception as e:  # report and keep going
+            results.append(False)
+            print(f"FAIL {name}: {e}")
+
+    from . import main as app_main
+    from . import native
+    from .bridge import Bridge, Settings, make_license_manager
+    from .vector_export import svg_to_eps, svg_to_pdf
+
+    def ui():
+        html = (app_main.resource_dir() / "index.html").read_text()
+        assert "VZ_MENU" in html and "pywebviewready" in html, "index.html is missing the editor"
+        return f"{len(html) // 1024} KB"
+    check("interface is bundled", ui)
+
+    def webview_ok():
+        import webview  # noqa: F401
+        from webview.menu import Menu  # noqa: F401
+        import bottle  # noqa: F401  (pywebview's local server)
+        return webview.__name__
+    check("pywebview loads", webview_ok)
+
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">'
+           '<g fill="#1E2340"><circle cx="50" cy="50" r="30"/><path d="M10 10h20v20h-20z"/></g></svg>')
+    def pdf():
+        assert svg_to_pdf(svg, "test")[:5] == b"%PDF-", "not a PDF"
+    check("PDF export", pdf)
+
+    def eps():
+        assert svg_to_eps(svg, "test")[:10] == b"%!PS-Adobe", "not an EPS file"
+    check("EPS export", eps)
+
+    def license_client():
+        from . import greenlaunch_license as gl
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey  # noqa: F401
+        return "licensing on" if make_license_manager() else "licensing off until the public key is added"
+    check("license check loads", license_client)
+
+    def fonts():
+        fams = native.installed_font_families()
+        assert len(fams) > 20, f"only {len(fams)} font families"
+        assert any(f.startswith("Helvetica") for f in fams), "Helvetica not listed"
+        return f"{len(fams)} families"
+    check("installed fonts", fonts)
+
+    def cutout():
+        if not native.can_remove_background():
+            return f"skipped: macOS {'.'.join(map(str, native.macos_version())) or '?'} is older than 14"
+        import Quartz  # noqa: F401  (a missing framework is always a failure)
+        import Vision  # noqa: F401
+        try:
+            png = native.remove_background(_png(320, 240))
+        except RuntimeError as e:
+            # Vision ran but found no photographic subject in the test drawing: the plumbing works.
+            if "didn't find a main subject" in str(e):
+                return "Vision ran (no subject in the test drawing)"
+            # Build machines are virtual Macs that may lack the hardware Vision uses.
+            if os.environ.get("CI"):
+                return f"WARNING, Vision loaded but reported: {e}"
+            raise
+        assert png[:8] == b"\x89PNG\r\n\x1a\n", "result isn't a PNG"
+        return f"{len(png) // 1024} KB PNG"
+    check("AI cutout (Apple Vision)", cutout)
+
+    def bridge():
+        tmp = Path(tempfile.mkdtemp())
+        class D:
+            def open_files(self, *a): return []
+            def save_file(self, name, directory=""): return str(tmp / name)
+            def choose_folder(self, *a): return str(tmp)
+        b = Bridge(D(), None, Settings(tmp / "settings.json"))
+        info = b.app_info()
+        r = b.save_file({"name": "t", "format": "pdf", "svg": svg})
+        assert r and (tmp / "t.pdf").exists(), r
+        return f"macOS {info['macos']}, cutout {'on' if info['cutout'] else 'off'}"
+    check("bridge saves files", bridge)
+
+    ok = all(results)
+    print(f"{sum(results)}/{len(results)} checks passed")
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(run())
