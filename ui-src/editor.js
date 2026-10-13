@@ -787,7 +787,8 @@ async function initNative() {
   document.documentElement.classList.add("native");
   document.title = "Vectorize";
   $("#badge").hidden = true;
-  $("#setupNote").innerHTML = "<b>Everything runs on this Mac.</b> Your images never leave it. Font matching loads Google Fonts when you're online.";
+  $("#setupNote").innerHTML = "<b>Everything runs on this Mac.</b> Your images never leave it. Font matching loads Google Fonts when you're online."
+    + `<br><span class="build-tag">Vectorize ${esc(APP.version || "")} (build ${esc(APP.build || "dev")})</span>`;
   $("#file").removeAttribute("accept");
   const st = APP.settings || {};
   if (FORMATS[st.exportFormat]) S.exportFormat = st.exportFormat;

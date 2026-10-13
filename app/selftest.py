@@ -49,7 +49,10 @@ def run() -> int:
     def ui():
         html = (app_main.resource_dir() / "index.html").read_text()
         assert "VZ_MENU" in html and "pywebviewready" in html, "index.html is missing the editor"
-        return f"{len(html) // 1024} KB"
+        for marker in ('id="tuneGroup"', "AUTO_FONT_MIN", "LOAD_WEIGHTS"):
+            assert marker in html, f"index.html is an old build: no {marker}"
+        from .bridge import BUILD, VERSION
+        return f"{len(html) // 1024} KB, version {VERSION} (build {BUILD})"
     check("interface is bundled", ui)
 
     def webview_ok():

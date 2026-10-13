@@ -20,17 +20,18 @@ from .vector_export import svg_to_eps, svg_to_pdf
 APP_NAME = "Vectorize"
 
 
-def _bundle_version(default: str = "1.0.0") -> str:
-    """The version in the app's Info.plist, or the default when run from source."""
+def _bundle_value(key: str, default: str) -> str:
+    """A value from the app's Info.plist, or the default when run from source."""
     try:
         from Foundation import NSBundle
-        v = NSBundle.mainBundle().objectForInfoDictionaryKey_("CFBundleShortVersionString")
+        v = NSBundle.mainBundle().objectForInfoDictionaryKey_(key)
         return str(v) if v and getattr(sys, "frozen", False) else default
     except Exception:
         return default
 
 
-VERSION = _bundle_version()
+VERSION = _bundle_value("CFBundleShortVersionString", "1.0.0")
+BUILD = _bundle_value("CFBundleVersion", "dev")
 SUPPORT = Path.home() / "Library" / "Application Support" / APP_NAME
 IMAGE_TYPES = ("Images (*.png;*.jpg;*.jpeg)",)
 
@@ -79,6 +80,7 @@ class Bridge:
     def app_info(self):
         return {
             "version": VERSION,
+            "build": BUILD,
             "native": True,
             "macos": ".".join(str(p) for p in native.macos_version()),
             "cutout": native.can_remove_background(),

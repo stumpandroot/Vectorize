@@ -709,24 +709,42 @@ let FONTS = [
   ["Abril Fatface", [400]], ["Pacifico", [400]], ["Lobster", [400]], ["Dancing Script", [400, 700]], ["Permanent Marker", [400]], ["Caveat", [400, 700]],
   ["Roboto Mono", [400, 700]], ["Space Mono", [400, 700]],
 ];
-const WEIGHT_NAME = { 400: "Regular", 600: "SemiBold", 700: "Bold", 800: "ExtraBold", 900: "Black" };
+const WEIGHT_NAME = { 300: "Light", 400: "Regular", 500: "Medium", 600: "SemiBold", 700: "Bold", 800: "ExtraBold", 900: "Black" };
 let fontsReady = null;
+// Loads every weight each family offers. Each weight is its own small request, so a weight a family
+// doesn't have fails alone instead of blocking the family. Weights that draw the same as another
+// (the browser substituting a nearby weight) are dropped.
+const LOAD_WEIGHTS = [300, 400, 500, 600, 700, 800, 900];
+function cssLink(q) {
+  return new Promise(r => {
+    const l = document.createElement("link"); l.rel = "stylesheet";
+    l.href = `https://fonts.googleapis.com/css2?family=${q}&display=block`;
+    l.onload = () => r(true); l.onerror = () => { l.remove(); r(false); }; document.head.appendChild(l); setTimeout(() => r(false), 8000);
+  });
+}
 function loadFonts(text) {
   if (fontsReady) return fontsReady;
   fontsReady = (async () => {
     const ok = [];
     await Promise.all(FONTS.map(async ([fam, ws]) => {
+      let weights = ws;
       if (!window.__VZ_LOCAL_FONTS) {
-        const l = document.createElement("link"); l.rel = "stylesheet";
-        l.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fam).replace(/%20/g, "+")}:wght@${ws.join(";")}&display=block`;
-        document.head.appendChild(l);
-        await new Promise(r => { l.onload = r; l.onerror = r; setTimeout(r, 5000); });
+        const q = encodeURIComponent(fam).replace(/%20/g, "+");
+        const got = await Promise.all(LOAD_WEIGHTS.map(w => cssLink(`${q}:wght@${w}`)));
+        weights = LOAD_WEIGHTS.filter((w, i) => got[i]);
+        if (!weights.length && await cssLink(q)) weights = [400];
       }
-      for (const w of ws) {
+      const loaded = [];
+      for (const w of weights) {
         try {
-          const faces = await Promise.race([document.fonts.load(`${w} 40px "${fam}"`, text || "Aa"), new Promise(r => setTimeout(() => r([]), 5000))]);
-          if (faces && faces.length) ok.push([fam, w]);
+          const faces = await Promise.race([document.fonts.load(`${w} 40px "${fam}"`, text || "Aa"), new Promise(r => setTimeout(() => r([]), 6000))]);
+          if (faces && faces.length) loaded.push(w);
         } catch (e) { /* skip faces that fail to load */ }
+      }
+      const c = document.createElement("canvas").getContext("2d"), seen = new Set();
+      for (const w of loaded) {
+        c.font = `${w} 60px "${fam}"`; const k = c.measureText("Hamburgefonstiv").width.toFixed(2);
+        if (!seen.has(k)) { seen.add(k); ok.push([fam, w]); }
       }
     }));
     return ok;

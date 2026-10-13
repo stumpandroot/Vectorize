@@ -55,7 +55,7 @@ def main():
         (W / "test.html").write_text(page(out))
         # Test build: local fonts stand in for Google Fonts (the sandbox blocks fonts.googleapis.com).
         N = "/tmp/claude-0/fontdl/nun/package/files/"
-        ff = "".join(f"@font-face{{font-family:'Nunito';src:url('file://{N}nunito-latin-{w}-normal.woff2');font-weight:{w}}}" for w in (400, 700, 900))
+        ff = "".join(f"@font-face{{font-family:'Nunito';src:url('file://{N}nunito-latin-{w}-normal.woff2');font-weight:{w}}}" for w in (400, 700, 800, 900))
         for fam, f, w in (("DejaVu Sans", "dejavu/DejaVuSans.ttf", 400), ("DejaVu Sans", "dejavu/DejaVuSans-Bold.ttf", 700),
                           ("DejaVu Serif", "dejavu/DejaVuSerif.ttf", 400), ("Liberation Serif", "liberation/LiberationSerif-Regular.ttf", 400),
                           ("FreeSans", "freefont/FreeSansBold.ttf", 700), ("DejaVu Sans Condensed", "dejavu/DejaVuSansCondensed-Bold.ttf", 700)):
@@ -63,7 +63,7 @@ def main():
         for w, f in ((700, "Inter-Bold.otf"), (900, "Inter-Black.otf")):
             ff += f"@font-face{{font-family:'Inter';src:url('file:///usr/share/fonts/opentype/inter/{f}');font-weight:{w}}}"
         inject = "<style>" + ff + "</style><script>window.__VZ_LOCAL_FONTS=true;</script>"
-        local = ("let FONTS = window.__VZ_LOCAL_FONTS ? [['Nunito',[400,700,900]],['DejaVu Sans',[400,700]],['DejaVu Serif',[400]],"
+        local = ("let FONTS = window.__VZ_LOCAL_FONTS ? [['Nunito',[400,700,800,900]],['DejaVu Sans',[400,700]],['DejaVu Serif',[400]],"
                  "['DejaVu Sans Condensed',[700]],['Liberation Serif',[400]],['Inter',[700,900]],['FreeSans',[700]]] : [")
         assert out.count("let FONTS = [") == 1
         (W / "testfonts.html").write_text(page(out.replace("let FONTS = [", local, 1), inject))
