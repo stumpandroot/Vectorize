@@ -90,13 +90,23 @@ const VZ = (() => {
     if (out.length > 1 && out[0] + n - out[out.length - 1] <= k) out.pop();
     return out;
   }
-  function straightRuns(p, tol, minLen) {
+  const VZ_BOW = {};   // test hooks: shallow (degrees), x (false turns off corner intersection)
+  // A run is straight when its points stay within tol of the chord. Past a noise floor, the points must
+  // also stray to both sides: points on a gentle curve all fall on one side, so the curve stays a curve.
+  function isStraight(arr, i0, i1, tol, floor = Infinity) {
+    const a = arr[i0], ab = sub(arr[i1], a), L = hyp(ab[0], ab[1]); if (L < 1e-9) return false;
+    let mx = 0, sum = 0;
+    for (let i = i0; i <= i1; i++) { const d = cross(ab, sub(arr[i], a)) / L; mx = Math.max(mx, Math.abs(d)); sum += d; }
+    if (mx > tol) return false;
+    return mx <= floor || Math.abs(sum / (i1 - i0 + 1)) <= 0.45 * mx;
+  }
+  function straightRuns(p, tol, minLen, floor) {
     const n = p.length, runs = []; let i = 0;
     while (i < n - minLen) {
       let j = i + minLen;
-      if (maxLineDist(p, i, j, p[i], p[j]) > tol) { i++; continue; }
+      if (!isStraight(p, i, j, tol, floor)) { i++; continue; }
       let step = 8;
-      while (j < n - 1) { const j2 = Math.min(n - 1, j + step); if (maxLineDist(p, i, j2, p[i], p[j2]) <= tol) j = j2; else { if (step === 1) break; step = Math.max(1, step >> 1); } }
+      while (j < n - 1) { const j2 = Math.min(n - 1, j + step); if (isStraight(p, i, j2, tol, floor)) j = j2; else { if (step === 1) break; step = Math.max(1, step >> 1); } }
       runs.push([i, j]); i = j;
     }
     return runs;
@@ -126,7 +136,7 @@ const VZ = (() => {
     const n = p.length; return p.map((_, i) => { let x = 0, y = 0; for (let j = -r; j <= r; j++) { const q = p[(i + j + n * 8) % n], w = ker[j + r] / s; x += q[0] * w; y += q[1] * w; } return [x, y]; });
   }
 
-  function fitOutline(pts, tol, k, cornerDeg, lineTol, lineMin, smoothSigma = 1.6) {
+  function fitOutline(pts, tol, k, cornerDeg, lineTol, lineMin, smoothSigma = 1.6, straightFloor = Infinity) {
     let p = resampleClosed(pts, 1); const n = p.length;
     if (n < 10) { const V = p.filter((_, i) => i % Math.max(1, n >> 2) === 0); return { V, segs: V.map(() => ["L"]) }; }
     let corners = detectCorners(p, k, cornerDeg);
@@ -140,21 +150,40 @@ const VZ = (() => {
       ps = p.map((q, i) => [q[0] + (ps[i][0] - q[0]) * w[i], q[1] + (ps[i][1] - q[1]) * w[i]]);
     }
     p = ps; const pc = p.concat([p[0]]);
-    const V = [], segs = [];
+    const V = [], segs = [], fits = [];
     for (let pi = 0; pi < pieces.length - 1; pi++) {
       const piece = pc.slice(pieces[pi], pieces[pi + 1] + 1);
       let runs;
-      if (corners.length && piece.length >= 4 && maxLineDist(piece, 0, piece.length - 1, piece[0], piece[piece.length - 1]) <= lineTol) runs = [[0, piece.length - 1]];
-      else runs = straightRuns(piece, lineTol * 0.5, lineMin);
+      if (corners.length && piece.length >= 4 && isStraight(piece, 0, piece.length - 1, lineTol, straightFloor)) runs = [[0, piece.length - 1]];
+      else runs = straightRuns(piece, lineTol * 0.5, lineMin, straightFloor * 0.5);
       let marks = [], cur = 0;
       for (const [a, b] of runs) { if (a > cur) marks.push([cur, a, "curve"]); marks.push([a, b, "line"]); cur = b; }
       if (cur < piece.length - 1) marks.push([cur, piece.length - 1, "curve"]);
       const merged = []; for (const m of marks) { if (m[2] === "curve" && m[1] - m[0] < 3 && merged.length) merged[merged.length - 1][1] = m[1]; else merged.push(m.slice()); }
       marks = merged;
+      // Straight runs that meet at a shallow bend are facets of one gentle curve, not two edges:
+      // real straight edges either continue (almost no bend) or meet at a corner.
+      const shallow = VZ_BOW.shallow != null ? VZ_BOW.shallow : 35;
+      if (shallow > 0) {
+        const dir = m => unit(sub(piece[m[1]], piece[m[0]]));
+        const lineIdx = marks.map((m, j) => m[2] === "line" ? j : -1).filter(j => j >= 0);
+        const demote = new Set();
+        for (let q = 0; q + 1 < lineIdx.length; q++) {
+          const a = lineIdx[q], b = lineIdx[q + 1];
+          if (b - a > 2 || (b - a === 2 && marks[a + 1][1] - marks[a + 1][0] > lineMin)) continue;
+          const ang = Math.acos(Math.max(-1, Math.min(1, dot(dir(marks[a]), dir(marks[b]))))) / DEG;
+          if (ang > 4 && ang < shallow) { demote.add(a); demote.add(b); }
+        }
+        if (demote.size) {
+          const out = [];
+          marks.forEach((m, j) => { const kind = demote.has(j) ? "curve" : m[2]; if (out.length && kind === "curve" && out[out.length - 1][2] === "curve") out[out.length - 1][1] = m[1]; else out.push([m[0], m[1], kind]); });
+          marks = out;
+        }
+      }
       const smoothLoop = !corners.length;
       marks.forEach(([a, b, kind], j) => {
         const seg = piece.slice(a, b + 1); V.push(seg[0].slice());
-        if (kind === "line") { segs.push(["L"]); return; }
+        if (kind === "line") { segs.push(["L"]); fits[segs.length - 1] = lineFit(seg); return; }
         let tS = null, tE = null;
         if (j > 0 && marks[j - 1][2] === "line") tS = unit(sub(piece[marks[j - 1][1]], piece[marks[j - 1][0]]));
         if (j + 1 < marks.length && marks[j + 1][2] === "line") tE = unit(sub(piece[marks[j + 1][1]], piece[marks[j + 1][0]]));
@@ -167,7 +196,30 @@ const VZ = (() => {
         fitted.forEach(([endp, sg], q) => { segs.push(sg); if (q < fitted.length - 1) V.push(endp.slice()); });
       });
     }
+    if (VZ_BOW.x !== false) intersectCorners(V, segs, fits, k);
     return { V, segs };
+  }
+  // Total least squares line through the middle of a straight run (its ends are rounded by blur).
+  function lineFit(seg) {
+    const m = seg.length, a = Math.floor(m * 0.2), b = Math.max(a + 2, Math.ceil(m * 0.8)), pts = seg.slice(a, Math.min(m, b));
+    if (pts.length < 3) return null;
+    let cx = 0, cy = 0; for (const q of pts) { cx += q[0]; cy += q[1]; } cx /= pts.length; cy /= pts.length;
+    let sxx = 0, sxy = 0, syy = 0; for (const q of pts) { const x = q[0] - cx, y = q[1] - cy; sxx += x * x; sxy += x * y; syy += y * y; }
+    const th = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+    return { c: [cx, cy], d: [Math.cos(th), Math.sin(th)], len: hyp(seg[m - 1][0] - seg[0][0], seg[m - 1][1] - seg[0][1]) };
+  }
+  // Where two straight runs meet at a corner, the corner sits where the lines cross, not on the
+  // rounded-off curve the blur leaves behind. Moves are capped so a wrong fit can't distort the shape.
+  function intersectCorners(V, segs, fits, k) {
+    const n = V.length;
+    for (let i = 0; i < n; i++) {
+      const ip = (i - 1 + n) % n, A = fits[ip], B = fits[i];
+      if (!A || !B || segs[ip][0] !== "L" || segs[i][0] !== "L") continue;
+      const den = cross(A.d, B.d); if (Math.abs(den) < Math.sin(20 * DEG)) continue;   // nearly parallel: leave it
+      const t = cross(sub(B.c, A.c), B.d) / den, X = [A.c[0] + A.d[0] * t, A.c[1] + A.d[1] * t];
+      const move = hyp(X[0] - V[i][0], X[1] - V[i][1]);
+      if (move <= Math.max(1.5, 1.2 * k) && move <= 0.35 * Math.min(A.len, B.len)) V[i] = X;
+    }
   }
   const fmt = v => { const r = Math.round(v * 100) / 100; return Object.is(r, -0) ? "0" : String(r); };
   const P = q => fmt(q[0]) + " " + fmt(q[1]);
@@ -743,5 +795,5 @@ const VZ = (() => {
     return { kind: "ring", params: { cx, cy, r1, r2 }, pts, holePts: Array.from({ length: 360 }, (_, i) => [cx + r2 * Math.cos(i * DEG), cy + r2 * Math.sin(i * DEG)]), dStr, el: id => `<path id="${id}" d="${dStr}"/>`, label: "Ring", consumesHole: true };
   }
 
-  return { resampleClosed, matchTemplate, snapTo, ringShape, harmonic, area, fitOutline, outlineD, matchShape, relativeResidual, overlapPct, boundary, shapeElement, shapeD, snapOutlines, snapShapes, maskContours, nest };
+  return { BOW: VZ_BOW, resampleClosed, matchTemplate, snapTo, ringShape, harmonic, area, fitOutline, outlineD, matchShape, relativeResidual, overlapPct, boundary, shapeElement, shapeD, snapOutlines, snapShapes, maskContours, nest };
 })();

@@ -172,9 +172,12 @@ h1,h2,h3,p{margin:0}
 .stepper{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:999px;box-shadow:inset 0 0 0 1px var(--line);padding:3px;height:44px}
 .stepper button{width:38px;height:38px;border-radius:50%;background:var(--mist-tint);font-size:18px;font-weight:600;overflow:hidden}
 .stepper span{font-size:14px;color:var(--muted)} .stepper b{color:var(--ink);font-size:16px;font-variant-numeric:tabular-nums}
-.slider-row{display:flex;flex-direction:column;gap:4px}
-.slider-row .top{display:flex;justify-content:space-between;font-size:13px;font-weight:600}
-.slider-row .top output{color:var(--muted);font-variant-numeric:tabular-nums}
+.dial{display:flex;flex-direction:column;gap:2px}
+.dial .top{display:flex;justify-content:space-between;font-size:13.5px;font-weight:700}
+.dial .top output{color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
+.dial .ends{display:flex;justify-content:space-between;font-size:11.5px;font-weight:600;color:var(--muted);margin-top:-2px}
+.dial .help{margin-top:2px}
+.dial .stepper{margin-top:4px}
 input[type=range]{width:100%;accent-color:var(--sun);height:24px}
 .switch{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13.5px;font-weight:600;cursor:pointer}
 .switch input{position:absolute;opacity:0;width:1px;height:1px}
@@ -426,12 +429,32 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
           <p class="help" id="layHelp">Colors sit on top of each other with no gaps between them.</p>
         </div>
 
-        <div class="group">
-          <div class="slider-row"><div class="top"><label for="detail">Detail</label><output id="detailOut">70</output></div>
-            <input type="range" id="detail" min="0" max="100" value="70"><span class="help">Higher keeps smaller specks and fine details.</span></div>
-          <div class="slider-row"><div class="top"><label for="smooth">Smoothness</label><output id="smoothOut">50</output></div>
-            <input type="range" id="smooth" min="0" max="100" value="50"><span class="help">Higher makes fewer, rounder curves.</span></div>
-          <label class="switch" for="snap">Straighten and align lines<input type="checkbox" id="snap" checked><span class="track"><i></i></span></label>
+        <div class="group" id="tuneGroup">
+          <div class="row" style="justify-content:space-between"><span class="group-title">Fine-tune</span><button class="link-btn" id="tuneReset" type="button">Reset</button></div>
+          <div class="dial"><div class="top"><label for="detail">Small details</label><output id="detailOut">70</output></div>
+            <input type="range" id="detail" min="0" max="100" value="70" aria-describedby="detailUse">
+            <div class="ends" aria-hidden="true"><span>Remove specks</span><span>Keep tiny details</span></div>
+            <p class="help" id="detailUse">Lower it for scans and JPEGs with dirt or noise. Raise it to keep fine lines and small dots.</p></div>
+          <div class="dial"><div class="top"><label for="straight">Straight edges</label><output id="straightOut">50</output></div>
+            <input type="range" id="straight" min="0" max="100" value="50" aria-describedby="straightUse">
+            <div class="ends" aria-hidden="true"><span>Follow the pixels</span><span>Straighten</span></div>
+            <p class="help" id="straightUse">Raise it for blurry or compressed logos with straight-sided letters. Lower it for hand-drawn art.</p></div>
+          <div class="dial"><div class="top"><label for="smooth">Curves</label><output id="smoothOut">50</output></div>
+            <input type="range" id="smooth" min="0" max="100" value="50" aria-describedby="smoothUse">
+            <div class="ends" aria-hidden="true"><span>Tight</span><span>Smooth</span></div>
+            <p class="help" id="smoothUse">Raise it for rounded fonts and lumpy curves. Lower it to keep small bumps and notches.</p></div>
+          <div class="dial"><div class="top"><label for="corners">Corners</label><output id="cornersOut">50</output></div>
+            <input type="range" id="corners" min="0" max="100" value="50" aria-describedby="cornersUse">
+            <div class="ends" aria-hidden="true"><span>Rounder</span><span>Sharper</span></div>
+            <p class="help" id="cornersUse">Raise it for blocky letters and sharp points. Lower it for soft, rounded art.</p></div>
+          <div class="dial"><div class="top"><span id="growLabel">Grow or shrink</span><output id="growOut">0 px</output></div>
+            <div class="stepper" role="group" aria-labelledby="growLabel" aria-describedby="growUse">
+              <button id="growMinus" type="button" aria-label="Shrink by a quarter pixel" data-press><span class="inner">−</span></button>
+              <span id="growVal">Same size</span>
+              <button id="growPlus" type="button" aria-label="Grow by a quarter pixel" data-press><span class="inner">+</span></button>
+            </div>
+            <p class="help" id="growUse">Moves every edge out or in, in the original image's pixels. Grow if shapes look thinner than the original; shrink to tighten colors for printing.</p></div>
+          <label class="switch" for="snap">Line up edges with each other<input type="checkbox" id="snap" checked><span class="track"><i></i></span></label>
         </div>
 
         <div class="group">
@@ -449,7 +472,7 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
             <button id="xm-auto" data-xmode="auto" aria-pressed="true" data-press><span class="inner">Find words</span></button>
             <button id="xm-off" data-xmode="off" aria-pressed="false" data-press><span class="inner">Off</span></button>
           </div>
-          <p class="help">Words get smoother, cleaner letters. Review them, or match a font, in the Text tab.</p>
+          <p class="help">Vectorize finds words so you can match them to a font in the Text tab.</p>
         </div>
 
         <div class="note" id="setupNote"><b>This is the web preview.</b> The Mac app adds AI background cutout, PDF and EPS export, and saving straight to your folders. Everything here runs in your browser; your image never leaves this page.</div>
@@ -462,7 +485,7 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
       </div>
 
       <div id="pane-text" class="group" hidden style="gap:12px">
-        <p class="help">Words get cleaned-up letters: smoother curves, straight stems, and crisp corners. Type what a word says to match it to a font and set it in clean letters from that font.</p>
+        <p class="help">Words keep their traced letters. Type what a word says to match it to a font and set it in that font's letters, or choose Cleaned to smooth rough lettering.</p>
         <div class="text-list" id="textList"></div>
       </div>
 
@@ -604,13 +627,23 @@ const VZ = (() => {
     if (out.length > 1 && out[0] + n - out[out.length - 1] <= k) out.pop();
     return out;
   }
-  function straightRuns(p, tol, minLen) {
+  const VZ_BOW = {};   // test hooks: shallow (degrees), x (false turns off corner intersection)
+  // A run is straight when its points stay within tol of the chord. Past a noise floor, the points must
+  // also stray to both sides: points on a gentle curve all fall on one side, so the curve stays a curve.
+  function isStraight(arr, i0, i1, tol, floor = Infinity) {
+    const a = arr[i0], ab = sub(arr[i1], a), L = hyp(ab[0], ab[1]); if (L < 1e-9) return false;
+    let mx = 0, sum = 0;
+    for (let i = i0; i <= i1; i++) { const d = cross(ab, sub(arr[i], a)) / L; mx = Math.max(mx, Math.abs(d)); sum += d; }
+    if (mx > tol) return false;
+    return mx <= floor || Math.abs(sum / (i1 - i0 + 1)) <= 0.45 * mx;
+  }
+  function straightRuns(p, tol, minLen, floor) {
     const n = p.length, runs = []; let i = 0;
     while (i < n - minLen) {
       let j = i + minLen;
-      if (maxLineDist(p, i, j, p[i], p[j]) > tol) { i++; continue; }
+      if (!isStraight(p, i, j, tol, floor)) { i++; continue; }
       let step = 8;
-      while (j < n - 1) { const j2 = Math.min(n - 1, j + step); if (maxLineDist(p, i, j2, p[i], p[j2]) <= tol) j = j2; else { if (step === 1) break; step = Math.max(1, step >> 1); } }
+      while (j < n - 1) { const j2 = Math.min(n - 1, j + step); if (isStraight(p, i, j2, tol, floor)) j = j2; else { if (step === 1) break; step = Math.max(1, step >> 1); } }
       runs.push([i, j]); i = j;
     }
     return runs;
@@ -640,7 +673,7 @@ const VZ = (() => {
     const n = p.length; return p.map((_, i) => { let x = 0, y = 0; for (let j = -r; j <= r; j++) { const q = p[(i + j + n * 8) % n], w = ker[j + r] / s; x += q[0] * w; y += q[1] * w; } return [x, y]; });
   }
 
-  function fitOutline(pts, tol, k, cornerDeg, lineTol, lineMin, smoothSigma = 1.6) {
+  function fitOutline(pts, tol, k, cornerDeg, lineTol, lineMin, smoothSigma = 1.6, straightFloor = Infinity) {
     let p = resampleClosed(pts, 1); const n = p.length;
     if (n < 10) { const V = p.filter((_, i) => i % Math.max(1, n >> 2) === 0); return { V, segs: V.map(() => ["L"]) }; }
     let corners = detectCorners(p, k, cornerDeg);
@@ -654,21 +687,40 @@ const VZ = (() => {
       ps = p.map((q, i) => [q[0] + (ps[i][0] - q[0]) * w[i], q[1] + (ps[i][1] - q[1]) * w[i]]);
     }
     p = ps; const pc = p.concat([p[0]]);
-    const V = [], segs = [];
+    const V = [], segs = [], fits = [];
     for (let pi = 0; pi < pieces.length - 1; pi++) {
       const piece = pc.slice(pieces[pi], pieces[pi + 1] + 1);
       let runs;
-      if (corners.length && piece.length >= 4 && maxLineDist(piece, 0, piece.length - 1, piece[0], piece[piece.length - 1]) <= lineTol) runs = [[0, piece.length - 1]];
-      else runs = straightRuns(piece, lineTol * 0.5, lineMin);
+      if (corners.length && piece.length >= 4 && isStraight(piece, 0, piece.length - 1, lineTol, straightFloor)) runs = [[0, piece.length - 1]];
+      else runs = straightRuns(piece, lineTol * 0.5, lineMin, straightFloor * 0.5);
       let marks = [], cur = 0;
       for (const [a, b] of runs) { if (a > cur) marks.push([cur, a, "curve"]); marks.push([a, b, "line"]); cur = b; }
       if (cur < piece.length - 1) marks.push([cur, piece.length - 1, "curve"]);
       const merged = []; for (const m of marks) { if (m[2] === "curve" && m[1] - m[0] < 3 && merged.length) merged[merged.length - 1][1] = m[1]; else merged.push(m.slice()); }
       marks = merged;
+      // Straight runs that meet at a shallow bend are facets of one gentle curve, not two edges:
+      // real straight edges either continue (almost no bend) or meet at a corner.
+      const shallow = VZ_BOW.shallow != null ? VZ_BOW.shallow : 35;
+      if (shallow > 0) {
+        const dir = m => unit(sub(piece[m[1]], piece[m[0]]));
+        const lineIdx = marks.map((m, j) => m[2] === "line" ? j : -1).filter(j => j >= 0);
+        const demote = new Set();
+        for (let q = 0; q + 1 < lineIdx.length; q++) {
+          const a = lineIdx[q], b = lineIdx[q + 1];
+          if (b - a > 2 || (b - a === 2 && marks[a + 1][1] - marks[a + 1][0] > lineMin)) continue;
+          const ang = Math.acos(Math.max(-1, Math.min(1, dot(dir(marks[a]), dir(marks[b]))))) / DEG;
+          if (ang > 4 && ang < shallow) { demote.add(a); demote.add(b); }
+        }
+        if (demote.size) {
+          const out = [];
+          marks.forEach((m, j) => { const kind = demote.has(j) ? "curve" : m[2]; if (out.length && kind === "curve" && out[out.length - 1][2] === "curve") out[out.length - 1][1] = m[1]; else out.push([m[0], m[1], kind]); });
+          marks = out;
+        }
+      }
       const smoothLoop = !corners.length;
       marks.forEach(([a, b, kind], j) => {
         const seg = piece.slice(a, b + 1); V.push(seg[0].slice());
-        if (kind === "line") { segs.push(["L"]); return; }
+        if (kind === "line") { segs.push(["L"]); fits[segs.length - 1] = lineFit(seg); return; }
         let tS = null, tE = null;
         if (j > 0 && marks[j - 1][2] === "line") tS = unit(sub(piece[marks[j - 1][1]], piece[marks[j - 1][0]]));
         if (j + 1 < marks.length && marks[j + 1][2] === "line") tE = unit(sub(piece[marks[j + 1][1]], piece[marks[j + 1][0]]));
@@ -681,7 +733,30 @@ const VZ = (() => {
         fitted.forEach(([endp, sg], q) => { segs.push(sg); if (q < fitted.length - 1) V.push(endp.slice()); });
       });
     }
+    if (VZ_BOW.x !== false) intersectCorners(V, segs, fits, k);
     return { V, segs };
+  }
+  // Total least squares line through the middle of a straight run (its ends are rounded by blur).
+  function lineFit(seg) {
+    const m = seg.length, a = Math.floor(m * 0.2), b = Math.max(a + 2, Math.ceil(m * 0.8)), pts = seg.slice(a, Math.min(m, b));
+    if (pts.length < 3) return null;
+    let cx = 0, cy = 0; for (const q of pts) { cx += q[0]; cy += q[1]; } cx /= pts.length; cy /= pts.length;
+    let sxx = 0, sxy = 0, syy = 0; for (const q of pts) { const x = q[0] - cx, y = q[1] - cy; sxx += x * x; sxy += x * y; syy += y * y; }
+    const th = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+    return { c: [cx, cy], d: [Math.cos(th), Math.sin(th)], len: hyp(seg[m - 1][0] - seg[0][0], seg[m - 1][1] - seg[0][1]) };
+  }
+  // Where two straight runs meet at a corner, the corner sits where the lines cross, not on the
+  // rounded-off curve the blur leaves behind. Moves are capped so a wrong fit can't distort the shape.
+  function intersectCorners(V, segs, fits, k) {
+    const n = V.length;
+    for (let i = 0; i < n; i++) {
+      const ip = (i - 1 + n) % n, A = fits[ip], B = fits[i];
+      if (!A || !B || segs[ip][0] !== "L" || segs[i][0] !== "L") continue;
+      const den = cross(A.d, B.d); if (Math.abs(den) < Math.sin(20 * DEG)) continue;   // nearly parallel: leave it
+      const t = cross(sub(B.c, A.c), B.d) / den, X = [A.c[0] + A.d[0] * t, A.c[1] + A.d[1] * t];
+      const move = hyp(X[0] - V[i][0], X[1] - V[i][1]);
+      if (move <= Math.max(1.5, 1.2 * k) && move <= 0.35 * Math.min(A.len, B.len)) V[i] = X;
+    }
   }
   const fmt = v => { const r = Math.round(v * 100) / 100; return Object.is(r, -0) ? "0" : String(r); };
   const P = q => fmt(q[0]) + " " + fmt(q[1]);
@@ -1257,7 +1332,7 @@ const VZ = (() => {
     return { kind: "ring", params: { cx, cy, r1, r2 }, pts, holePts: Array.from({ length: 360 }, (_, i) => [cx + r2 * Math.cos(i * DEG), cy + r2 * Math.sin(i * DEG)]), dStr, el: id => `<path id="${id}" d="${dStr}"/>`, label: "Ring", consumesHole: true };
   }
 
-  return { resampleClosed, matchTemplate, snapTo, ringShape, harmonic, area, fitOutline, outlineD, matchShape, relativeResidual, overlapPct, boundary, shapeElement, shapeD, snapOutlines, snapShapes, maskContours, nest };
+  return { BOW: VZ_BOW, resampleClosed, matchTemplate, snapTo, ringShape, harmonic, area, fitOutline, outlineD, matchShape, relativeResidual, overlapPct, boundary, shapeElement, shapeD, snapOutlines, snapShapes, maskContours, nest };
 })();
 
 "use strict";
@@ -1266,9 +1341,9 @@ const WORK_MAX = 1600, WORK_MIN = 1600;
 
 /* ---------- Settings ---------- */
 const PRESETS = {
-  logo:  { cmode: "auto",   k: 6,  bg: "remove", detail: 70, smooth: 50, shapes: "auto", snap: true,  maxAuto: 10 },
-  art:   { cmode: "auto",   k: 12, bg: "keep",   detail: 85, smooth: 40, shapes: "auto", snap: false, maxAuto: 16 },
-  photo: { cmode: "number", k: 12, bg: "keep",   detail: 80, smooth: 30, shapes: "off",  snap: false, maxAuto: 24 },
+  logo:  { cmode: "auto",   k: 6,  bg: "remove", detail: 70, straight: 50, smooth: 50, corners: 50, grow: 0, shapes: "auto", snap: true,  maxAuto: 10 },
+  art:   { cmode: "auto",   k: 12, bg: "keep",   detail: 85, straight: 35, smooth: 40, corners: 40, grow: 0, shapes: "auto", snap: false, maxAuto: 16 },
+  photo: { cmode: "number", k: 12, bg: "keep",   detail: 80, straight: 15, smooth: 30, corners: 30, grow: 0, shapes: "off",  snap: false, maxAuto: 24 },
 };
 const S = Object.assign({ preset: "logo", textMode: "auto", layering: "stacked", output: "", exportFormat: "svg" }, PRESETS.logo);
 const locked = [];            // brand colors, "#RRGGBB"
@@ -1573,8 +1648,10 @@ function quantize(imgd, pal) {
       }
     }
   }
-  // Merge small islands of color into the color that surrounds them. Detail sets the size.
-  const minArea = Math.round(4 + (1 - S.detail / 100) * n * 0.0008);
+  // Merge small islands of color into the color that surrounds them. Detail sets the size, measured in
+  // the source image's pixels (the same rule as the speck filter), so dots on i and j and small punctuation
+  // survive on enlarged images.
+  const scq = Math.max(job.scale, 1), minArea = Math.max(4, Math.round(0.8 * (2 + (1 - S.detail / 100) * 8) ** 2 * 0.5 * scq));
   const comp = new Int32Array(n).fill(-1), stack = new Int32Array(n);
   for (let s0 = 0; s0 < n; s0++) {
     if (comp[s0] !== -1) continue;
@@ -1628,6 +1705,14 @@ function borderLabel(lab, w, h) {
 }
 
 /* ---------- Mask tools for tracing ---------- */
+// Moves every point of a closed outline d pixels along its normal (positive: out of the outline's inside).
+function offsetContour(q, d) {
+  const n = q.length; if (n < 3) return q;
+  return q.map((p, i) => {
+    const a = q[(i - 2 + n) % n], b = q[(i + 2) % n], tx = b[0] - a[0], ty = b[1] - a[1], L = Math.hypot(tx, ty) || 1;
+    return [p[0] + ty / L * d, p[1] - tx / L * d];
+  });
+}
 function blurMask(mask, w, h, sigma) {
   const r = Math.ceil(3 * sigma), k = []; let s = 0; for (let i = -r; i <= r; i++) { const v = Math.exp(-0.5 * (i / sigma) ** 2); k.push(v); s += v; } for (let i = 0; i < k.length; i++) k[i] /= s;
   const tmp = new Float32Array(w * h), out = new Float32Array(w * h);
@@ -1728,7 +1813,14 @@ function traceNow(cancelled = () => false) {
       const sc = Math.max(job.scale, 1), smooth = S.smooth / 100, detail = S.detail / 100;
       const sigma = Math.max(0.8, sc * 0.45 * (0.5 + smooth));
       const speckArea = (2 + (1 - detail) * 8) ** 2 * 0.5 * sc;
-      const tol = 0.55 * sc * (0.6 + 0.8 * smooth), k = Math.max(4, Math.round(2 * sc));
+      // The dials, measured in the source image's pixels so they act the same at any size.
+      //   Straight edges: how far an edge may stray from a line and still be drawn straight (0.4 to 2.6 px),
+      //   and how close to level or upright a line snaps (1 to 5 degrees).
+      //   Corners: how sharp a turn must be to stay a corner (60 degrees, rounder, to 20 degrees, sharper).
+      const straight = (S.straight ?? 50) / 100, corners = (S.corners ?? 50) / 100;
+      const lineSrc = straight <= 0.5 ? 0.4 + 1.6 * straight : 1.2 + 2.8 * (straight - 0.5);
+      const snapDeg = 1 + 4 * straight, cornerDeg = 60 - 40 * corners, grow = (S.grow || 0) * sc;
+      const tol = 0.55 * sc * (0.6 + 0.8 * smooth), k = Math.max(4, Math.round(1.2 * sc));
       const strict = 0.7, matching = S.shapes;
       const layers = [], shapes = [], allOutlines = []; let pieces = 0, budget = 2500, tplBudget = 60;
       order.forEach((c, li) => {
@@ -1739,17 +1831,26 @@ function traceNow(cancelled = () => false) {
         if (S.layering !== "cutout") {
           // Drop regions made only of higher layers, then stop slightly short under
           // the outer edge of higher layers so this color never peeks out around them.
-          const cc = components8(mask, W, H), own = new Set();
-          for (let i = 0; i < N; i++) if (lab[i] === c) own.add(cc[i]);
-          for (let i = 0; i < N; i++) if (mask[i] && !own.has(cc[i])) mask[i] = 0;
+          // A region also needs a real share of its own color: a few stray edge pixels don't earn a hidden copy.
+          const cc = components8(mask, W, H), ownN = new Map(), size = new Map();
+          for (let i = 0; i < N; i++) if (mask[i]) { size.set(cc[i], (size.get(cc[i]) || 0) + 1); if (lab[i] === c) ownN.set(cc[i], (ownN.get(cc[i]) || 0) + 1); }
+          const keep = id => { const o = ownN.get(id) || 0; return o > 0 && (o >= 0.03 * size.get(id) || o >= 4 * speckArea); };
+          for (let i = 0; i < N; i++) if (mask[i] && !keep(cc[i])) mask[i] = 0;
           const inner = erodeDisc(mask, W, H, Math.max(1, Math.round(sc)));
           for (let i = 0; i < N; i++) mask[i] = (lab[i] === c || (mask[i] && inner[i])) ? 1 : 0;
         }
         const f = blurMask(mask, W, H, sigma);
         const contours = VZ.maskContours(f, W, H).filter(q => Math.abs(VZ.area(q)) >= speckArea);
         if (!contours.length) return;
+        const nested = VZ.nest(contours);
+        if (grow) {
+          // Each outline's normal points out of its own inside, so outer edges move out and holes move in.
+          const isHole = new Set(); for (const [, hs] of nested) for (const h of hs) isHole.add(h);
+          contours.forEach((q, ci) => { contours[ci] = offsetContour(q, isHole.has(ci) ? -grow : grow); });
+        }
         const recs = contours.map(q => {
-          const ol = VZ.fitOutline(q, tol, k, 35, 0.35 * sc, Math.max(40, Math.round(20 * sc)));
+          // Up to 0.6 source pixels of stray is pixel noise; past that a run must also be two-sided to be straight.
+          const ol = VZ.fitOutline(q, tol, k, cornerDeg, lineSrc * sc, Math.max(16, Math.round(12 * sc)), 1.6, 0.6 * sc);
           allOutlines.push(ol); pieces += ol.segs.length;
           const rec = { outline: ol, shape: null, q };
           if (matching && budget-- > 0) {
@@ -1785,7 +1886,7 @@ function traceNow(cancelled = () => false) {
           }
           return rec;
         });
-        const items = VZ.nest(contours).map(([o, holes]) => ({ outer: recs[o], holes: holes.map(hh => recs[hh]) }));
+        const items = nested.map(([o, holes]) => ({ outer: recs[o], holes: holes.map(hh => recs[hh]) }));
         // A circle with one concentric circular hole is a ring.
         if (matching) for (const it of items) {
           const a = it.outer.shape, b = it.holes.length === 1 && it.holes[0].shape;
@@ -1801,7 +1902,7 @@ function traceNow(cancelled = () => false) {
         layers.push({ label: c, items, mask });
       });
       if (cancelled()) return null;
-      if (S.snap) { VZ.snapOutlines(allOutlines, 2.0, 0.75 * sc); VZ.snapShapes(shapes, 0.75 * sc); }
+      if (S.snap) { VZ.snapOutlines(allOutlines, snapDeg, 0.75 * sc); VZ.snapShapes(shapes, 0.75 * sc); }
 
       const palette = order.map(l => ({ hex: colors[l], lock: !!pal[l].lock, count: 0 }));
       layers.forEach(L => { L.hex = colors[L.label]; const p = palette.find(q => q.hex === L.hex); if (p) p.count += L.items.length; });
@@ -2152,13 +2253,14 @@ function memFor(T) { return textMemory.find(m => boxIoU(m.box, T.box) > 0.6); }
 function remember(T) { let m = memFor(T); if (!m) textMemory.push(m = { box: T.box.slice() }); Object.assign(m, { text: T.text, mode: T.mode, pick: T.pick ? { fam: T.pick.fam, w: T.pick.w } : null, removed: T.removed, manual: T.manual }); }
 function setupText() {
   const runs = S.textMode === "off" ? [] : detectText(result.layers);
-  result.texts = runs.map((r, i) => ({ ...r, id: i, text: "", mode: "clean", repl: null }));
+  // Words keep their traced letters by default; cleaned letters and fonts are choices in the Text tab.
+  result.texts = runs.map((r, i) => ({ ...r, id: i, text: "", mode: "original", repl: null }));
   // Words the user marked by hand.
   for (const m of textMemory) if (m.manual && !result.texts.some(T => boxIoU(T.box, m.box) > 0.6)) {
-    const t = manualRun(m.box); if (t) result.texts.push({ ...t, id: result.texts.length, text: "", mode: "clean", repl: null, manual: true });
+    const t = manualRun(m.box); if (t) result.texts.push({ ...t, id: result.texts.length, text: "", mode: "original", repl: null, manual: true });
   }
   for (const T of result.texts) {
-    const m = memFor(T); if (m) Object.assign(T, { text: m.text || "", mode: m.mode || "clean", removed: m.removed, manual: m.manual });
+    const m = memFor(T); if (m) Object.assign(T, { text: m.text || "", mode: m.mode || "original", removed: m.removed, manual: m.manual });
     if (!T.removed && T.mode === "clean") T.repl = cleanText(T);
   }
   // Re-apply chosen fonts (fonts load in the background).
@@ -2309,14 +2411,15 @@ async function browseLocalFonts(T) {
 
 async function findFonts(T) {
   if (!T.text.trim()) { toast("Type what the word says first."); return; }
+  const prev = T.mode === "font" ? "original" : T.mode;
   T.busy = "Comparing fonts…"; T.mode = "font"; renderTexts();
   try {
     const { faces, results } = await matchFonts(T, T.text.trim());
     T.busy = null;
-    if (!faces || !results.length) { T.mode = T.repl ? "clean" : "original"; renderTexts(); toast("Fonts couldn't load in this view, so font matching isn't available. Cleaned letters still work."); return; }
+    if (!faces || !results.length) { T.mode = prev; T.repl = prev === "clean" ? cleanText(T) : null; render(); toast("Fonts couldn't load in this view, so font matching isn't available."); return; }
     T.results = results; const c = results[0]; T.pick = c; T.repl = fontText(T, c); remember(T); render();
     toast(`Closest font: ${c.fam} ${WEIGHT_NAME[c.w] || c.w}, ${Math.round(c.iou * 100)}% match. Pick another below.`);
-  } catch (e) { console.error(e); T.busy = null; T.mode = "clean"; T.repl = cleanText(T); render(); toast("Font matching failed. The word is back to cleaned letters."); }
+  } catch (e) { console.error(e); T.busy = null; T.mode = "original"; T.repl = null; render(); toast("Font matching failed. The word is back to its traced letters."); }
 }
 function markAsText(li, ii) {
   // Mark the selected outline and the letters on its line as a word.
@@ -2325,8 +2428,8 @@ function markAsText(li, ii) {
   const items = []; L.items.forEach((it, j) => { const b = bboxOf(it.outer.q), cy = (b[1] + b[3]) / 2; if (cy > box[1] && cy < box[3] && b[0] > box[0] && b[2] < box[2] && (b[3] - b[1]) < 2.6 * h) items.push(j); });
   let bb = [Infinity, Infinity, -Infinity, -Infinity]; for (const j of items) { const q = bboxOf(L.items[j].outer.q); bb = [Math.min(bb[0], q[0]), Math.min(bb[1], q[1]), Math.max(bb[2], q[2]), Math.max(bb[3], q[3])]; }
   let T = result.texts.find(t => t.li === li && t.items.includes(ii));
-  if (T) { T.removed = false; } else { T = { li, items, box: bb, id: result.texts.length, text: "", mode: "clean", repl: null, manual: true }; result.texts.push(T); }
-  T.repl = cleanText(T); T.mode = "clean"; remember(T);
+  if (T) { T.removed = false; } else { T = { li, items, box: bb, id: result.texts.length, text: "", mode: "original", repl: null, manual: true }; result.texts.push(T); }
+  remember(T);
   setSelection([]); textSel = T.id; openTab("text"); render();
   setTimeout(() => { const i = $(`#tx-${T.id}`); if (i) i.focus(); }, 50);
 }
@@ -2474,8 +2577,9 @@ function syncControls() {
   document.querySelectorAll("[data-cmode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.cmode === S.cmode)));
   document.querySelectorAll("[data-bg]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.bg === S.bg)));
   $("#stepper").hidden = S.cmode !== "number"; $("#kVal").textContent = S.k;
-  $("#detail").value = S.detail; $("#detailOut").textContent = S.detail;
-  $("#smooth").value = S.smooth; $("#smoothOut").textContent = S.smooth;
+  for (const id of ["detail", "straight", "smooth", "corners"]) { $("#" + id).value = S[id] ?? 50; $("#" + id + "Out").textContent = S[id] ?? 50; }
+  const g = S.grow || 0; $("#growOut").textContent = (g > 0 ? "+" : g < 0 ? "−" : "") + Math.abs(g) + " px";
+  $("#growVal").textContent = g === 0 ? "Same size" : g > 0 ? `Grow ${g} px` : `Shrink ${-g} px`;
   $("#snap").checked = S.snap;
   document.querySelectorAll("[data-smode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.smode === S.shapes)));
   document.querySelectorAll("[data-xmode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.xmode === S.textMode)));
@@ -2487,7 +2591,15 @@ document.querySelectorAll("[data-cmode]").forEach(b => b.addEventListener("click
 document.querySelectorAll("[data-bg]").forEach(b => b.addEventListener("click", () => { if (S.bg === b.dataset.bg) return; pushUndo(); S.bg = b.dataset.bg; syncControls(); convert(); }));
 $("#kMinus").onclick = () => { pushUndo("k"); S.k = Math.max(2, S.k - 1); syncControls(); convert(150); };
 $("#kPlus").onclick = () => { pushUndo("k"); S.k = Math.min(32, S.k + 1); syncControls(); convert(150); };
-for (const id of ["detail", "smooth"]) $("#" + id).addEventListener("input", e => { pushUndo(id); S[id] = +e.target.value; $("#" + id + "Out").textContent = e.target.value; convert(300); });
+for (const id of ["detail", "straight", "smooth", "corners"]) $("#" + id).addEventListener("input", e => { pushUndo(id); S[id] = +e.target.value; $("#" + id + "Out").textContent = e.target.value; convert(300); });
+const stepGrow = d => { pushUndo("grow"); S.grow = Math.max(-3, Math.min(3, Math.round(((S.grow || 0) + d) * 4) / 4)); syncControls(); convert(250); };
+$("#growMinus").onclick = () => stepGrow(-0.25);
+$("#growPlus").onclick = () => stepGrow(0.25);
+$("#tuneReset").onclick = () => {
+  pushUndo(); const P = PRESETS[S.preset] || PRESETS.logo;
+  for (const k of ["detail", "straight", "smooth", "corners", "grow", "snap"]) S[k] = P[k];
+  syncControls(); convert(); toast("Fine-tune settings reset.");
+};
 $("#snap").onchange = e => { pushUndo(); S.snap = e.target.checked; convert(); };
 document.querySelectorAll("[data-smode]").forEach(b => b.addEventListener("click", () => { pushUndo(); S.shapes = b.dataset.smode; syncControls(); convert(); }));
 document.querySelectorAll("[data-xmode]").forEach(b => b.addEventListener("click", () => { pushUndo(); S.textMode = b.dataset.xmode; syncControls(); setupText(); render(); }));

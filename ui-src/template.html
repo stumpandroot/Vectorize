@@ -172,9 +172,12 @@ h1,h2,h3,p{margin:0}
 .stepper{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:999px;box-shadow:inset 0 0 0 1px var(--line);padding:3px;height:44px}
 .stepper button{width:38px;height:38px;border-radius:50%;background:var(--mist-tint);font-size:18px;font-weight:600;overflow:hidden}
 .stepper span{font-size:14px;color:var(--muted)} .stepper b{color:var(--ink);font-size:16px;font-variant-numeric:tabular-nums}
-.slider-row{display:flex;flex-direction:column;gap:4px}
-.slider-row .top{display:flex;justify-content:space-between;font-size:13px;font-weight:600}
-.slider-row .top output{color:var(--muted);font-variant-numeric:tabular-nums}
+.dial{display:flex;flex-direction:column;gap:2px}
+.dial .top{display:flex;justify-content:space-between;font-size:13.5px;font-weight:700}
+.dial .top output{color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
+.dial .ends{display:flex;justify-content:space-between;font-size:11.5px;font-weight:600;color:var(--muted);margin-top:-2px}
+.dial .help{margin-top:2px}
+.dial .stepper{margin-top:4px}
 input[type=range]{width:100%;accent-color:var(--sun);height:24px}
 .switch{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13.5px;font-weight:600;cursor:pointer}
 .switch input{position:absolute;opacity:0;width:1px;height:1px}
@@ -426,12 +429,32 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
           <p class="help" id="layHelp">Colors sit on top of each other with no gaps between them.</p>
         </div>
 
-        <div class="group">
-          <div class="slider-row"><div class="top"><label for="detail">Detail</label><output id="detailOut">70</output></div>
-            <input type="range" id="detail" min="0" max="100" value="70"><span class="help">Higher keeps smaller specks and fine details.</span></div>
-          <div class="slider-row"><div class="top"><label for="smooth">Smoothness</label><output id="smoothOut">50</output></div>
-            <input type="range" id="smooth" min="0" max="100" value="50"><span class="help">Higher makes fewer, rounder curves.</span></div>
-          <label class="switch" for="snap">Straighten and align lines<input type="checkbox" id="snap" checked><span class="track"><i></i></span></label>
+        <div class="group" id="tuneGroup">
+          <div class="row" style="justify-content:space-between"><span class="group-title">Fine-tune</span><button class="link-btn" id="tuneReset" type="button">Reset</button></div>
+          <div class="dial"><div class="top"><label for="detail">Small details</label><output id="detailOut">70</output></div>
+            <input type="range" id="detail" min="0" max="100" value="70" aria-describedby="detailUse">
+            <div class="ends" aria-hidden="true"><span>Remove specks</span><span>Keep tiny details</span></div>
+            <p class="help" id="detailUse">Lower it for scans and JPEGs with dirt or noise. Raise it to keep fine lines and small dots.</p></div>
+          <div class="dial"><div class="top"><label for="straight">Straight edges</label><output id="straightOut">50</output></div>
+            <input type="range" id="straight" min="0" max="100" value="50" aria-describedby="straightUse">
+            <div class="ends" aria-hidden="true"><span>Follow the pixels</span><span>Straighten</span></div>
+            <p class="help" id="straightUse">Raise it for blurry or compressed logos with straight-sided letters. Lower it for hand-drawn art.</p></div>
+          <div class="dial"><div class="top"><label for="smooth">Curves</label><output id="smoothOut">50</output></div>
+            <input type="range" id="smooth" min="0" max="100" value="50" aria-describedby="smoothUse">
+            <div class="ends" aria-hidden="true"><span>Tight</span><span>Smooth</span></div>
+            <p class="help" id="smoothUse">Raise it for rounded fonts and lumpy curves. Lower it to keep small bumps and notches.</p></div>
+          <div class="dial"><div class="top"><label for="corners">Corners</label><output id="cornersOut">50</output></div>
+            <input type="range" id="corners" min="0" max="100" value="50" aria-describedby="cornersUse">
+            <div class="ends" aria-hidden="true"><span>Rounder</span><span>Sharper</span></div>
+            <p class="help" id="cornersUse">Raise it for blocky letters and sharp points. Lower it for soft, rounded art.</p></div>
+          <div class="dial"><div class="top"><span id="growLabel">Grow or shrink</span><output id="growOut">0 px</output></div>
+            <div class="stepper" role="group" aria-labelledby="growLabel" aria-describedby="growUse">
+              <button id="growMinus" type="button" aria-label="Shrink by a quarter pixel" data-press><span class="inner">−</span></button>
+              <span id="growVal">Same size</span>
+              <button id="growPlus" type="button" aria-label="Grow by a quarter pixel" data-press><span class="inner">+</span></button>
+            </div>
+            <p class="help" id="growUse">Moves every edge out or in, in the original image's pixels. Grow if shapes look thinner than the original; shrink to tighten colors for printing.</p></div>
+          <label class="switch" for="snap">Line up edges with each other<input type="checkbox" id="snap" checked><span class="track"><i></i></span></label>
         </div>
 
         <div class="group">
@@ -449,7 +472,7 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
             <button id="xm-auto" data-xmode="auto" aria-pressed="true" data-press><span class="inner">Find words</span></button>
             <button id="xm-off" data-xmode="off" aria-pressed="false" data-press><span class="inner">Off</span></button>
           </div>
-          <p class="help">Words get smoother, cleaner letters. Review them, or match a font, in the Text tab.</p>
+          <p class="help">Vectorize finds words so you can match them to a font in the Text tab.</p>
         </div>
 
         <div class="note" id="setupNote"><b>This is the web preview.</b> The Mac app adds AI background cutout, PDF and EPS export, and saving straight to your folders. Everything here runs in your browser; your image never leaves this page.</div>
@@ -462,7 +485,7 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
       </div>
 
       <div id="pane-text" class="group" hidden style="gap:12px">
-        <p class="help">Words get cleaned-up letters: smoother curves, straight stems, and crisp corners. Type what a word says to match it to a font and set it in clean letters from that font.</p>
+        <p class="help">Words keep their traced letters. Type what a word says to match it to a font and set it in that font's letters, or choose Cleaned to smooth rough lettering.</p>
         <div class="text-list" id="textList"></div>
       </div>
 

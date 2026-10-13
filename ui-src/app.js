@@ -4,9 +4,9 @@ const WORK_MAX = 1600, WORK_MIN = 1600;
 
 /* ---------- Settings ---------- */
 const PRESETS = {
-  logo:  { cmode: "auto",   k: 6,  bg: "remove", detail: 70, smooth: 50, shapes: "auto", snap: true,  maxAuto: 10 },
-  art:   { cmode: "auto",   k: 12, bg: "keep",   detail: 85, smooth: 40, shapes: "auto", snap: false, maxAuto: 16 },
-  photo: { cmode: "number", k: 12, bg: "keep",   detail: 80, smooth: 30, shapes: "off",  snap: false, maxAuto: 24 },
+  logo:  { cmode: "auto",   k: 6,  bg: "remove", detail: 70, straight: 50, smooth: 50, corners: 50, grow: 0, shapes: "auto", snap: true,  maxAuto: 10 },
+  art:   { cmode: "auto",   k: 12, bg: "keep",   detail: 85, straight: 35, smooth: 40, corners: 40, grow: 0, shapes: "auto", snap: false, maxAuto: 16 },
+  photo: { cmode: "number", k: 12, bg: "keep",   detail: 80, straight: 15, smooth: 30, corners: 30, grow: 0, shapes: "off",  snap: false, maxAuto: 24 },
 };
 const S = Object.assign({ preset: "logo", textMode: "auto", layering: "stacked", output: "", exportFormat: "svg" }, PRESETS.logo);
 const locked = [];            // brand colors, "#RRGGBB"
@@ -311,8 +311,10 @@ function quantize(imgd, pal) {
       }
     }
   }
-  // Merge small islands of color into the color that surrounds them. Detail sets the size.
-  const minArea = Math.round(4 + (1 - S.detail / 100) * n * 0.0008);
+  // Merge small islands of color into the color that surrounds them. Detail sets the size, measured in
+  // the source image's pixels (the same rule as the speck filter), so dots on i and j and small punctuation
+  // survive on enlarged images.
+  const scq = Math.max(job.scale, 1), minArea = Math.max(4, Math.round(0.8 * (2 + (1 - S.detail / 100) * 8) ** 2 * 0.5 * scq));
   const comp = new Int32Array(n).fill(-1), stack = new Int32Array(n);
   for (let s0 = 0; s0 < n; s0++) {
     if (comp[s0] !== -1) continue;
@@ -366,6 +368,14 @@ function borderLabel(lab, w, h) {
 }
 
 /* ---------- Mask tools for tracing ---------- */
+// Moves every point of a closed outline d pixels along its normal (positive: out of the outline's inside).
+function offsetContour(q, d) {
+  const n = q.length; if (n < 3) return q;
+  return q.map((p, i) => {
+    const a = q[(i - 2 + n) % n], b = q[(i + 2) % n], tx = b[0] - a[0], ty = b[1] - a[1], L = Math.hypot(tx, ty) || 1;
+    return [p[0] + ty / L * d, p[1] - tx / L * d];
+  });
+}
 function blurMask(mask, w, h, sigma) {
   const r = Math.ceil(3 * sigma), k = []; let s = 0; for (let i = -r; i <= r; i++) { const v = Math.exp(-0.5 * (i / sigma) ** 2); k.push(v); s += v; } for (let i = 0; i < k.length; i++) k[i] /= s;
   const tmp = new Float32Array(w * h), out = new Float32Array(w * h);
@@ -466,7 +476,14 @@ function traceNow(cancelled = () => false) {
       const sc = Math.max(job.scale, 1), smooth = S.smooth / 100, detail = S.detail / 100;
       const sigma = Math.max(0.8, sc * 0.45 * (0.5 + smooth));
       const speckArea = (2 + (1 - detail) * 8) ** 2 * 0.5 * sc;
-      const tol = 0.55 * sc * (0.6 + 0.8 * smooth), k = Math.max(4, Math.round(2 * sc));
+      // The dials, measured in the source image's pixels so they act the same at any size.
+      //   Straight edges: how far an edge may stray from a line and still be drawn straight (0.4 to 2.6 px),
+      //   and how close to level or upright a line snaps (1 to 5 degrees).
+      //   Corners: how sharp a turn must be to stay a corner (60 degrees, rounder, to 20 degrees, sharper).
+      const straight = (S.straight ?? 50) / 100, corners = (S.corners ?? 50) / 100;
+      const lineSrc = straight <= 0.5 ? 0.4 + 1.6 * straight : 1.2 + 2.8 * (straight - 0.5);
+      const snapDeg = 1 + 4 * straight, cornerDeg = 60 - 40 * corners, grow = (S.grow || 0) * sc;
+      const tol = 0.55 * sc * (0.6 + 0.8 * smooth), k = Math.max(4, Math.round(1.2 * sc));
       const strict = 0.7, matching = S.shapes;
       const layers = [], shapes = [], allOutlines = []; let pieces = 0, budget = 2500, tplBudget = 60;
       order.forEach((c, li) => {
@@ -477,17 +494,26 @@ function traceNow(cancelled = () => false) {
         if (S.layering !== "cutout") {
           // Drop regions made only of higher layers, then stop slightly short under
           // the outer edge of higher layers so this color never peeks out around them.
-          const cc = components8(mask, W, H), own = new Set();
-          for (let i = 0; i < N; i++) if (lab[i] === c) own.add(cc[i]);
-          for (let i = 0; i < N; i++) if (mask[i] && !own.has(cc[i])) mask[i] = 0;
+          // A region also needs a real share of its own color: a few stray edge pixels don't earn a hidden copy.
+          const cc = components8(mask, W, H), ownN = new Map(), size = new Map();
+          for (let i = 0; i < N; i++) if (mask[i]) { size.set(cc[i], (size.get(cc[i]) || 0) + 1); if (lab[i] === c) ownN.set(cc[i], (ownN.get(cc[i]) || 0) + 1); }
+          const keep = id => { const o = ownN.get(id) || 0; return o > 0 && (o >= 0.03 * size.get(id) || o >= 4 * speckArea); };
+          for (let i = 0; i < N; i++) if (mask[i] && !keep(cc[i])) mask[i] = 0;
           const inner = erodeDisc(mask, W, H, Math.max(1, Math.round(sc)));
           for (let i = 0; i < N; i++) mask[i] = (lab[i] === c || (mask[i] && inner[i])) ? 1 : 0;
         }
         const f = blurMask(mask, W, H, sigma);
         const contours = VZ.maskContours(f, W, H).filter(q => Math.abs(VZ.area(q)) >= speckArea);
         if (!contours.length) return;
+        const nested = VZ.nest(contours);
+        if (grow) {
+          // Each outline's normal points out of its own inside, so outer edges move out and holes move in.
+          const isHole = new Set(); for (const [, hs] of nested) for (const h of hs) isHole.add(h);
+          contours.forEach((q, ci) => { contours[ci] = offsetContour(q, isHole.has(ci) ? -grow : grow); });
+        }
         const recs = contours.map(q => {
-          const ol = VZ.fitOutline(q, tol, k, 35, 0.35 * sc, Math.max(40, Math.round(20 * sc)));
+          // Up to 0.6 source pixels of stray is pixel noise; past that a run must also be two-sided to be straight.
+          const ol = VZ.fitOutline(q, tol, k, cornerDeg, lineSrc * sc, Math.max(16, Math.round(12 * sc)), 1.6, 0.6 * sc);
           allOutlines.push(ol); pieces += ol.segs.length;
           const rec = { outline: ol, shape: null, q };
           if (matching && budget-- > 0) {
@@ -523,7 +549,7 @@ function traceNow(cancelled = () => false) {
           }
           return rec;
         });
-        const items = VZ.nest(contours).map(([o, holes]) => ({ outer: recs[o], holes: holes.map(hh => recs[hh]) }));
+        const items = nested.map(([o, holes]) => ({ outer: recs[o], holes: holes.map(hh => recs[hh]) }));
         // A circle with one concentric circular hole is a ring.
         if (matching) for (const it of items) {
           const a = it.outer.shape, b = it.holes.length === 1 && it.holes[0].shape;
@@ -539,7 +565,7 @@ function traceNow(cancelled = () => false) {
         layers.push({ label: c, items, mask });
       });
       if (cancelled()) return null;
-      if (S.snap) { VZ.snapOutlines(allOutlines, 2.0, 0.75 * sc); VZ.snapShapes(shapes, 0.75 * sc); }
+      if (S.snap) { VZ.snapOutlines(allOutlines, snapDeg, 0.75 * sc); VZ.snapShapes(shapes, 0.75 * sc); }
 
       const palette = order.map(l => ({ hex: colors[l], lock: !!pal[l].lock, count: 0 }));
       layers.forEach(L => { L.hex = colors[L.label]; const p = palette.find(q => q.hex === L.hex); if (p) p.count += L.items.length; });
@@ -890,13 +916,14 @@ function memFor(T) { return textMemory.find(m => boxIoU(m.box, T.box) > 0.6); }
 function remember(T) { let m = memFor(T); if (!m) textMemory.push(m = { box: T.box.slice() }); Object.assign(m, { text: T.text, mode: T.mode, pick: T.pick ? { fam: T.pick.fam, w: T.pick.w } : null, removed: T.removed, manual: T.manual }); }
 function setupText() {
   const runs = S.textMode === "off" ? [] : detectText(result.layers);
-  result.texts = runs.map((r, i) => ({ ...r, id: i, text: "", mode: "clean", repl: null }));
+  // Words keep their traced letters by default; cleaned letters and fonts are choices in the Text tab.
+  result.texts = runs.map((r, i) => ({ ...r, id: i, text: "", mode: "original", repl: null }));
   // Words the user marked by hand.
   for (const m of textMemory) if (m.manual && !result.texts.some(T => boxIoU(T.box, m.box) > 0.6)) {
-    const t = manualRun(m.box); if (t) result.texts.push({ ...t, id: result.texts.length, text: "", mode: "clean", repl: null, manual: true });
+    const t = manualRun(m.box); if (t) result.texts.push({ ...t, id: result.texts.length, text: "", mode: "original", repl: null, manual: true });
   }
   for (const T of result.texts) {
-    const m = memFor(T); if (m) Object.assign(T, { text: m.text || "", mode: m.mode || "clean", removed: m.removed, manual: m.manual });
+    const m = memFor(T); if (m) Object.assign(T, { text: m.text || "", mode: m.mode || "original", removed: m.removed, manual: m.manual });
     if (!T.removed && T.mode === "clean") T.repl = cleanText(T);
   }
   // Re-apply chosen fonts (fonts load in the background).
@@ -1047,14 +1074,15 @@ async function browseLocalFonts(T) {
 
 async function findFonts(T) {
   if (!T.text.trim()) { toast("Type what the word says first."); return; }
+  const prev = T.mode === "font" ? "original" : T.mode;
   T.busy = "Comparing fonts…"; T.mode = "font"; renderTexts();
   try {
     const { faces, results } = await matchFonts(T, T.text.trim());
     T.busy = null;
-    if (!faces || !results.length) { T.mode = T.repl ? "clean" : "original"; renderTexts(); toast("Fonts couldn't load in this view, so font matching isn't available. Cleaned letters still work."); return; }
+    if (!faces || !results.length) { T.mode = prev; T.repl = prev === "clean" ? cleanText(T) : null; render(); toast("Fonts couldn't load in this view, so font matching isn't available."); return; }
     T.results = results; const c = results[0]; T.pick = c; T.repl = fontText(T, c); remember(T); render();
     toast(`Closest font: ${c.fam} ${WEIGHT_NAME[c.w] || c.w}, ${Math.round(c.iou * 100)}% match. Pick another below.`);
-  } catch (e) { console.error(e); T.busy = null; T.mode = "clean"; T.repl = cleanText(T); render(); toast("Font matching failed. The word is back to cleaned letters."); }
+  } catch (e) { console.error(e); T.busy = null; T.mode = "original"; T.repl = null; render(); toast("Font matching failed. The word is back to its traced letters."); }
 }
 function markAsText(li, ii) {
   // Mark the selected outline and the letters on its line as a word.
@@ -1063,8 +1091,8 @@ function markAsText(li, ii) {
   const items = []; L.items.forEach((it, j) => { const b = bboxOf(it.outer.q), cy = (b[1] + b[3]) / 2; if (cy > box[1] && cy < box[3] && b[0] > box[0] && b[2] < box[2] && (b[3] - b[1]) < 2.6 * h) items.push(j); });
   let bb = [Infinity, Infinity, -Infinity, -Infinity]; for (const j of items) { const q = bboxOf(L.items[j].outer.q); bb = [Math.min(bb[0], q[0]), Math.min(bb[1], q[1]), Math.max(bb[2], q[2]), Math.max(bb[3], q[3])]; }
   let T = result.texts.find(t => t.li === li && t.items.includes(ii));
-  if (T) { T.removed = false; } else { T = { li, items, box: bb, id: result.texts.length, text: "", mode: "clean", repl: null, manual: true }; result.texts.push(T); }
-  T.repl = cleanText(T); T.mode = "clean"; remember(T);
+  if (T) { T.removed = false; } else { T = { li, items, box: bb, id: result.texts.length, text: "", mode: "original", repl: null, manual: true }; result.texts.push(T); }
+  remember(T);
   setSelection([]); textSel = T.id; openTab("text"); render();
   setTimeout(() => { const i = $(`#tx-${T.id}`); if (i) i.focus(); }, 50);
 }
@@ -1212,8 +1240,9 @@ function syncControls() {
   document.querySelectorAll("[data-cmode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.cmode === S.cmode)));
   document.querySelectorAll("[data-bg]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.bg === S.bg)));
   $("#stepper").hidden = S.cmode !== "number"; $("#kVal").textContent = S.k;
-  $("#detail").value = S.detail; $("#detailOut").textContent = S.detail;
-  $("#smooth").value = S.smooth; $("#smoothOut").textContent = S.smooth;
+  for (const id of ["detail", "straight", "smooth", "corners"]) { $("#" + id).value = S[id] ?? 50; $("#" + id + "Out").textContent = S[id] ?? 50; }
+  const g = S.grow || 0; $("#growOut").textContent = (g > 0 ? "+" : g < 0 ? "−" : "") + Math.abs(g) + " px";
+  $("#growVal").textContent = g === 0 ? "Same size" : g > 0 ? `Grow ${g} px` : `Shrink ${-g} px`;
   $("#snap").checked = S.snap;
   document.querySelectorAll("[data-smode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.smode === S.shapes)));
   document.querySelectorAll("[data-xmode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.xmode === S.textMode)));
@@ -1225,7 +1254,15 @@ document.querySelectorAll("[data-cmode]").forEach(b => b.addEventListener("click
 document.querySelectorAll("[data-bg]").forEach(b => b.addEventListener("click", () => { if (S.bg === b.dataset.bg) return; pushUndo(); S.bg = b.dataset.bg; syncControls(); convert(); }));
 $("#kMinus").onclick = () => { pushUndo("k"); S.k = Math.max(2, S.k - 1); syncControls(); convert(150); };
 $("#kPlus").onclick = () => { pushUndo("k"); S.k = Math.min(32, S.k + 1); syncControls(); convert(150); };
-for (const id of ["detail", "smooth"]) $("#" + id).addEventListener("input", e => { pushUndo(id); S[id] = +e.target.value; $("#" + id + "Out").textContent = e.target.value; convert(300); });
+for (const id of ["detail", "straight", "smooth", "corners"]) $("#" + id).addEventListener("input", e => { pushUndo(id); S[id] = +e.target.value; $("#" + id + "Out").textContent = e.target.value; convert(300); });
+const stepGrow = d => { pushUndo("grow"); S.grow = Math.max(-3, Math.min(3, Math.round(((S.grow || 0) + d) * 4) / 4)); syncControls(); convert(250); };
+$("#growMinus").onclick = () => stepGrow(-0.25);
+$("#growPlus").onclick = () => stepGrow(0.25);
+$("#tuneReset").onclick = () => {
+  pushUndo(); const P = PRESETS[S.preset] || PRESETS.logo;
+  for (const k of ["detail", "straight", "smooth", "corners", "grow", "snap"]) S[k] = P[k];
+  syncControls(); convert(); toast("Fine-tune settings reset.");
+};
 $("#snap").onchange = e => { pushUndo(); S.snap = e.target.checked; convert(); };
 document.querySelectorAll("[data-smode]").forEach(b => b.addEventListener("click", () => { pushUndo(); S.shapes = b.dataset.smode; syncControls(); convert(); }));
 document.querySelectorAll("[data-xmode]").forEach(b => b.addEventListener("click", () => { pushUndo(); S.textMode = b.dataset.xmode; syncControls(); setupText(); render(); }));

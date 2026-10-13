@@ -5,3 +5,5 @@ dist/
 .DS_Store
 *.p12
 build-web/
+bench/images/
+bench/out/
