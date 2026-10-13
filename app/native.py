@@ -74,6 +74,45 @@ def remove_background(image_bytes: bytes) -> bytes:
         raise RuntimeError(f"AI cutout failed while {step}: {e}") from e
 
 
+def recognize_text(image_bytes: bytes) -> list[dict]:
+    """Reads the text in an image with Apple Vision, on this Mac.
+
+    Returns one entry per line: {text, confidence, box, words: [{text, box}]}.
+    Boxes are [x, y, width, height] as fractions of the image, measured from the top left.
+    """
+    import re
+    import Vision
+    from Foundation import NSData, NSMakeRange
+
+    def box(r):
+        o, s = r.origin, r.size
+        return [float(o.x), float(1 - o.y - s.height), float(s.width), float(s.height)]
+
+    data = NSData.dataWithBytes_length_(image_bytes, len(image_bytes))
+    handler = Vision.VNImageRequestHandler.alloc().initWithData_options_(data, {})
+    request = Vision.VNRecognizeTextRequest.alloc().init()
+    request.setRecognitionLevel_(Vision.VNRequestTextRecognitionLevelAccurate)
+    request.setUsesLanguageCorrection_(False)   # brand names aren't dictionary words
+    request.setMinimumTextHeight_(0.02)
+    ok, err = handler.performRequests_error_([request], None)
+    if not ok:
+        raise RuntimeError(f"Text recognition failed: {err.localizedDescription() if err else 'unknown error'}")
+    lines = []
+    for obs in request.results() or []:
+        cands = obs.topCandidates_(1)
+        if not cands:
+            continue
+        cand = cands[0]
+        text = str(cand.string())
+        words = []
+        for m in re.finditer(r"\S+", text):
+            wb, _ = cand.boundingBoxForRange_error_(NSMakeRange(m.start(), m.end() - m.start()), None)
+            if wb is not None:
+                words.append({"text": m.group(0), "box": box(wb.boundingBox())})
+        lines.append({"text": text, "confidence": float(cand.confidence()), "box": box(obs.boundingBox()), "words": words})
+    return lines
+
+
 def installed_font_families() -> list[str]:
     """Every font family installed on this Mac, sorted."""
     try:

@@ -41,6 +41,7 @@ jobs:
         run: |
           python tests/ui/test_editor.py
           python tests/ui/test_native.py
+          python tests/ui/test_autofont.py
 
   build:
     name: Mac app (${{ matrix.label }})

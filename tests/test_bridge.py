@@ -61,6 +61,10 @@ class T(unittest.TestCase):
         p = self.d / "a.gif"; p.write_bytes(b"GIF89a")
         self.assertIn("error", self.b.read_image(str(p)))
 
+    def test_text_recognition_reports_in_words(self):
+        r = self.b.recognize_text("data:image/png;base64,AAAA")
+        self.assertTrue("error" in r or "lines" in r)
+
     def test_cutout_reports_in_words(self):
         r = self.b.remove_background("data:image/png;base64,AAAA")
         self.assertIn("error", r)

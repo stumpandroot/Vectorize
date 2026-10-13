@@ -82,6 +82,7 @@ class Bridge:
             "native": True,
             "macos": ".".join(str(p) for p in native.macos_version()),
             "cutout": native.can_remove_background(),
+            "ocr": bool(native.macos_version()),
             "licensing": self._license is not None,
             "settings": {k: self._settings.get(k) for k in ("lastPreset", "exportFormat")},
         }
@@ -188,6 +189,13 @@ class Bridge:
         try:
             png = native.remove_background(_decode(data_url, "base64"))
             return {"dataUrl": "data:image/png;base64," + base64.b64encode(png).decode()}
+        except Exception as e:
+            return {"error": str(e)}
+
+    # --- Text recognition ----------------------------------------------------
+    def recognize_text(self, data_url: str):
+        try:
+            return {"lines": native.recognize_text(_decode(data_url, "base64"))}
         except Exception as e:
             return {"error": str(e)}
 

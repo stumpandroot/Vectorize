@@ -16,6 +16,7 @@ let view = "compare", split = 50;
 let job = null;               // {name, meta, origW, origH, workW, workH, imgd, srcURL}
 let result = null;            // {palette:[{hex,bg,transparent,count}], layers:[[d,...]], w, h, paths, nodes}
 let picking = false;
+let renderPaused = false;      // true while batch export traces images off screen
 
 /* ---------- Color math ---------- */
 const hex2 = n => n.toString(16).padStart(2, "0");
@@ -636,7 +637,7 @@ function buildSVG(keyed = false, opts = {}) {
 }
 
 function render() {
-  if (!result) return;
+  if (!result || renderPaused) return;
   const svg = buildSVG(false, { part: partMode });
   $("#vec").innerHTML = buildSVG(true, { part: partMode });
   drawSelection();
@@ -913,7 +914,7 @@ function fontText(T, c) {
 let textMemory = [];      // what the user set per word: { box, text, mode, pick }
 const boxIoU = (a, b) => { const iw = Math.min(a[2], b[2]) - Math.max(a[0], b[0]), ih = Math.min(a[3], b[3]) - Math.max(a[1], b[1]); if (iw <= 0 || ih <= 0) return 0; const i = iw * ih; return i / ((a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - i); };
 function memFor(T) { return textMemory.find(m => boxIoU(m.box, T.box) > 0.6); }
-function remember(T) { let m = memFor(T); if (!m) textMemory.push(m = { box: T.box.slice() }); Object.assign(m, { text: T.text, mode: T.mode, pick: T.pick ? { fam: T.pick.fam, w: T.pick.w } : null, removed: T.removed, manual: T.manual }); }
+function remember(T) { let m = memFor(T); if (!m) textMemory.push(m = { box: T.box.slice() }); Object.assign(m, { text: T.text, mode: T.mode, pick: T.pick ? { fam: T.pick.fam, w: T.pick.w } : null, removed: T.removed, manual: T.manual, auto: T.auto }); }
 function setupText() {
   const runs = S.textMode === "off" ? [] : detectText(result.layers);
   // Words keep their traced letters by default; cleaned letters and fonts are choices in the Text tab.
@@ -923,7 +924,7 @@ function setupText() {
     const t = manualRun(m.box); if (t) result.texts.push({ ...t, id: result.texts.length, text: "", mode: "original", repl: null, manual: true });
   }
   for (const T of result.texts) {
-    const m = memFor(T); if (m) Object.assign(T, { text: m.text || "", mode: m.mode || "original", removed: m.removed, manual: m.manual });
+    const m = memFor(T); if (m) Object.assign(T, { text: m.text || "", mode: m.mode || "original", removed: m.removed, manual: m.manual, auto: m.auto });
     if (!T.removed && T.mode === "clean") T.repl = cleanText(T);
   }
   // Re-apply chosen fonts (fonts load in the background).
@@ -959,7 +960,7 @@ function renderTexts() {
   $("#textList").innerHTML = list.length ? list.map(T => {
     const L = result.layers[T.li], n = T.items.length, picks = T.results || [];
     return `<div class="text-card${textSel === T.id ? " on" : ""}" data-tid="${T.id}">
-      <div class="text-top"><b>${esc(colorName(recolor[L.hex] || L.hex))} word</b><small>${n} letters${T.manual ? " · marked by you" : ""}</small><button type="button" class="link-btn" data-notext="${T.id}">Not text</button></div>
+      <div class="text-top"><b>${esc(colorName(recolor[L.hex] || L.hex))} word</b><small>${n} letters${T.manual ? " · marked by you" : ""}${T.auto && T.mode === "font" ? " · font matched automatically" : ""}</small><button type="button" class="link-btn" data-notext="${T.id}">Not text</button></div>
       <label class="text-field"><span>What does it say?</span><input type="text" id="tx-${T.id}" data-tin="${T.id}" value="${esc(T.text)}" placeholder="Type the word, like SUNNY CO" autocomplete="off" spellcheck="false"></label>
       <div class="seg full" role="group" aria-label="Letters">
         <button data-tmode="original" data-t="${T.id}" aria-pressed="${T.mode === "original"}">Traced</button>

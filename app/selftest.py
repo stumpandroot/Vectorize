@@ -101,6 +101,26 @@ def run() -> int:
         return f"{len(png) // 1024} KB PNG"
     check("AI cutout (Apple Vision)", cutout)
 
+    def ocr():
+        # Draw a word with AppKit, then read it back.
+        from AppKit import (NSBitmapImageRep, NSColor, NSFont, NSFontAttributeName, NSForegroundColorAttributeName,
+                            NSImage, NSPNGFileType, NSRectFill, NSString)
+        img = NSImage.alloc().initWithSize_((640, 200))
+        img.lockFocus()
+        NSColor.whiteColor().set()
+        NSRectFill(((0, 0), (640, 200)))
+        NSString.stringWithString_("VECTORIZE").drawAtPoint_withAttributes_(
+            (30, 50), {NSFontAttributeName: NSFont.boldSystemFontOfSize_(80), NSForegroundColorAttributeName: NSColor.blackColor()})
+        img.unlockFocus()
+        png = bytes(NSBitmapImageRep.imageRepWithData_(img.TIFFRepresentation()).representationUsingType_properties_(NSPNGFileType, {}))
+        lines = native.recognize_text(png)
+        read = " ".join(l["text"] for l in lines)
+        assert "VECTORIZE" in read.upper().replace(" ", ""), f"read {read!r}"
+        w = lines[0]["words"][0]["box"]
+        assert 0 <= w[0] < 0.2 and 0.1 < w[1] < 0.6, f"word box {w}"
+        return f"read {read!r}"
+    check("text recognition (Apple Vision)", ocr)
+
     def bridge():
         tmp = Path(tempfile.mkdtemp())
         class D:

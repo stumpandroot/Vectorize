@@ -40,6 +40,48 @@ function afterTrace() {
   for (const e of objEdits) e.hex = near(e.hex) || e.hex;
   if (pendingUseShape) { for (const k of Object.keys(pendingUseShape)) if (k in useShape) useShape[k] = pendingUseShape[k]; pendingUseShape = null; }
   applyObjEdits();
+  autoFonts();
+}
+
+/* ---------- Words: read them on the Mac and set them in the matching font ---------- */
+// A font swaps in on its own only when its letters cover the word this closely (intersection over union).
+const AUTO_FONT_MIN = 0.86;
+let ocrSeq = 0;
+async function autoFonts() {
+  if (!NATIVE || !APP || !APP.ocr || !result || S.textMode === "off") return;
+  const res = result, seq = ++ocrSeq;
+  const swapped = await matchWords(res, job, () => seq !== ocrSeq || result !== res);
+  if (swapped === null || seq !== ocrSeq || result !== res) return;
+  render();
+  if (swapped.length) toast(`Set ${swapped.length === 1 ? swapped[0] : swapped.length + " words in matching fonts"}. Choose Traced in the Text tab to undo.`);
+}
+// Reads the words in job j with Apple Vision and sets each one in its matching font when the match is
+// strong. Words you've already changed are left alone. Returns what it swapped, or null when cancelled.
+async function matchWords(res, j, stale = () => false) {
+  const todo = (res.texts || []).filter(T => !T.removed && !memFor(T));
+  if (!todo.length) return [];
+  if (!j.ocr) {
+    let r = null; try { r = await NATIVE.recognize_text(j.srcURL); } catch (e) { console.error(e); }
+    j.ocr = r && r.lines ? r.lines : [];
+  }
+  if (stale()) return null;
+  const words = j.ocr.flatMap(l => l.words.map(w => ({ text: w.text, x0: w.box[0] * res.w, x: (w.box[0] + w.box[2] / 2) * res.w, y: (w.box[1] + w.box[3] / 2) * res.h })));
+  const swapped = [];
+  for (const T of todo) {
+    const pad = 0.35 * (T.box[3] - T.box[1]);
+    const mine = words.filter(w => w.x >= T.box[0] - pad && w.x <= T.box[2] + pad && w.y >= T.box[1] - pad && w.y <= T.box[3] + pad).sort((a, b) => a.x0 - b.x0);
+    if (!mine.length) continue;
+    T.text = mine.map(w => w.text).join(" ");
+    try {
+      const { results } = await matchFonts(T, T.text);
+      if (stale()) return null;
+      T.results = results;
+      const c = results[0];
+      if (c && c.iou >= AUTO_FONT_MIN) { T.pick = c; T.repl = fontText(T, c); T.mode = "font"; T.auto = true; swapped.push(`${T.text} in ${fontLabel(c)}`); }
+    } catch (e) { console.error(e); }
+    remember(T);
+  }
+  return swapped;
 }
 function applyObjEdits() {
   if (!result) return;
@@ -542,20 +584,34 @@ function renderBatch() {
 }
 $("#batchList").addEventListener("click", e => { const b = e.target.closest("[data-bi]"); if (b) showBatchItem(+b.dataset.bi); });
 $("#batchClose").onclick = () => { leaveBatch(); toast("Closed the batch. The open image stays."); };
-// Traces another image with the current settings and its own saved edits, then puts everything back.
-function withJob(j, st, fn) {
+// Traces another image with the current settings and its own saved edits, sets its words in their
+// fonts, runs fn, then puts everything back. The screen doesn't redraw while it runs.
+async function withJob(j, st, fn) {
   const keep = { job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode };
+  renderPaused = true;
   try {
     job = j; useShape = {}; recolor = {}; hidden = new Set(); manualSnaps = []; textMemory = []; objEdits = []; drawOrder = null; deletedLayers = new Set(); selection = []; sel = null; textSel = null; partMode = "all";
-    // Fonts load in the background, so words set in a font come out as cleaned letters here.
-    if (st) { applyEditState(st); textMemory = textMemory.map(m => m.mode === "font" ? { ...m, mode: "clean" } : m); }
+    const fontMems = st ? st.textMemory.filter(m => m.mode === "font" && m.pick && m.text) : [];
+    // Fonts are applied below and awaited, so setupText leaves those words traced for now.
+    if (st) { applyEditState(st); textMemory = textMemory.map(m => m.mode === "font" ? { ...m, mode: "original" } : m); }
     result = traceNow(); if (!result) return null;
     reapplyManual(); setupText();
     if (st) for (const k of Object.keys(st.useShape)) if (k in useShape) useShape[k] = st.useShape[k];
     applyObjEdits();
+    for (const T of result.texts || []) {
+      const m = fontMems.find(f => boxIoU(f.box, T.box) > 0.6); if (!m || T.removed) continue;
+      T.text = m.text;
+      try {
+        const { results } = await matchFonts(T, T.text);
+        const c = results.find(r => r.fam === m.pick.fam && r.w === m.pick.w) || results[0];
+        if (c) { T.pick = c; T.repl = fontText(T, c); T.mode = "font"; }
+      } catch (e) { console.error(e); }
+    }
+    if (NATIVE && APP && APP.ocr && S.textMode !== "off") await matchWords(result, j);
     return fn();
   } finally {
     ({ job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode } = keep);
+    renderPaused = false;
   }
 }
 async function exportAll() {
@@ -573,14 +629,14 @@ async function exportAll() {
         if (!it.job) it.job = await makeJob(it.src, it.name, it.meta);
         if (!it.job) { it.status = "Couldn't open"; continue; }
         if (S.bg === "ai" && !it.job.cutImgd) await makeCutout(it.job);
-        svg = withJob(it.job, it.state, () => buildSVG(false, { part: partMode }));
+        svg = await withJob(it.job, it.state, () => buildSVG(false, { part: partMode }));
       }
       if (!svg) continue;
       out.push(await makeItem(svg, stemOf(it.name), fmt)); it.status = "Exported";
     }
     setStatus("done", `Exported ${out.length} of ${n}`);
     await saveMany(out, `Vectorize ${out.length} images`);
-  } finally { $("#batchExport").disabled = false; renderBatch(); }
+  } finally { $("#batchExport").disabled = false; render(); autoFonts(); }
 }
 $("#batchExport").onclick = exportAll;
 
