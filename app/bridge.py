@@ -30,7 +30,14 @@ def _bundle_value(key: str, default: str) -> str:
         return default
 
 
-VERSION = _bundle_value("CFBundleShortVersionString", "1.0.0")
+def _source_version() -> str:
+    try:
+        return (Path(__file__).resolve().parents[1] / "VERSION").read_text().strip()
+    except OSError:
+        return "dev"
+
+
+VERSION = _bundle_value("CFBundleShortVersionString", _source_version())
 BUILD = _bundle_value("CFBundleVersion", "dev")
 SUPPORT = Path.home() / "Library" / "Application Support" / APP_NAME
 IMAGE_TYPES = ("Images (*.png;*.jpg;*.jpeg)",)

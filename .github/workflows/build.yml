@@ -69,7 +69,7 @@ jobs:
         run: |
           if [ -n "$INPUT_VERSION" ]; then V="$INPUT_VERSION"
           elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then V="${GITHUB_REF#refs/tags/v}"
-          else V="1.0.0"; fi
+          else V="$(tr -d '[:space:]' < VERSION)"; fi
           if ! [[ "$V" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then echo "Use a version like 1.0.0 (got '$V')." && exit 1; fi
           echo "VZ_VERSION=$V" >> "$GITHUB_ENV"
           echo "VZ_BUILD=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
@@ -117,7 +117,7 @@ jobs:
       - name: Upload the DMG
         uses: actions/upload-artifact@v4
         with:
-          name: Vectorize-${{ env.VZ_VERSION }}-${{ matrix.runner }}
+          name: Vectorize-${{ env.VZ_VERSION }}-build${{ env.VZ_BUILD }}-${{ matrix.runner == 'macos-15' && 'Apple-Silicon' || 'Intel' }}
           path: ${{ steps.package.outputs.dmg }}
           if-no-files-found: error
 

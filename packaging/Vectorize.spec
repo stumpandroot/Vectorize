@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 ROOT = Path(SPECPATH).parent
-VERSION = os.environ.get("VZ_VERSION", "1.0.0")
+VERSION = os.environ.get("VZ_VERSION") or (ROOT / "VERSION").read_text().strip()
 BUILD = os.environ.get("VZ_BUILD", "1")
 
 a = Analysis(

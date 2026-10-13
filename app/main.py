@@ -10,7 +10,7 @@ from pathlib import Path
 import webview
 from webview.menu import Menu, MenuAction, MenuSeparator
 
-from .bridge import APP_NAME, SUPPORT, Bridge, make_license_manager
+from .bridge import APP_NAME, BUILD, SUPPORT, VERSION, Bridge, make_license_manager
 
 
 def resource_dir() -> Path:
@@ -156,7 +156,7 @@ def smoke_test(window, result):
         start = time.time()
         while time.time() - start < 120:
             status = window.evaluate_js("document.querySelector('#status') ? document.querySelector('#status').dataset.s : ''")
-            native = window.evaluate_js("typeof NATIVE !== 'undefined' && NATIVE !== null")
+            native = window.evaluate_js("typeof NATIVE !== 'undefined' && NATIVE !== null && document.querySelector('#stale').hidden")
             if status == "done" and native:
                 ok = True
                 break
@@ -175,17 +175,13 @@ def smoke_test(window, result):
         window.destroy()
 
 
-def free_port(preferred: int = 42117) -> int:
-    """The local port the interface is served on: the usual one, or any free one."""
+def free_port() -> int:
+    """A free local port, different on every launch. A fixed port let a copy of the app that was
+    still running answer for a newer copy, so the window showed the old interface."""
     import socket
-    for port in (preferred, 0):
-        with socket.socket() as s:
-            try:
-                s.bind(("127.0.0.1", port))
-                return s.getsockname()[1]
-            except OSError:
-                continue
-    return 0
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
 
 
 def main(smoke: bool = False):
@@ -193,7 +189,7 @@ def main(smoke: bool = False):
     bridge = Bridge(dialogs, make_license_manager())
     index = resource_dir() / "index.html"
     window = webview.create_window(
-        APP_NAME, url=str(index), js_api=bridge,
+        f"{APP_NAME} {VERSION} (build {BUILD})", url=str(index), js_api=bridge,
         width=1320, height=860, min_size=(960, 640),
         background_color="#FAF8F2", text_select=False,
     )
@@ -203,7 +199,7 @@ def main(smoke: bool = False):
     result: list[int] = []
     webview.start(
         smoke_test if smoke else polish_menus, (window, result) if smoke else None,
-        menu=build_menu(window), http_server=True, http_port=free_port() or None,
+        menu=build_menu(window), http_server=True, http_port=free_port(),
         private_mode=False, storage_path=str(SUPPORT / "WebKit"),
     )
     if smoke:

@@ -4,6 +4,7 @@
    the web preview; native features switch on when the Mac app is detected.
    ========================================================================== */
 const BUY_URL = "https://greenlaunch.co";
+const UI_BUILD = "%%BUILD%%";   // set by ui-src/build.py; the app checks it against its own build
 let NATIVE = null, APP = null, LIC = { enabled: false, licensed: true };
 let downloads = null;
 
@@ -786,7 +787,12 @@ async function initNative() {
   try { APP = await NATIVE.app_info(); } catch (e) { APP = { cutout: false, settings: {} }; }
   document.documentElement.classList.add("native");
   document.title = "Vectorize";
-  $("#badge").hidden = true;
+  const ver = `v${APP.version || ""} · build ${APP.build || "dev"}`;
+  $("#badge").textContent = ver; $("#badge").classList.add("ver"); $("#badge").title = `Vectorize ${APP.version} (build ${APP.build}). Interface build ${UI_BUILD}.`;
+  if (APP.build && APP.build !== "dev" && UI_BUILD !== APP.build) {
+    $("#stale").hidden = false;
+    $("#staleText").textContent = `This window is showing interface build ${UI_BUILD}, but the app is build ${APP.build}. Quit every copy of Vectorize (⌘Q in each), then open it again from Applications.`;
+  }
   $("#setupNote").innerHTML = "<b>Everything runs on this Mac.</b> Your images never leave it. Font matching loads Google Fonts when you're online."
     + `<br><span class="build-tag">Vectorize ${esc(APP.version || "")} (build ${esc(APP.build || "dev")})</span>`;
   $("#file").removeAttribute("accept");

@@ -58,7 +58,7 @@ async def main():
         await pg.goto("file://" + UI); await done(pg)
         await pg.wait_for_function("NATIVE !== null")
 
-        check("native mode: Web badge hidden", await pg.evaluate("$('#badge').hidden"))
+        check("native mode: badge shows the version", (await pg.inner_text("#badge")).startswith("v1.0.0 · build"), await pg.inner_text("#badge"))
         check("native mode: AI cutout offered", not await pg.evaluate("$('#bg-ai').hidden"))
         check("remembered format is PDF", await pg.inner_text("#exportLabel") == "Export PDF")
         check("license window opens when unlicensed", not await pg.evaluate("$('#licModal').hidden"))

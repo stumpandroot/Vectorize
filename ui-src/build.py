@@ -7,6 +7,7 @@ Outputs:
 
 Run:  python3 ui-src/build.py [--web DIR]
 """
+import os
 import re
 import sys
 from pathlib import Path
@@ -27,6 +28,7 @@ def build():
     fit = (HERE / "fit.js").read_text()
     for name, src in (("app.js + editor.js", js), ("fit.js", fit)):
         assert "</script" not in src, f"{name} contains </script"
+    js = js.replace("%%BUILD%%", os.environ.get("VZ_BUILD", "dev"))
     for key in ("%%FIT%%", "%%MARK%%", "%%PIX%%", "%%JS%%"):
         assert t.count(key) == 1, key
     # Replace the JS last so nothing inside it is mistaken for a placeholder.

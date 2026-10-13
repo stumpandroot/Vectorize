@@ -10,7 +10,7 @@ set -euo pipefail
 APP="dist/Vectorize.app"
 VERSION="${VZ_VERSION:-1.0.0}"
 if [ "$(uname -m)" = "arm64" ]; then LABEL="Apple-Silicon"; else LABEL="Intel"; fi
-DMG="dist/Vectorize-${VERSION}-${LABEL}.dmg"
+DMG="dist/Vectorize-${VERSION}-build${VZ_BUILD:-dev}-${LABEL}.dmg"
 ENT="packaging/entitlements.plist"
 
 sign() {
