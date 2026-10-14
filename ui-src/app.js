@@ -1248,7 +1248,9 @@ document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click"
 /* ---------- Inspector controls ---------- */
 function openTab(t) {
   document.querySelectorAll("[data-tab]").forEach(x => x.setAttribute("aria-selected", String(x.dataset.tab === t)));
+  const was = document.querySelector('[id^="pane-"]:not([hidden])');
   for (const k of ["setup", "shapes", "text", "layers"]) $("#pane-" + k).hidden = k !== t;
+  if (was !== $("#pane-" + t)) $(".inspector").scrollTop = 0;   // a new tab opens at its top
 }
 document.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click", () => {
   document.querySelectorAll("[data-tab]").forEach(x => x.setAttribute("aria-selected", String(x === b)));

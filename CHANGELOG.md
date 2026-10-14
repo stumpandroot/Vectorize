@@ -2,6 +2,12 @@
 
 The app shows its version and build in the window title and the toolbar. Each GitHub build has a new build number; the version changes when features change.
 
+## 1.1.1
+
+- The window no longer scrolls or bounces as a whole: the canvas and the side panel scroll on their own, and the app fills the window edge to edge.
+- The side panel's tabs stay pinned while you scroll, and switching tabs opens the new tab at its top.
+- The Shapes tab label no longer gets cut off.
+
 ## 1.1.0
 
 - Sharper letters: straight edges are drawn straight, and corners sit where the edges meet instead of rounding off.

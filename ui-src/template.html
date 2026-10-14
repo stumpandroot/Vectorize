@@ -32,7 +32,14 @@
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html,body{height:100%}
+html,body{height:100%;margin:0}
+/* On a desktop-sized window the app is a fixed frame: only the canvas and the side panel scroll, and
+   reaching the end of a panel never drags or bounces the whole window. Phones keep a scrolling page. */
+@media (min-width:861px){
+  html,body{overflow:hidden;overscroll-behavior:none}
+  .inspector{overscroll-behavior:contain}
+}
+html.native,html.native body{overflow:hidden;overscroll-behavior:none}
 body{background:var(--bg);color:var(--ink);font:400 15px/1.45 var(--font);-webkit-font-smoothing:antialiased}
 button,input,select{font:inherit;color:inherit}
 button{cursor:pointer;border:0;background:none;padding:0}
@@ -65,6 +72,8 @@ h1,h2,h3,p{margin:0}
 .seg button{min-height:34px;padding:0 14px;border-radius:999px;font-size:13.5px;font-weight:500;color:var(--muted);overflow:hidden;transition:background .2s,color .2s}
 .seg button[aria-selected="true"],.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 3px #1E234014,0 0 0 1px #1E23400a}
 .seg.full{display:flex;width:100%} .seg.full button{flex:1;padding:0 6px}
+.insp-head .seg.full button{flex:1 1 auto;min-width:0;padding:0 8px;white-space:nowrap}
+.insp-head .seg.full .count{margin-left:-2px}
 
 .main{display:grid;grid-template-columns:minmax(0,1fr) 340px;min-height:0}
 .canvas-col{display:flex;flex-direction:column;gap:12px;padding:16px 20px 20px;min-width:0;min-height:0}
@@ -158,7 +167,7 @@ h1,h2,h3,p{margin:0}
 .aside{font:600 22px/1 var(--hand);color:var(--coral-ink);margin-left:auto}
 
 .inspector{border-left:1px solid var(--line);background:var(--panel);padding:18px 18px 24px;display:flex;flex-direction:column;gap:18px;overflow:auto;min-height:0}
-.insp-head{display:flex;flex-direction:column;gap:12px}
+.insp-head{display:flex;flex-direction:column;gap:12px;position:sticky;top:-18px;z-index:5;background:var(--panel);margin:-18px -18px 0;padding:18px 18px 12px;box-shadow:0 1px 0 var(--line)}
 .insp-head h2{font-size:19px;font-weight:700;letter-spacing:-.02em}
 .group{display:flex;flex-direction:column;gap:10px}
 .group > label,.group-title{font-size:13px;font-weight:700}
