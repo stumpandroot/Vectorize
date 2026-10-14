@@ -6,7 +6,7 @@ Vectorize turns PNG and JPEG logos into clean SVG, PDF, and EPS files. This repo
 
 | Path | What it is |
 | --- | --- |
-| `ui-src/` | The interface: tracing engine (`fit.js`, `app.js`), editor (`editor.js`), and page (`template.html`) |
+| `ui-src/` | The interface: tracing engine (`fit.js`, `app.js`), editor (`editor.js`), Align view (`align.js`), and page (`template.html`) |
 | `ui/index.html` | The built interface that ships inside the app. Rebuild it after changing `ui-src/`. |
 | `app/` | The Mac side: the window and menus (`main.py`), what the interface can ask the Mac to do (`bridge.py`), Apple Vision cutout and fonts (`native.py`), PDF and EPS writing (`vector_export.py`), and the GreenLaunch license check |
 | `packaging/` | The app recipe (`Vectorize.spec`), icon, signing settings, and the sign-and-DMG script |
@@ -120,6 +120,16 @@ Line Art and Technical Drawing need a centerline trace, which Vectorize doesn't 
 | Print and brand | Stacked | Every color is a brand color |
 | Web icon | Stacked | Details at least 1 px wide at the icon size |
 
+## Line parts up with the original
+
+Choose **Align** above the canvas (or **View > Align**).
+
+1. Pick **Onion skin** to see the original under the vector, or **Difference** to see in red where the vector is off by more than about half a pixel.
+2. Select parts and drag them, or nudge them with the arrow keys: 0.1 px per press, or 1 px with Shift. Clicking a letter in a word that's set in a font selects the whole word.
+3. Click **Align selection to original** (or **Align all to original** with nothing selected) to move parts to where they best match the original, within 3 px.
+
+Drag from the top or left ruler to add a guide, and drag it back onto the ruler to remove it. While you drag a part, it snaps to guides, to other parts' edges and centers, and to the middle of the image; hold Option to turn snapping off. With two or more parts selected, the align buttons line up their edges or centers. Moves stay through retraces and undo, and go into every export.
+
 ## Score tracing changes
 
 `bench/testset` holds 42 generated test logos: 14 designs, each saved as a 240 px PNG, a 480 px PNG, and a 480 px JPEG. Each design was drawn from known shapes and open-license Google Fonts, so the right answer is known exactly. `bench/score.py` traces them with the app's engine and measures shape error, edge error, corner error, and points against the true artwork.
@@ -143,6 +153,7 @@ To regenerate the test logos, download the fonts listed in `bench/make_testset.p
   python3 tests/ui/test_autofont.py
   python3 tests/ui/test_tune.py
   python3 tests/ui/test_presets.py
+  python3 tests/ui/test_align.py
   ```
 
 - A built app checks itself: `dist/Vectorize.app/Contents/MacOS/Vectorize --self-test` checks the bundled parts, and `--smoke-test` opens the window, converts the sample logo, and closes.
@@ -159,5 +170,6 @@ GitHub runs all of these on every build.
 | ⌘A, Esc | Select all parts, deselect |
 | Delete | Delete the selected parts |
 | V, H | Select tool, hand tool (hold Space to pan with either) |
+| Arrow keys, Shift-arrow keys | In Align view, nudge the selection 0.1 px or 1 px |
 | ⌘=, ⌘−, ⌘1, ⌘0 | Zoom in, zoom out, actual size, zoom to fit |
 | Pinch or ⌘-scroll | Zoom where the pointer is |

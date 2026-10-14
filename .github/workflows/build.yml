@@ -44,6 +44,7 @@ jobs:
           python tests/ui/test_autofont.py
           python tests/ui/test_tune.py
           python tests/ui/test_presets.py
+          python tests/ui/test_align.py
       - name: Tracing scores (generated test logos)
         run: python bench/score.py bench-out --check bench/baseline.json
       - name: Upload the tracing scores

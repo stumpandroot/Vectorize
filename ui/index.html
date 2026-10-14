@@ -272,6 +272,37 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
 .deleted-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-top:4px}
 .lock-chip.restore{padding:4px 10px 4px 6px;background:var(--mist-tint);color:var(--ink);font-family:var(--font)}
 .outputs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+/* Align view */
+.sheet .diff,.sheet .guides{position:absolute;inset:0;width:100%;height:100%;display:block}
+.sheet .guides{overflow:visible;pointer-events:none;z-index:3}
+.guides .guide-line{stroke:#18A9E0;stroke-width:1;vector-effect:non-scaling-stroke}
+.guides .guide-hit{stroke:transparent;stroke-width:9;vector-effect:non-scaling-stroke;pointer-events:stroke;cursor:move}
+.guides .snapline{stroke:#E0218A;stroke-width:1;vector-effect:non-scaling-stroke}
+.stage.onion #vec svg > g{opacity:var(--vec-op,.6)}
+.stage.diff #vec svg > g{opacity:0}
+.stage.aligning #vec [data-k],.stage.aligning #vec [data-t]{cursor:move}
+.ruler{position:absolute;z-index:6;background:var(--surface)}
+.ruler.x{left:0;top:0;cursor:row-resize;box-shadow:0 1px 0 var(--line)}
+.ruler.y{left:0;top:0;cursor:col-resize;box-shadow:1px 0 0 var(--line)}
+.ruler.c{width:20px;height:20px;z-index:7;font:600 8.5px var(--font);color:var(--muted);display:grid;place-items:center;box-shadow:1px 1px 0 var(--line)}
+.alignbar{display:flex;flex-direction:column;gap:6px;margin:0 0 10px;padding:10px 12px;border-radius:18px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--line)}
+.stage.aligning .vec{background:none}
+.stage.aligning #snapChips{display:none}
+.stage,.stage img,.stage canvas{-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
+.ab-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.seg.mini{display:inline-flex;gap:2px;padding:3px;border-radius:12px;background:var(--mist-tint)}
+.seg.mini button{height:28px;padding:0 10px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.seg.mini button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px #0000001f}
+.ab-op{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.ab-op input{width:110px}
+.ab-op output{min-width:34px;font-variant-numeric:tabular-nums}
+#alignOrig{margin-left:auto}
+.ab-icons{display:inline-flex;gap:2px}
+.ab-icons button{width:30px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--ink)}
+.ab-icons button:hover:not(:disabled){background:var(--mist-tint)}
+.ab-icons button:disabled{opacity:.35}
+.ab-icons svg{width:18px;height:18px;fill:currentColor}
+.ab-note{margin:0;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .preset{text-align:center;line-height:1.2}
 .dest-box{display:flex;flex-direction:column;gap:8px;margin-top:2px;padding:12px;border-radius:16px;background:var(--mist-tint)}
 .dest-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;font-weight:600}
@@ -330,6 +361,7 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
       <button role="tab" id="v-compare" data-view="compare" aria-selected="true" data-press><span class="inner">Compare</span></button>
       <button role="tab" id="v-original" data-view="original" aria-selected="false" data-press><span class="inner">Original</span></button>
       <button role="tab" id="v-vector" data-view="vector" aria-selected="false" data-press><span class="inner">Vector</span></button>
+      <button role="tab" id="v-align" data-view="align" aria-selected="false" data-press title="Line parts up with the original"><span class="inner">Align</span></button>
     </div>
     <div class="tb-right">
       <button class="btn btn-soft" id="addBtn" data-press><span class="inner"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5a1.5 1.5 0 0 1 1.5 1.5v4.5H18a1.5 1.5 0 0 1 0 3h-4.5V18a1.5 1.5 0 0 1-3 0v-4.5H6a1.5 1.5 0 0 1 0-3h4.5V6A1.5 1.5 0 0 1 12 4.5z"/></svg>Choose image</span></button>
@@ -364,15 +396,43 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
         <button class="btn btn-dark btn-sm" id="batchExport" data-press><span class="inner">Export all</span></button>
         <button class="link-btn" id="batchClose">Close</button>
       </div>
+      <div class="alignbar" id="alignBar" hidden>
+        <div class="ab-row">
+          <div class="seg mini" role="group" aria-label="Overlay">
+            <button type="button" data-amode="onion" aria-pressed="true"><span class="inner">Onion skin</span></button>
+            <button type="button" data-amode="diff" aria-pressed="false"><span class="inner">Difference</span></button>
+          </div>
+          <label class="ab-op" id="vecOpacityRow">Vector <input type="range" id="vecOpacity" min="0" max="100" value="60" aria-label="Vector opacity"><output id="vecOpacityOut">60%</output></label>
+          <button type="button" class="btn btn-sun btn-sm" id="alignOrig" data-press><span class="inner">Align all to original</span></button>
+        </div>
+        <div class="ab-row">
+          <div class="ab-icons" role="group" aria-label="Align selected parts">
+            <button type="button" data-align="left" title="Align left edges" aria-label="Align left edges"><svg viewBox="0 0 24 24"><path d="M4 3h1.6v18H4zM7.5 6h9a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-9zM7.5 13H20a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H7.5z"/></svg></button>
+            <button type="button" data-align="hcenter" title="Align centers" aria-label="Align centers"><svg viewBox="0 0 24 24"><path d="M11.2 3h1.6v3H17a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-4.2v2H19a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-6.2v3h-1.6v-3H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h6.2v-2H7a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h4.2z"/></svg></button>
+            <button type="button" data-align="right" title="Align right edges" aria-label="Align right edges"><svg viewBox="0 0 24 24"><path d="M18.4 3H20v18h-1.6zM16.5 6h-9a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h9zM16.5 13H4a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h12.5z"/></svg></button>
+            <button type="button" data-align="top" title="Align tops" aria-label="Align tops"><svg viewBox="0 0 24 24"><path d="M3 4h18v1.6H3zM6 7.5v9a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-9zM13 7.5V20a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7.5z"/></svg></button>
+            <button type="button" data-align="vmiddle" title="Align middles" aria-label="Align middles"><svg viewBox="0 0 24 24"><path d="M3 11.2h3V7a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v4.2h2V5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v6.2h3v1.6h-3V19a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-6.2h-2V17a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-4.2H3z"/></svg></button>
+            <button type="button" data-align="bottom" title="Align bottoms" aria-label="Align bottoms"><svg viewBox="0 0 24 24"><path d="M3 18.4h18V20H3zM6 16.5v-9a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v9zM13 16.5V4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v12.5z"/></svg></button>
+          </div>
+          <button type="button" class="link-btn" id="resetPos">Reset positions</button>
+          <button type="button" class="link-btn" id="clearGuides" hidden>Clear guides</button>
+        </div>
+        <p class="ab-note" id="alignNote">Select parts to move them.</p>
+      </div>
       <div class="stage" id="stage">
         <span class="corner l" id="tagL">Original</span><span class="corner r" id="tagR">Vector</span>
         <div class="art"><div class="sheet" id="sheet">
           <img id="srcImg" alt="Original image">
+          <canvas class="diff" id="diffCanvas" hidden></canvas>
           <div class="vec" id="vec"></div>
+          <svg class="guides" id="guides" preserveAspectRatio="none" hidden></svg>
           <div class="split" id="split" role="slider" aria-label="Compare divider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" tabindex="0"><div class="knob"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.7 7.3a1 1 0 0 1 0 1.4L6.4 12l3.3 3.3a1 1 0 0 1-1.4 1.4l-4-4a1 1 0 0 1 0-1.4l4-4a1 1 0 0 1 1.4 0zm4.6 0a1 1 0 0 1 1.4 0l4 4a1 1 0 0 1 0 1.4l-4 4a1 1 0 0 1-1.4-1.4l3.3-3.3-3.3-3.3a1 1 0 0 1 0-1.4z"/></svg></div></div>
         </div></div>
         <div class="busy" id="busy" hidden><div><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="278 350 1440 1280"><g fill="#FCC54D" fill-rule="evenodd"><path d="M1164.79 1560.44C1164.81 1560.11 1165 1559.75 1164.86 1559.45L1135.63 1496.45C1135.31 1496.35 1135.01 1496.14 1134.68 1496.16L1089.49 1500.42L1048.71 1500.42L1009.12 1498.74L967.08 1493.73L915.05 1483.51L871.48 1471.38L834.34 1558.67C859.33 1580.13 843.59 1590.84 818.69 1596.83C790.83 1603.54 759.4 1604.43 731.24 1599.12C721.33 1597.26 706.15 1595.29 700.12 1586.05C692.72 1574.69 704.75 1564.75 713.67 1559.7C731.1 1549.82 753.17 1547 772.79 1546.01C777.45 1545.78 781.87 1547.02 786.56 1546.74C786.79 1546.5 787.11 1546.32 787.24 1546.02L827.19 1454.43L781.57 1430.68L739.87 1404.17C738.8 1403.5 737.68 1402.6 736.71 1401.79L704.71 1375.16C699.58 1370.89 694.15 1365.44 689.84 1360.34L664.28 1330.01L640.74 1293.5C639.69 1291.87 638.58 1290.1 637.71 1288.38L619.34 1252.18L606.02 1215.04A321.26 321.26 0 0 1 596.26 1173.93L591.12 1133.92C589.35 1120.17 591.44 1105.93 589.42 1092.31C577.96 1092.5 566.56 1095.05 554.87 1093.86C509.29 1089.23 480.3 1056.25 461.17 1017.78C456.25 1016.25 450.91 1015.55 446.1 1013.46C432.12 1007.36 420.73 993.42 418.33 978.26C417.55 973.31 418.24 968.38 417.02 963.63C408.57 962.28 399.74 963.98 391.23 962.76C375.16 960.45 355.39 946 355.39 928.08L355.39 847.32L364.44 846.68A33.75 33.75 0 0 0 364.14 832.22A13.31 13.31 0 0 1 355.52 830.91A41.14 41.14 0 0 1 356.3 813.07L384.2 813.07C385.95 804.88 384.3 795.69 385.61 787.35L402.52 787.35L403.24 794.21A10.96 10.96 0 0 0 411.41 792.98L412.58 787.35L503.47 787.35C517.27 787.36 535.57 807.57 535.58 820.99L535.58 927.8C535.58 941.95 522.23 953.3 511.29 959.61A52.43 52.43 0 0 1 502.13 1000.04C518.28 1034.4 551 1057.37 589.35 1043.72L589.35 971.02C593.65 969.87 598.61 970.11 603.02 969.26C603.16 968.96 603.88 968.69 603.88 968.36L603.88 883.15L635.16 883.15C635.34 882.9 635.88 882.33 635.88 882.03L635.88 807.5L668.73 806.29C668.95 803.05 669.42 799.63 669.43 796.4L669.43 736.85L589.35 736.85L589.35 647.74L683.24 647.74C683.4 647.45 684.06 646.63 684.06 646.3L684.06 577.09L723.27 577.09C723.42 576.82 724.36 576.24 724.37 575.93L724.37 504.94L797.15 504.94L797.15 433.89C797.42 433.7 798.21 433.41 798.53 433.41L878 433.41L878 382.02C878.26 381.83 879.05 381.48 879.38 381.48L928.16 381.48C933.19 381.49 939.06 381.41 944.07 382L988.03 387.13L1026.72 393.94L1072.16 406.55L1109 420.74L1144.48 438.25C1148.22 440.09 1152.23 442.11 1155.74 444.37L1189.08 465.79L1220.73 491.23C1227.52 496.68 1234.6 503.02 1240.53 509.38L1267.62 538.47L1292.96 571.44C1293.93 572.7 1295 574.1 1295.85 575.45L1320.2 613.93L1343.43 661.05L1358.64 700.7L1372 744.02L1384.82 799.54L1395.01 859.58L1403.99 930.85L1407 975.27C1407.2 978.18 1408.9 981.22 1409 984.1L1409 1044.7C1409.26 1052.01 1409.94 1059.36 1410.08 1066.69C1418 1075.65 1426.41 1085.16 1437.17 1091.02C1466.27 1106.89 1500.51 1097.11 1522.58 1073.76A46.51 46.51 0 0 1 1533.76 1025.95C1530.45 1019.95 1525.64 1014.78 1522.45 1008.61C1515.15 994.49 1512.5 977.18 1514.08 961.41C1520.19 900.52 1586.02 865.73 1640.43 891.77C1719.04 929.39 1697.67 1049.66 1606.62 1056.29C1604.64 1061.11 1604.69 1066.41 1603.01 1071.43C1598.16 1085.89 1584.51 1099.26 1569.02 1101.71C1564.14 1102.48 1559.05 1101.9 1554.17 1102.45C1524.02 1131.34 1495.47 1149.27 1451.99 1143.72C1435.93 1141.66 1423.37 1133.21 1408.87 1127.32C1408.69 1127.55 1408.35 1127.72 1408.32 1128.01L1402.74 1181.87L1395.04 1227.38L1385.6 1265.54C1384.84 1268.64 1383.84 1271.99 1382.76 1274.98L1368.07 1315.83A46.23 46.23 0 0 1 1363.21 1326.59L1344.68 1361.43A273.58 273.58 0 0 1 1215.72 1473.29L1178.78 1486.75L1206.5 1546.97C1212.99 1547.12 1219.58 1545.97 1226.12 1546C1245.66 1546.09 1266.88 1549.75 1284.59 1558.29C1294.23 1562.95 1308.05 1572.58 1301.45 1585.05C1296.15 1595.04 1279.98 1597.43 1269.99 1599.27C1239.3 1604.95 1204.97 1603.28 1174.92 1594.73C1155.06 1589.08 1146.69 1575.26 1164.79 1560.44ZM635.88 495.4L574.74 495.4C574.02 491.61 574.68 488.25 574.69 484.45L574.69 433.86C574.96 433.68 575.24 433.4 575.57 433.41L635.29 433.41C635.44 433.69 635.88 434.44 635.88 434.77L635.88 495.4ZM311.69 795.08C310.24 786.79 310.93 768.67 312.98 760.64A100.75 100.75 0 0 1 343.63 761.47A130.49 130.49 0 0 1 344.26 795.13A137.71 137.71 0 0 1 311.69 795.08Z"/><rect x="405" y="398" id="vz1" data-shape="rect"/><rect x="498" y="542" width="70" height="70" id="vz2" data-shape="rect"/><rect x="311" y="642" width="31" height="34" id="vz3" data-shape="rect"/><rect x="366" y="714" width="46" height="47" id="vz4" data-shape="rect"/></g><g fill="#252849" fill-rule="evenodd"><path d="M1001.37 819.36C992.31 808.62 980.82 800.77 968 795.03C961.92 792.31 953.99 792 949.02 787.24C943.98 782.4 942.86 774.19 947.81 768.81C956.33 759.55 973.06 768.73 981.9 772.93C1005.47 784.13 1024.45 802.26 1037.09 825.03C1041.42 832.83 1048.23 844.83 1043.58 853.78C1040.73 859.27 1034.5 861.78 1028.71 860.06C1023.38 858.48 1018.84 854.54 1013.94 852.04C1006.37 848.18 996.9 845.86 988.46 845.07C979.74 844.25 970.39 845.14 961.93 847.3C958.84 848.09 955.68 849.83 952.46 849.91C946.8 850.06 941.63 846.14 939.82 840.86C930.38 813.23 991.84 821.34 1001.37 819.36ZM461.61 1018.24C456.57 1016.16 450.86 1015.6 445.77 1013.32C431.86 1007.09 420.51 993.08 418.26 977.89C417.59 973.32 418.08 968.62 417.46 964.07C409.29 961.77 400.33 963.93 391.82 962.85C375.28 960.75 355.43 945.98 355.39 927.7L355.39 847.8L364.66 846.38L364.66 832.48L355.93 831.32A40.62 40.62 0 0 1 355.93 813.81C365.1 811.87 375.53 813.57 384.96 812.58L384.96 787.7A50.2 50.2 0 0 1 402.73 787.72L403.43 794.6L411.02 793.37L412.27 787.72C412.54 787.57 412.77 787.35 413.08 787.35L503.91 787.35C517.39 787.39 535.41 807.46 535.58 820.49L535.58 870.38L535.58 928.29C535.45 941.83 522.46 953.56 511.61 959.26C511.04 962.95 511.44 966.2 511.44 969.92C511.44 981.1 507.1 989.97 502.05 999.57C513.16 1025.49 539.25 1050.38 569.5 1047.98C580.55 1047.11 595.99 1039.02 605.89 1041.51C621.8 1045.51 623.92 1065.38 616.69 1077.41C607.55 1092.61 584.51 1093.99 568.52 1094C518.81 1094.02 480.61 1063.12 461.61 1018.24ZM1209.67 865.27C1221.52 872.24 1252.58 879.16 1253.9 897.29C1254.19 901.23 1252.52 905.23 1249.56 907.89C1245.95 911.15 1240.19 912.06 1235.82 909.78C1233.25 908.43 1231.34 905.7 1229.13 903.85C1222.02 897.87 1213.45 893.91 1204.57 891.41C1189.68 887.2 1179.84 891.64 1170.22 889.89C1164.49 888.86 1160.1 884.64 1159.12 878.85C1157.45 869.06 1166.89 862.14 1173.66 856.86C1193.53 841.37 1214.87 833.41 1239.76 830.9C1248.65 830 1266.02 827.81 1270.13 838.39C1272.92 845.57 1269.34 854.48 1261.66 856.71C1248.3 860.59 1230.9 851.98 1209.67 865.27ZM1409 1126.09L1409 1075.53C1409.12 1072.22 1409.15 1069.2 1409.5 1065.76C1431.94 1094.84 1465.34 1109.66 1500.01 1090.52C1508.35 1085.91 1516.57 1080.57 1522.76 1073.28C1517.05 1048.75 1522.9 1045 1533.73 1025.44C1519.25 1003.49 1511.13 988.59 1514.13 960.94C1520.73 900.19 1586.43 865.56 1640.8 891.94C1716.76 928.79 1701.31 1045.68 1606.37 1056.45C1604.7 1061.38 1604.63 1066.71 1602.91 1071.71C1597.94 1086.09 1584.28 1099.47 1568.75 1101.76C1564.21 1102.43 1559.4 1101.98 1554.82 1102.16C1544.89 1110.56 1536.33 1119.92 1525.32 1127.11C1489.04 1150.82 1444.81 1149.64 1409 1126.09ZM1129.43 955.57C1129.12 955.64 1128.8 955.84 1128.49 955.78L1047.54 940.59C1033.44 937.94 1036.6 912.35 1050.97 915.01L1132 930.04C1143.63 932.2 1141.95 949.73 1129.43 955.57ZM786.57 1546.73C786.79 1546.49 787.12 1546.31 787.25 1546.01L827.84 1454.86L871.68 1470.75L834.12 1557.97C837.32 1561.43 841.91 1564.32 844.52 1568.41C855.6 1585.81 830.8 1593.95 818.51 1596.88C790.66 1603.53 759.25 1604.44 731.12 1599.1C721.22 1597.22 706.03 1595.25 700.07 1585.97C692.76 1574.58 704.82 1564.7 713.73 1559.66C731.15 1549.82 753.21 1546.99 772.81 1546.01C777.47 1545.78 781.88 1547.02 786.57 1546.73ZM1164.78 1560.49C1164.81 1560.16 1165.01 1559.8 1164.86 1559.5L1134.11 1495.48C1138.16 1494.1 1173.52 1487.49 1178.18 1487.23L1206.56 1547C1213.03 1547.09 1219.66 1545.96 1226.19 1546C1245.73 1546.13 1266.91 1549.75 1284.62 1558.31C1294.26 1562.97 1308.06 1572.61 1301.44 1585.07C1296.12 1595.05 1279.97 1597.43 1269.98 1599.28C1239.07 1604.99 1204.21 1603.37 1174 1594.47C1154.46 1588.71 1147.21 1574.64 1164.78 1560.49Z"/></g><g fill="#F78E67" fill-rule="evenodd"><path d="M311.69 795.08C310.24 786.79 310.93 768.67 312.98 760.64A100.75 100.75 0 0 1 343.63 761.47A130.49 130.49 0 0 1 344.26 795.13A137.71 137.71 0 0 1 311.69 795.08ZM417.5 963.23C408.96 962.76 400.03 963.96 391.56 962.82C375.48 960.67 355.53 946.29 355.39 928.43L355.39 851.58C355.38 850.24 355.2 848.95 355.3 847.63L364.66 846.21L364.66 832.36L355.82 831.21A41.83 41.83 0 0 1 356.01 813.69L384.96 812.49L384.96 787.59A49.75 49.75 0 0 1 402.76 787.82L403.5 794.66L411.08 793.31L412.29 787.64C412.58 787.51 412.84 787.35 413.15 787.35L503.94 787.35C517.4 787.39 535.41 807.46 535.58 820.48L535.58 868.34L535.58 928.21C535.46 941.14 522.78 954.43 511.59 958.76C504.99 946.04 500.82 934.07 487.44 926.33C455.93 908.1 423.64 929.58 417.5 963.23Z"/></g><g fill="#FDDC88" fill-rule="evenodd"><path d="M635.88 495.4L574.74 495.4C574.02 491.61 574.68 488.25 574.69 484.45L574.69 433.86C574.96 433.68 575.24 433.4 575.57 433.41L635.29 433.41C635.44 433.69 635.88 434.44 635.88 434.77L635.88 495.4ZM869.64 611.69L808.62 611.69C806.33 606.11 807.44 595.03 807.46 588.52L807.46 549.08C807.72 548.88 807.99 548.66 808.32 548.66L869.64 548.66L869.64 611.69ZM498.41 599.26L498.41 558.17A126.01 126.01 0 0 1 498.41 599.26ZM706.73 754.36C706.32 753.14 706.36 753.65 706.37 752.28L706.37 708.54C706.47 700.63 705.23 692.69 706.76 684.86C707.03 684.67 707.24 684.28 707.57 684.28L776.53 684.28C776.71 684.55 777.32 684.74 777.32 685.06L777.32 725.62C777.44 734.9 776.74 744.03 777.82 753.32C777.52 753.58 776.92 754.36 776.39 754.36L706.73 754.36ZM723.5 970.46L654.87 970.46C654.69 970.19 654.3 969.78 654.3 969.45L654.3 900.68C658.74 899.89 662.37 900.74 666.82 900.68L709.48 900.68C713.89 900.62 718.66 900.69 722.99 900.61C723.19 900.87 724.36 901.07 724.37 901.4L724.37 945.11C724.56 953.9 724.72 961.73 723.5 970.46ZM724.37 1078.45L724.37 1030.53C724.27 1025.45 723.78 1020.75 724.8 1015.81C725.08 1015.64 725.3 1015.63 725.63 1015.63L788.36 1015.63C788.98 1019.42 788.25 1022.92 788.24 1026.69L788.24 1078.25C776.12 1080.58 764.03 1079.16 751.79 1079.16C742.79 1079.15 733.19 1081.32 724.37 1078.45ZM720.5 1197.68L669.43 1197.68L669.43 1153.95C669.39 1150.88 669.18 1148.48 669.75 1145.6L720.41 1145.6C722.82 1151.21 721.79 1189.89 720.5 1197.68Z"/></g><g fill="#B4D96F" fill-rule="evenodd"><path d="M1606.55 1055.69C1602.36 1044.91 1603.58 1038.29 1595.18 1027.9C1578.81 1007.66 1553.34 1011.94 1534.73 1025.35C1503.6 994.78 1508.6 937.33 1539.42 908.11C1566.4 882.53 1606.66 875.68 1640.33 891.72C1671.26 906.46 1691.9 941.63 1688.96 975.9C1685.52 1016.02 1647.98 1058.83 1606.55 1055.69Z"/></g></svg>Smoothing pixels…<span>Bigger images take a few seconds.</span></div></div>
         <div class="marquee" id="marquee" hidden></div>
+        <canvas class="ruler x" id="rulerX" hidden aria-hidden="true" title="Drag down to add a guide"></canvas>
+        <canvas class="ruler y" id="rulerY" hidden aria-hidden="true" title="Drag right to add a guide"></canvas>
+        <div class="ruler c" id="rulerC" hidden>px</div>
         <div class="snapbar" id="snapBar" hidden>
           <div class="snap-head"><b id="snapTitle">Outline</b><span id="snapNote">Snap it to a shape:</span><button type="button" id="snapClose" aria-label="Deselect">×</button></div>
           <div class="snap-acts">
@@ -2045,7 +2105,7 @@ function traceNow(cancelled = () => false) {
 
       useShape = {};
       for (const s of shapes) useShape[s.id] = S.shapes === "auto";
-      return { palette, layers, shapes, w: W, h: H, pieces, seconds: (performance.now() - t0) / 1000, transparent: S.bg !== "keep" || job.hasAlpha };
+      return { palette, layers, shapes, w: W, h: H, pieces, lab, seconds: (performance.now() - t0) / 1000, transparent: S.bg !== "keep" || job.hasAlpha };
     }
   }
 }
@@ -2059,10 +2119,35 @@ function orderedLayers(withDeleted = false) {
   return withDeleted ? Ls : Ls.filter(L => !deletedLayers.has(L.hex));
 }
 function visibleLayers() { return orderedLayers().filter(L => !hidden.has(L.hex)); }
+// Moves every absolute point in SVG path data by (dx, dy). Relative commands move with their start point,
+// except a path's opening "m", which is absolute in effect.
+function translateD(d, dx, dy) {
+  if (!dx && !dy) return d;
+  const f = v => { const r = Math.round(v * 100) / 100; return Object.is(r, -0) ? "0" : String(r); };
+  const NUM = /-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi, ARGS = { M: 2, L: 2, T: 2, H: 1, V: 1, C: 6, S: 4, Q: 4, A: 7, Z: 0 };
+  let out = "", first = true;
+  for (const m of d.matchAll(/([MLHVCSQTAZmlhvcsqtaz])([^MLHVCSQTAZmlhvcsqtaz]*)/g)) {
+    const c = m[1], C = c.toUpperCase(), n = (m[2].match(NUM) || []).map(Number), k = ARGS[C];
+    if (c !== C && !(first && c === "m")) { out += c + n.map(f).join(" "); first = false; continue; }
+    const v = n.slice();
+    for (let i = 0; k && i + k <= v.length; i += k) {
+      if (C === "H") v[i] += dx; else if (C === "V") v[i] += dy;
+      else if (C === "A") { v[i + 5] += dx; v[i + 6] += dy; }
+      else for (let j = 0; j < k; j += 2) { v[i + j] += dx; v[i + j + 1] += dy; }
+      if (first && c === "m") break;               // only the opening pair of an "m" is absolute
+    }
+    out += c + v.map(f).join(" "); first = false;
+  }
+  return out;
+}
+// A part's offset from where it was traced, in work pixels (set in Align view).
+const offOf = it => [it.dx || 0, it.dy || 0];
+const movedBox = it => { const b = itemBox(it), [dx, dy] = offOf(it); return [b[0] + dx, b[1] + dy, b[2] + dx, b[3] + dy]; };
 function itemD(it) {
   const s = it.outer.shape, on = s && useShape[s.id];
   const holes = on && s.consumesHole ? it.holes.slice(1) : it.holes;
-  return (on ? VZ.shapeD(s) : VZ.outlineD(it.outer.outline)) + holes.map(r => r.shape && useShape[r.shape.id] ? VZ.shapeD(r.shape) : VZ.outlineD(r.outline)).join("");
+  const d = (on ? VZ.shapeD(s) : VZ.outlineD(it.outer.outline)) + holes.map(r => r.shape && useShape[r.shape.id] ? VZ.shapeD(r.shape) : VZ.outlineD(r.outline)).join("");
+  return translateD(d, ...offOf(it));
 }
 function activeWords(li) { return (result.texts || []).filter(T => T.li === li && !T.removed && T.mode !== "original" && T.repl); }
 // part: "all", "art" (everything except words), or "text" (words only). Bounds of what was drawn go into box.
@@ -2075,15 +2160,17 @@ function layerBody(L, li, keyed, part = "all", box = null, only = null) {
   L.items.forEach((it, ii) => {
     if (skip.has(ii) || it.off || !pick(ii)) return;
     const isText = textItems.has(ii); if ((part === "art" && isText) || (part === "text" && !isText)) return;
-    const s = it.outer.shape, on = s && useShape[s.id], k = keyed ? ` data-k="${li}:${ii}"` : "";
-    grow(bboxOf(it.outer.q));
-    if (on && !it.holes.length) { out.push(VZ.shapeElement(s, s.id).replace(/^<(\w+)/, `<$1${k}`)); return; }
+    const s = it.outer.shape, on = s && useShape[s.id], k = keyed ? ` data-k="${li}:${ii}"` : "", moved = it.dx || it.dy;
+    grow(movedBox(it));
+    if (on && !it.holes.length && !moved) { out.push(VZ.shapeElement(s, s.id).replace(/^<(\w+)/, `<$1${k}`)); return; }
     out.push(`<path${k} d="${itemD(it)}"/>`);
   });
   if (part !== "art") for (const T of words) {
     const font = T.mode === "font" && T.pick ? ` data-font="${esc(T.pick.label || T.pick.fam)} ${T.pick.w}"` : "";
-    for (const it of T.repl) grow(bboxOf(it.outer.q));
-    out.push(`<g data-text="${esc(T.text || "")}"${font}>` + `<path${keyed ? ` data-t="${T.id}"` : ""} d="${T.repl.map(it => [it.outer, ...it.holes].map(r => VZ.outlineD(r.outline)).join("")).join("")}"/>` + `</g>`);
+    // A word moves with its first letter's offset (letters of a word always move together).
+    const [wx, wy] = offOf(L.items[T.items[0]] || {});
+    for (const it of T.repl) { const b = bboxOf(it.outer.q); grow([b[0] + wx, b[1] + wy, b[2] + wx, b[3] + wy]); }
+    out.push(`<g data-text="${esc(T.text || "")}"${font}>` + `<path${keyed ? ` data-t="${T.id}"` : ""} d="${translateD(T.repl.map(it => [it.outer, ...it.holes].map(r => VZ.outlineD(r.outline)).join("")).join(""), wx, wy)}"/>` + `</g>`);
   }
   return out.map(e => "    " + e + "\n").join("");
 }
@@ -2722,6 +2809,8 @@ function applyView() {
   sp.style.left = split + "%"; sp.setAttribute("aria-valuenow", String(Math.round(split)));
   $("#tagL").hidden = view === "vector"; $("#tagR").hidden = view === "original";
   $("#tagL").textContent = "Original"; $("#tagR").textContent = "Vector";
+  if (view === "align") { img.hidden = false; vec.hidden = false; sp.hidden = true; vec.style.clipPath = ""; }
+  if (typeof applyAlignView === "function") applyAlignView();
 }
 document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => { if (picking) endPick(); setView(b.dataset.view); }));
 (() => {
@@ -2886,10 +2975,12 @@ let pendingUseShape = null;
 // where set holds only the dials changed from the global settings.
 let tunes = [];
 let tuneScope = null;          // what the dials edit: null (everything), { kind: "layer", hex }, or { kind: "parts", parts }
+let moves = [];                // parts moved in Align view: { hex, box (as traced), dx, dy } in work pixels
+let guides = [];               // Align view guides: { axis: "x" | "y", v } in work pixels
 
 function resetDoc() {
   drawOrder = null; deletedLayers = new Set(); objEdits = []; selection = []; partMode = "all"; expanded = new Set();
-  pendingUseShape = null; undoStack = []; undoKey = null; tunes = []; tuneScope = null;
+  pendingUseShape = null; undoStack = []; undoKey = null; tunes = []; tuneScope = null; moves = []; guides = [];
 }
 const itemBox = it => it.box || (it.box = bboxOf(it.outer.q));
 function setSelection(list) { selection = list; sel = list.length === 1 ? list[0] : null; }
@@ -2956,10 +3047,20 @@ async function matchWords(res, j, stale = () => false) {
   }
   return swapped;
 }
+// Finds the part an edit was made to, by its traced box, after a retrace.
+function findPart(e, tol) {
+  let best = null, bd = Infinity;
+  for (const L of result.layers) for (const it of L.items) {
+    const b = itemBox(it); let d = 0; for (let i = 0; i < 4; i++) d = Math.max(d, Math.abs(b[i] - e.box[i]));
+    if (d < tol) { const dd = d + (L.hex === e.hex ? 0 : tol); if (dd < bd) { bd = dd; best = it; } }
+  }
+  return best;
+}
 function applyObjEdits() {
   if (!result) return;
   const tol = 0.02 * Math.max(result.w, result.h);
-  for (const L of result.layers) for (const it of L.items) it.off = null;
+  for (const L of result.layers) for (const it of L.items) { it.off = null; it.dx = it.dy = 0; }
+  for (const m of moves) { const it = findPart(m, tol); if (it) { it.dx = m.dx; it.dy = m.dy; } }
   for (const e of objEdits) {
     let best = null, bd = Infinity;
     for (const L of result.layers) for (const it of L.items) {
@@ -2981,13 +3082,14 @@ let undoStack = [], undoKey = null, undoAt = 0;
 function tracingS() { const o = { ...S }; delete o.exportFormat; return o; }
 const settingsKey = () => JSON.stringify([tracingS(), locked]);
 function editState() {
-  return JSON.parse(JSON.stringify({ recolor, hidden: [...hidden], useShape, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers: [...deletedLayers], partMode, tunes }));
+  return JSON.parse(JSON.stringify({ recolor, hidden: [...hidden], useShape, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers: [...deletedLayers], partMode, tunes, moves, guides }));
 }
 function applyEditState(st) {
   recolor = { ...st.recolor }; hidden = new Set(st.hidden); manualSnaps = st.manualSnaps.map(m => ({ ...m }));
   textMemory = st.textMemory.map(m => ({ ...m })); objEdits = st.objEdits.map(e => ({ ...e }));
   drawOrder = st.drawOrder ? st.drawOrder.slice() : null; deletedLayers = new Set(st.deletedLayers); partMode = st.partMode || "all";
   tunes = JSON.parse(JSON.stringify(st.tunes || []));
+  moves = (st.moves || []).map(m => ({ ...m, box: m.box.slice() })); guides = (st.guides || []).map(g => ({ ...g }));
 }
 function pushUndo(key) {
   if (!result) return;
@@ -3208,7 +3310,7 @@ $("#snapBar").addEventListener("click", e => { const b = e.target.closest("[data
       if (view === "original") return;
       // Parts fully inside the box are selected.
       const a = toWork(Math.min(p.x, e.clientX), Math.min(p.y, e.clientY)), b = toWork(Math.max(p.x, e.clientX), Math.max(p.y, e.clientY));
-      const found = []; for (const L of visibleLayers()) { const li = result.layers.indexOf(L); L.items.forEach((it, ii) => { if (it.off) return; const q = itemBox(it); if (q[0] >= a[0] && q[1] >= a[1] && q[2] <= b[0] && q[3] <= b[1]) found.push({ li, ii }); }); }
+      const found = []; for (const L of visibleLayers()) { const li = result.layers.indexOf(L); L.items.forEach((it, ii) => { if (it.off) return; const q = movedBox(it); if (q[0] >= a[0] && q[1] >= a[1] && q[2] <= b[0] && q[3] <= b[1]) found.push({ li, ii }); }); }
       const keys = new Set(selection.map(k => k.li + ":" + k.ii));
       setSelection(p.shift ? selection.concat(found.filter(k => !keys.has(k.li + ":" + k.ii))) : found);
       drawSelection(); renderPalette(); return;
@@ -3239,6 +3341,7 @@ function applyZoom() {
   sh.style.transform = `translate(calc(-50% + ${pan[0].toFixed(1)}px), calc(-50% + ${pan[1].toFixed(1)}px))`;
   $("#zoomPct").textContent = Math.round(fitScale * zoom * 100) + "%";
   $("#stage").classList.toggle("zoomed", zoom > 1.001);
+  if (typeof drawRulers === "function") drawRulers();
 }
 function fitView() { zoom = 1; pan = [0, 0]; layoutSheet(); }
 function zoomAt(f, cx, cy) {
@@ -3468,10 +3571,10 @@ $("#batchClose").onclick = () => { leaveBatch(); toast("Closed the batch. The op
 // Traces another image with the current settings and its own saved edits, sets its words in their
 // fonts, runs fn, then puts everything back. The screen doesn't redraw while it runs.
 async function withJob(j, st, fn) {
-  const keep = { job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode, tunes, tuneScope }, keepSticker = stickerCache;
+  const keep = { job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode, tunes, tuneScope, moves, guides }, keepSticker = stickerCache;
   renderPaused = true; checkSeq++;                         // a check still running belongs to the image on screen
   try {
-    job = j; useShape = {}; recolor = {}; hidden = new Set(); manualSnaps = []; textMemory = []; objEdits = []; drawOrder = null; deletedLayers = new Set(); selection = []; sel = null; textSel = null; partMode = "all"; tunes = []; tuneScope = null;
+    job = j; useShape = {}; recolor = {}; hidden = new Set(); manualSnaps = []; textMemory = []; objEdits = []; drawOrder = null; deletedLayers = new Set(); selection = []; sel = null; textSel = null; partMode = "all"; tunes = []; tuneScope = null; moves = []; guides = [];
     const fontMems = st ? st.textMemory.filter(m => m.mode === "font" && m.pick && m.text) : [];
     // Fonts are applied below and awaited, so setupText leaves those words traced for now.
     if (st) { applyEditState(st); textMemory = textMemory.map(m => m.mode === "font" ? { ...m, mode: "original" } : m); }
@@ -3493,7 +3596,7 @@ async function withJob(j, st, fn) {
     if (S.output === "sticker") await buildSticker();        // the cut line is drawn off screen, so wait for it
     return await fn();
   } finally {
-    ({ job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode, tunes, tuneScope } = keep);
+    ({ job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode, tunes, tuneScope, moves, guides } = keep);
     stickerCache = keepSticker; if (result) afterRender();
     renderPaused = false;
   }
@@ -3594,7 +3697,7 @@ function syncDest() {
 // The artwork's box in work pixels, from everything visible.
 function artBox() {
   const b = [Infinity, Infinity, -Infinity, -Infinity];
-  for (const L of visibleLayers()) for (const it of L.items) if (!it.off) { const q = bboxOf(it.outer.q); b[0] = Math.min(b[0], q[0]); b[1] = Math.min(b[1], q[1]); b[2] = Math.max(b[2], q[2]); b[3] = Math.max(b[3], q[3]); }
+  for (const L of visibleLayers()) for (const it of L.items) if (!it.off) { const q = movedBox(it); b[0] = Math.min(b[0], q[0]); b[1] = Math.min(b[1], q[1]); b[2] = Math.max(b[2], q[2]); b[3] = Math.max(b[3], q[3]); }
   return isFinite(b[0]) ? b : null;
 }
 // Work pixels per inch (or per pixel for web icons) at the final size.
@@ -3656,7 +3759,7 @@ function hasEdge(m) { const v = m[0]; for (let i = 1; i < m.length; i++) if (m[i
 async function thinScan(layers, bx, s, rLine, rGap, alive) {
   const W = Math.ceil((bx[2] - bx[0]) * s), H = Math.ceil((bx[3] - bx[1]) * s);
   const bodies = layers.map(L => buildSVG(false, { layers: [L], noDest: true }).replace(/^[\s\S]*?<svg[^>]*>/, "").replace(/<\/svg>\s*$/, ""));
-  const boxes = layers.map(L => { const b = [Infinity, Infinity, -Infinity, -Infinity]; for (const it of L.items) if (!it.off) { const q = bboxOf(it.outer.q); b[0] = Math.min(b[0], q[0]); b[1] = Math.min(b[1], q[1]); b[2] = Math.max(b[2], q[2]); b[3] = Math.max(b[3], q[3]); } return b.map((v, i) => (v - bx[i % 2]) * s); });
+  const boxes = layers.map(L => { const b = [Infinity, Infinity, -Infinity, -Infinity]; for (const it of L.items) if (!it.off) { const q = movedBox(it); b[0] = Math.min(b[0], q[0]); b[1] = Math.min(b[1], q[1]); b[2] = Math.max(b[2], q[2]); b[3] = Math.max(b[3], q[3]); } return b.map((v, i) => (v - bx[i % 2]) * s); });
   const T = 768, M = Math.ceil(2 * Math.max(rLine || 0, rGap || 0)) + 3;
   const f = Math.min(1, Math.sqrt(1.2e6 / (W * H))), MW = Math.max(1, Math.ceil(W * f)), MH = Math.max(1, Math.ceil(H * f)), marks = new Uint8Array(MW * MH);
   const c = document.createElement("canvas"), g = c.getContext("2d", { willReadFrequently: true });
@@ -3695,7 +3798,7 @@ let stickerCache = null, stickerShown = null, jobIds = 0;
 function stickerKey() {
   const d = S.dest, b = artBox(); if (!d || !b || !result) return null;
   if (!job._id) job._id = ++jobIds;
-  return JSON.stringify([job._id, d, b, visibleLayers().map(L => [L.hex, L.items.filter(it => !it.off).length]), hidden.size, deletedLayers.size, objEdits.length, result.seconds]);
+  return JSON.stringify([job._id, d, b, visibleLayers().map(L => [L.hex, L.items.filter(it => !it.off).length]), moves, hidden.size, deletedLayers.size, objEdits.length, result.seconds]);
 }
 function mapOutline(o, s, ox, oy) {
   const P = p => [p[0] / s + ox, p[1] / s + oy], V = p => [p[0] / s, p[1] / s];
@@ -3742,6 +3845,7 @@ function destDecor(opts, keyed) {
 let checkTimer = 0, checkSeq = 0, thinOverlay = null, showThin = false;
 function afterRender() {
   syncDest();
+  if (typeof afterAlignRender === "function") afterAlignRender();
   if (showThin && thinOverlay) drawThinOverlay();
   // The cut line is drawn off screen; draw again once it's ready, unless the screen already shows it
   // (or can't, as in the Words view).
@@ -3991,7 +4095,7 @@ function runCommand(cmd) {
     case "deselect": clearSelection(); break;
     case "hide": selAct("hide"); break;
     case "delete": selAct("delete"); break;
-    case "view:compare": case "view:original": case "view:vector": if (picking) endPick(); setView(cmd.slice(5)); break;
+    case "view:compare": case "view:original": case "view:vector": case "view:align": if (picking) endPick(); setView(cmd.slice(5)); break;
     case "outlines": toggleOutlines(); break;
     case "fit": fitView(); break;
     case "zoomIn": zoomAt(1.5); break;
@@ -4062,6 +4166,361 @@ window.addEventListener("pywebviewready", initNative);
   initNative();
   if (!NATIVE) { try { downloads = await window.claude?.use?.("downloads"); } catch { downloads = null; } }
 })();
+
+/* ==========================================================================
+   Align view: put every part exactly where it is in the original.
+   The original sits under the vector (onion skin) or mismatches show in red
+   (difference). Drag parts, nudge them with the arrow keys, or let Align to
+   original find the best fit. Rulers, guides, align buttons, and snap lines
+   help place things exactly. Offsets are stored per part (moves) and go into
+   every export.
+   ========================================================================== */
+// var, not let: app.js and editor.js call these hooks while the page is still loading, before this file runs.
+var alignReady = false, alignMode = "onion", vecOpacity = 0.6, diffTimer = 0, diffSeq = 0, alignBusy = false;
+const SNAP_SCREEN_PX = 6;                                    // how close an edge must come to snap, on screen
+const workPerOrig = () => result.w / job.origW;              // work pixels per original pixel
+const fmtPx = v => { const r = Math.round(v * 100) / 100; return (Object.is(r, -0) ? 0 : r).toFixed(2).replace(/\.?0+$/, "") || "0"; };
+
+/* ---------- Units: a letter in a font-swapped word moves with its word ---------- */
+function unitsOf(keys) {
+  const seen = new Set(), out = [];
+  for (const k of keys) {
+    if (seen.has(k.li + ":" + k.ii)) continue;
+    const T = wordOf(k.li, k.ii), word = T && T.mode !== "original" && T.repl ? T : null;
+    const ks = (word ? word.items.map(ii => ({ li: word.li, ii })) : [k]).filter(x => liveItem(x));
+    ks.forEach(x => seen.add(x.li + ":" + x.ii));
+    if (ks.length) out.push({ keys: ks, word });
+  }
+  return out;
+}
+const itemOf = k => result.layers[k.li].items[k.ii];
+function unitBox(u) {
+  if (u.word) {
+    const [dx, dy] = offOf(itemOf(u.keys[0])), b = bboxOf(u.word.repl.flatMap(it => it.outer.q));
+    return [b[0] + dx, b[1] + dy, b[2] + dx, b[3] + dy];
+  }
+  const b = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const k of u.keys) { const q = movedBox(itemOf(k)); b[0] = Math.min(b[0], q[0]); b[1] = Math.min(b[1], q[1]); b[2] = Math.max(b[2], q[2]); b[3] = Math.max(b[3], q[3]); }
+  return b;
+}
+const unionBox = bs => bs.reduce((a, b) => [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])], [Infinity, Infinity, -Infinity, -Infinity]);
+function allUnits() { const keys = []; for (const L of visibleLayers()) { const li = result.layers.indexOf(L); L.items.forEach((it, ii) => { if (!it.off) keys.push({ li, ii }); }); } return unitsOf(keys); }
+
+/* ---------- Offsets ---------- */
+function setOffset(k, dx, dy) {
+  const L = result.layers[k.li], it = L.items[k.ii], b = itemBox(it), eps = 1e-3;
+  dx = Math.round(dx * 1000) / 1000; dy = Math.round(dy * 1000) / 1000;
+  moves = moves.filter(m => !(m.hex === L.hex && m.box.every((v, i) => Math.abs(v - b[i]) < 0.5)));
+  if (Math.abs(dx) > eps || Math.abs(dy) > eps) moves.push({ hex: L.hex, box: b.slice(), dx, dy });
+  it.dx = Math.abs(dx) > eps ? dx : 0; it.dy = Math.abs(dy) > eps ? dy : 0;
+}
+// Moves whole units by (ddx, ddy) work pixels; a word's letters all take the first letter's offset.
+function moveUnits(units, ddx, ddy) {
+  for (const u of units) { const [x, y] = offOf(itemOf(u.keys[0])); for (const k of u.keys) setOffset(k, x + ddx, y + ddy); }
+}
+function setUnitOffset(u, dx, dy) { for (const k of u.keys) setOffset(k, dx, dy); }
+
+/* ---------- Align to original ---------- */
+// Finds the shift (in work pixels, within 3 original pixels) that best lays the unit over its color in the
+// original. Each covered pixel scores +1 on its own color, 0 under a color stacked above it (it's meant to
+// hide there), and −1 anywhere else. Coarse grid, then single pixels, then a parabola for the last fraction.
+async function bestShift(u) {
+  const W = result.w, H = result.h, R = Math.max(2, Math.ceil(3 * workPerOrig()));
+  const b = unitBox(u), x0 = Math.floor(b[0]) - 2, y0 = Math.floor(b[1]) - 2, ww = Math.ceil(b[2]) + 2 - x0, wh = Math.ceil(b[3]) + 2 - y0;
+  if (ww < 2 || wh < 2) return null;
+  const only = new Set(u.keys.map(k => k.li + ":" + k.ii));
+  const svg = buildSVG(false, { only, noDest: true }); if (!svg) return null;
+  const im = await loadImage("data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.replace(/<svg[^>]*>/, `<svg xmlns="http://www.w3.org/2000/svg" width="${ww}" height="${wh}" viewBox="${x0} ${y0} ${ww} ${wh}">`)));
+  const c = document.createElement("canvas"); c.width = ww; c.height = wh; const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0, ww, wh);
+  const a = g.getImageData(0, 0, ww, wh).data;
+  let px = [], py = [], pv = [], total = 0;
+  for (let y = 0; y < wh; y++) for (let x = 0; x < ww; x++) { const v = a[(y * ww + x) * 4 + 3] / 255; if (v > 0.02) { px.push(x0 + x); py.push(y0 + y); pv.push(v); total += v; } }
+  if (!pv.length) return null;
+  if (pv.length > 60000) { const st = Math.ceil(pv.length / 60000); px = px.filter((_, i) => i % st === 0); py = py.filter((_, i) => i % st === 0); pv = pv.filter((_, i) => i % st === 0); }
+  const L = result.layers[u.keys[0].li], label = L.label, order = orderedLayers(), upper = new Set(S.layering === "cutout" ? [] : order.slice(order.indexOf(L) + 1).map(x => x.label));
+  const lab = result.lab, wt = l => l === label ? 1 : upper.has(l) ? 0 : -1;
+  const score = (dx, dy) => { let s = 0; for (let i = 0; i < pv.length; i++) { const x = px[i] + dx, y = py[i] + dy; s += pv[i] * (x < 0 || y < 0 || x >= W || y >= H ? -1 : wt(lab[y * W + x])); } return s; };
+  const memo = new Map(), sc = (dx, dy) => { const k = dx + "," + dy; if (!memo.has(k)) memo.set(k, score(dx, dy)); return memo.get(k); };
+  let best = [0, 0], bs = sc(0, 0); const s0 = bs;
+  const step = Math.max(1, Math.floor(R / 3));
+  for (let dy = -R; dy <= R; dy += step) for (let dx = -R; dx <= R; dx += step) { const v = sc(dx, dy); if (v > bs) { bs = v; best = [dx, dy]; } }
+  for (let pass = 0; pass < 3; pass++) {
+    const [cx, cy] = best;
+    for (let dy = -step; dy <= step; dy++) for (let dx = -step; dx <= step; dx++) { if (Math.abs(cx + dx) > R || Math.abs(cy + dy) > R) continue; const v = sc(cx + dx, cy + dy); if (v > bs) { bs = v; best = [cx + dx, cy + dy]; } }
+    if (best[0] === cx && best[1] === cy) break;
+  }
+  if (bs - s0 <= 0.003 * total) return [0, 0];              // already as good as it gets
+  const para = (m, z, p) => { const den = m - 2 * z + p; return den < 0 ? Math.max(-0.5, Math.min(0.5, (m - p) / (2 * den))) : 0; };
+  const [bx, by] = best;
+  return [bx + para(sc(bx - 1, by), bs, sc(bx + 1, by)), by + para(sc(bx, by - 1), bs, sc(bx, by + 1))];
+}
+async function alignToOriginal() {
+  if (!result || alignBusy) return;
+  const units = selection.length ? unitsOf(selection) : allUnits(); if (!units.length) return;
+  alignBusy = true; $("#alignOrig").disabled = true; pushUndo();
+  let moved = 0;
+  try {
+    for (let i = 0; i < units.length; i++) {
+      if (units.length > 8) setStatus("working", `Aligning ${i + 1} of ${units.length}`);
+      const d = await bestShift(units[i]);
+      if (d && (Math.abs(d[0]) > 0.02 || Math.abs(d[1]) > 0.02)) { moveUnits([units[i]], d[0], d[1]); moved++; }
+    }
+  } finally { alignBusy = false; $("#alignOrig").disabled = false; }
+  setStatus("done", "Aligned"); render();
+  const n = units.length;
+  toast(moved ? `Moved ${moved} of ${n} ${n === 1 ? "part" : "parts"} to match the original. Press ⌘Z to undo.` : `${n === 1 ? "That part already matches" : "Every part already matches"} the original.`);
+}
+
+/* ---------- Align buttons ---------- */
+function alignUnits(how) {
+  const units = unitsOf(selection); if (units.length < 2) return;
+  const boxes = units.map(unitBox), U = unionBox(boxes);
+  pushUndo();
+  units.forEach((u, i) => {
+    const b = boxes[i]; let dx = 0, dy = 0;
+    if (how === "left") dx = U[0] - b[0]; else if (how === "right") dx = U[2] - b[2]; else if (how === "hcenter") dx = (U[0] + U[2]) / 2 - (b[0] + b[2]) / 2;
+    else if (how === "top") dy = U[1] - b[1]; else if (how === "bottom") dy = U[3] - b[3]; else if (how === "vmiddle") dy = (U[1] + U[3]) / 2 - (b[1] + b[3]) / 2;
+    moveUnits([u], dx, dy);
+  });
+  render();
+}
+function resetPositions() {
+  const units = selection.length ? unitsOf(selection) : allUnits();
+  if (!units.some(u => u.keys.some(k => { const it = itemOf(k); return it.dx || it.dy; }))) return;
+  pushUndo(); units.forEach(u => setUnitOffset(u, 0, 0)); render();
+  toast(selection.length ? "Put the selection back where it was traced." : "Put every part back where it was traced.");
+}
+function nudge(dx, dy) {
+  const units = unitsOf(selection); if (!units.length) return;
+  pushUndo("nudge"); const k = workPerOrig(); moveUnits(units, dx * k, dy * k); render();
+}
+
+/* ---------- Dragging parts, with snap lines ---------- */
+var dragAl = null;
+function snapTargets(exclude) {
+  const xs = [0, result.w / 2, result.w], ys = [0, result.h / 2, result.h];
+  for (const u of allUnits()) { if (u.keys.some(k => exclude.has(k.li + ":" + k.ii))) continue; const b = unitBox(u); xs.push(b[0], (b[0] + b[2]) / 2, b[2]); ys.push(b[1], (b[1] + b[3]) / 2, b[3]); }
+  for (const g of guides) (g.axis === "x" ? xs : ys).push(g.v);
+  return { xs, ys };
+}
+function snapAxis(edges, targets, tol) {
+  let best = null;
+  for (const e of edges) for (const t of targets) { const d = t - e; if (Math.abs(d) <= tol && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, at: t }; }
+  return best;
+}
+function drawSnapLines(lines) {
+  const g = $("#guides"); g.querySelectorAll(".snapline").forEach(n => n.remove());
+  for (const [axis, v] of lines) {
+    const l = document.createElementNS("http://www.w3.org/2000/svg", "line"); l.setAttribute("class", "snapline");
+    if (axis === "x") { l.setAttribute("x1", v); l.setAttribute("x2", v); l.setAttribute("y1", 0); l.setAttribute("y2", result.h); }
+    else { l.setAttribute("y1", v); l.setAttribute("y2", v); l.setAttribute("x1", 0); l.setAttribute("x2", result.w); }
+    g.appendChild(l);
+  }
+}
+function partKeysAt(target) {
+  const tk = target.closest && target.closest("[data-k]"), tt = target.closest && target.closest("[data-t]");
+  if (tk) { const [li, ii] = tk.dataset.k.split(":").map(Number); return [{ li, ii }]; }
+  if (tt) { const T = (result.texts || []).find(T => T.id === +tt.dataset.t); if (T) return T.items.map(ii => ({ li: T.li, ii })); }
+  return null;
+}
+$("#stage").addEventListener("pointerdown", e => {
+  // Clicking the canvas takes focus off buttons, so the arrow keys nudge parts.
+  if (view === "align" && document.activeElement && document.activeElement !== document.body && !e.target.closest(".snapbar")) document.activeElement.blur();
+  if (view !== "align" || !result || picking || e.button !== 0 || tool !== "select" || spaceDown) return;
+  if (e.target.closest(".snapbar, .alignbar, .ruler, button, input")) return;
+  const keys = partKeysAt(e.target); if (!keys) return;               // empty canvas: marquee as usual
+  e.stopPropagation(); e.preventDefault();
+  const has = k => selection.some(s => s.li === k.li && s.ii === k.ii);
+  if (!keys.every(has)) { setSelection(e.shiftKey ? selection.concat(keys.filter(k => !has(k))) : keys); drawSelection(); renderPalette(); }
+  else if (e.shiftKey) { setSelection(selection.filter(s => !keys.some(k => k.li === s.li && k.ii === s.ii))); drawSelection(); renderPalette(); return; }
+  const units = unitsOf(selection), ex = new Set(units.flatMap(u => u.keys.map(k => k.li + ":" + k.ii)));
+  dragAl = { id: e.pointerId, x: e.clientX, y: e.clientY, units, box: unionBox(units.map(unitBox)), targets: snapTargets(ex), d: [0, 0], moved: false };
+  try { $("#stage").setPointerCapture(e.pointerId); } catch { /* synthetic events */ }
+}, true);
+$("#stage").addEventListener("pointermove", e => {
+  if (!dragAl || e.pointerId !== dragAl.id) return;
+  const r = $("#sheet").getBoundingClientRect(), k = result.w / r.width;
+  let dx = (e.clientX - dragAl.x) * k, dy = (e.clientY - dragAl.y) * k;
+  if (!dragAl.moved && Math.hypot(e.clientX - dragAl.x, e.clientY - dragAl.y) < 3) return;
+  dragAl.moved = true;
+  const lines = [];
+  if (!e.altKey) {                                           // hold Option to move without snapping
+    const b = dragAl.box, tol = SNAP_SCREEN_PX * k;
+    const sx = snapAxis([b[0] + dx, (b[0] + b[2]) / 2 + dx, b[2] + dx], dragAl.targets.xs, tol), sy = snapAxis([b[1] + dy, (b[1] + b[3]) / 2 + dy, b[3] + dy], dragAl.targets.ys, tol);
+    if (sx) { dx += sx.d; lines.push(["x", sx.at]); }
+    if (sy) { dy += sy.d; lines.push(["y", sy.at]); }
+  }
+  if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }   // Shift keeps the move level or upright
+  dragAl.d = [dx, dy];
+  drawSnapLines(lines);
+  const svg = $("#vec svg"), t = `translate(${dx} ${dy})`;
+  for (const u of dragAl.units) {
+    for (const kk of u.keys) { const el = svg.querySelector(`[data-k="${kk.li}:${kk.ii}"]`); if (el) el.setAttribute("transform", t); }
+    if (u.word) { const el = svg.querySelector(`[data-t="${u.word.id}"]`); if (el) el.setAttribute("transform", t); }
+  }
+  const hl = svg.querySelector(".sel"); if (hl) hl.setAttribute("transform", t);
+  showReadout(dragAl.units, dx, dy);
+});
+const endAlignDrag = e => {
+  if (!dragAl || e.pointerId !== dragAl.id) return;
+  const d = dragAl; dragAl = null; drawSnapLines([]);
+  if (d.moved && e.type !== "pointercancel" && (d.d[0] || d.d[1])) { pushUndo(); moveUnits(d.units, d.d[0], d.d[1]); }
+  render();
+};
+$("#stage").addEventListener("pointerup", endAlignDrag);
+$("#stage").addEventListener("pointercancel", endAlignDrag);
+
+document.addEventListener("keydown", e => {
+  if (view !== "align" || !result || !selection.length || typingIn(e.target) || e.metaKey || e.ctrlKey) return;
+  if (e.target.closest && e.target.closest(".inspector, [role=slider], select, [role=tab]")) return;
+  const step = e.shiftKey ? 1 : 0.1, m = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+  if (!m) return;
+  e.preventDefault(); nudge(...m);
+});
+
+/* ---------- The bar: overlay, readout, and buttons ---------- */
+function showReadout(units, ddx = 0, ddy = 0) {
+  const el = $("#alignNote"); if (!el) return;
+  if (!units || !units.length) { el.textContent = alignMode === "diff" ? "Red marks where the vector is off from the original by more than about half a pixel. Select parts to move them." : "Select parts to move them. Drag, or nudge with the arrow keys (Shift for 1 px). Hold Option to drag without snapping."; return; }
+  const k = 1 / workPerOrig(), [x, y] = offOf(itemOf(units[0].keys[0])), same = units.every(u => { const o = offOf(itemOf(u.keys[0])); return o[0] === x && o[1] === y; });
+  const b = unitBox(units[0]);
+  el.textContent = units.length === 1 || same
+    ? `${units.length === 1 ? "Moved" : "Each moved"} ${fmtPx((x + ddx) * k)}, ${fmtPx((y + ddy) * k)} px from the trace · left ${fmtPx((b[0] + ddx) * k)}, top ${fmtPx((b[1] + ddy) * k)} px`
+    : `${units.length} parts, moved by different amounts`;
+}
+function syncAlignBar() {
+  const on = view === "align" && !!result; $("#alignBar").hidden = !on; if (!on) return;
+  document.querySelectorAll("[data-amode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.amode === alignMode)));
+  $("#vecOpacityRow").hidden = alignMode !== "onion"; $("#vecOpacity").value = Math.round(vecOpacity * 100); $("#vecOpacityOut").textContent = Math.round(vecOpacity * 100) + "%";
+  const units = unitsOf(selection);
+  document.querySelectorAll("[data-align]").forEach(b => b.disabled = units.length < 2);
+  $("#alignOrig").innerHTML = `<span class="inner">${selection.length ? "Align selection to original" : "Align all to original"}</span>`;
+  $("#resetPos").disabled = !moves.length; $("#clearGuides").hidden = !guides.length;
+  showReadout(units);
+}
+document.querySelectorAll("[data-amode]").forEach(b => b.addEventListener("click", () => { alignMode = b.dataset.amode; applyView(); }));
+$("#vecOpacity").addEventListener("input", e => { vecOpacity = +e.target.value / 100; $("#stage").style.setProperty("--vec-op", vecOpacity); $("#vecOpacityOut").textContent = e.target.value + "%"; });
+$("#alignOrig").onclick = alignToOriginal;
+$("#resetPos").onclick = resetPositions;
+$("#clearGuides").onclick = () => { if (!guides.length) return; pushUndo(); guides = []; drawGuides(); syncAlignBar(); };
+document.querySelectorAll("[data-align]").forEach(b => b.addEventListener("click", () => alignUnits(b.dataset.align)));
+
+/* ---------- Difference overlay ---------- */
+// Red where the vector and the original disagree by more than a pixel's worth of anti-aliasing.
+async function drawDiff() {
+  const c = $("#diffCanvas"); if (view !== "align" || alignMode !== "diff" || !result) return;
+  const seq = ++diffSeq, W = result.w, H = result.h, svg = buildSVG(false, { noDest: true }); if (!svg) return;
+  const im = await loadImage("data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.replace(/<svg[^>]*>/, `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`)));
+  if (seq !== diffSeq) return;
+  const bgp = result.palette.find(p => p.bg), bg = bgp ? fromHex(bgp.hex) : [255, 255, 255];
+  const t = document.createElement("canvas"); t.width = W; t.height = H; const g = t.getContext("2d", { willReadFrequently: true });
+  g.fillStyle = `rgb(${bg.join(",")})`; g.fillRect(0, 0, W, H); g.drawImage(im, 0, 0, W, H);
+  const v = g.getImageData(0, 0, W, H).data, o = sourcePixels().data;
+  const op = new Uint8ClampedArray(W * H * 3);   // the original over the same background
+  for (let i = 0, j = 0; i < W * H; i++, j += 4) { const a = o[j + 3] / 255; for (let ch = 0; ch < 3; ch++) op[i * 3 + ch] = o[j + ch] * a + bg[ch] * (1 - a); }
+  // Colors closer than this (RGB distance) count as the same; logo colors usually sit much farther apart.
+  const out = new ImageData(W, H), d = out.data, TH2 = 40 * 40;
+  const close = (i, j) => (op[i * 3] - v[j * 4]) ** 2 + (op[i * 3 + 1] - v[j * 4 + 1]) ** 2 + (op[i * 3 + 2] - v[j * 4 + 2]) ** 2 <= TH2;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x; let ok = close(i, i);
+    // A pixel only counts as wrong when no vector pixel next to it matches either.
+    for (let yy = Math.max(0, y - 1); !ok && yy <= Math.min(H - 1, y + 1); yy++) for (let xx = Math.max(0, x - 1); !ok && xx <= Math.min(W - 1, x + 1); xx++) ok = close(i, yy * W + xx);
+    const p = i * 4;
+    if (ok) { const l = 0.2126 * op[i * 3] + 0.7152 * op[i * 3 + 1] + 0.0722 * op[i * 3 + 2]; const gv = 200 + l * 0.2; d[p] = d[p + 1] = d[p + 2] = gv; d[p + 3] = 255; }
+    else { d[p] = 226; d[p + 1] = 32; d[p + 2] = 60; d[p + 3] = 255; }
+  }
+  c.width = W; c.height = H; c.getContext("2d").putImageData(out, 0, 0);
+}
+
+/* ---------- Rulers and guides ---------- */
+function niceStep(pxPer) { for (const s of [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000]) if (s * pxPer >= 56) return s; return 10000; }
+function drawRulers(mouse) {
+  if (!alignReady) return;
+  const on = view === "align" && !!job && !!result;
+  for (const id of ["rulerX", "rulerY", "rulerC"]) $("#" + id).hidden = !on;
+  if (!on) return;
+  const st = $("#stage").getBoundingClientRect(), sh = $("#sheet").getBoundingClientRect(), per = sh.width / job.origW, dpr = window.devicePixelRatio || 1;
+  const step = niceStep(per), minor = step / (step * per >= 100 ? 10 : 5);
+  const css = getComputedStyle($("#stage")), ink = css.getPropertyValue("--muted").trim() || "#5F5F74", bg = css.getPropertyValue("--surface").trim() || "#fff";
+  const draw = (cv, horiz) => {
+    const w = horiz ? st.width : 20, h = horiz ? 20 : st.height; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.width = w + "px"; cv.style.height = h + "px";
+    const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = bg; g.fillRect(0, 0, w, h);
+    g.strokeStyle = ink; g.fillStyle = ink; g.lineWidth = 1; g.font = "600 9.5px " + (css.getPropertyValue("--font").trim() || "sans-serif");
+    const o = horiz ? sh.left - st.left : sh.top - st.top, len = horiz ? w : h;
+    const v0 = Math.floor(-o / per / minor) * minor;
+    g.beginPath();
+    for (let v = v0; o + v * per <= len; v += minor) {
+      const p = Math.round(o + v * per) + 0.5, major = Math.abs(v / step - Math.round(v / step)) < 1e-6, t = major ? 20 : (Math.abs((v * 2 / step) - Math.round(v * 2 / step)) < 1e-6 ? 8 : 4);
+      if (horiz) { g.moveTo(p, 20); g.lineTo(p, 20 - t); } else { g.moveTo(20, p); g.lineTo(20 - t, p); }
+      if (major) { const lab = String(Math.round(v)); if (horiz) g.fillText(lab, p + 3, 9); else { g.save(); g.translate(9, p + 3); g.rotate(-Math.PI / 2); g.textAlign = "right"; g.fillText(lab, 0, 0); g.restore(); } }
+    }
+    g.stroke();
+    if (mouse) { const p = horiz ? mouse[0] - st.left : mouse[1] - st.top; g.fillStyle = "#E0218A"; g.fillRect(horiz ? p - 0.5 : 0, horiz ? 0 : p - 0.5, horiz ? 1 : 20, horiz ? 20 : 1); }
+  };
+  draw($("#rulerX"), true); draw($("#rulerY"), false);
+}
+function drawGuides() {
+  const svg = $("#guides"); if (!result) { svg.innerHTML = ""; return; }
+  svg.setAttribute("viewBox", `0 0 ${result.w} ${result.h}`);
+  svg.querySelectorAll(".guide").forEach(n => n.remove());
+  svg.toggleAttribute("hidden", view !== "align");   // an SVG element has no .hidden property
+  guides.forEach((gd, i) => {
+    const mk = cls => { const l = document.createElementNS("http://www.w3.org/2000/svg", "line"); l.setAttribute("class", cls); l.dataset.guide = i;
+      if (gd.axis === "x") { l.setAttribute("x1", gd.v); l.setAttribute("x2", gd.v); l.setAttribute("y1", -1e4); l.setAttribute("y2", 1e4); }
+      else { l.setAttribute("y1", gd.v); l.setAttribute("y2", gd.v); l.setAttribute("x1", -1e4); l.setAttribute("x2", 1e4); } return l; };
+    svg.appendChild(mk("guide guide-line")); svg.appendChild(mk("guide guide-hit"));
+  });
+}
+// Drag from a ruler to make a guide; drag a guide back onto a ruler (or double-click it) to remove it.
+var guideDrag = null;
+function guideValue(e, axis) { const r = $("#sheet").getBoundingClientRect(); return axis === "x" ? (e.clientX - r.left) / r.width * result.w : (e.clientY - r.top) / r.height * result.h; }
+function overRuler(e) { const st = $("#stage").getBoundingClientRect(); return e.clientY - st.top < 20 || e.clientX - st.left < 20; }
+function startGuide(e, axis, idx) {
+  e.preventDefault(); e.stopPropagation();
+  if (idx == null) { guides.push({ axis, v: guideValue(e, axis) }); idx = guides.length - 1; guideDrag = { idx, isNew: true, before: null }; }
+  else guideDrag = { idx, isNew: false, before: { ...guides[idx] } };
+  guideDrag.id = e.pointerId; drawGuides();
+}
+$("#rulerX").addEventListener("pointerdown", e => { if (result) startGuide(e, "y"); });   // the top ruler makes level guides
+$("#rulerY").addEventListener("pointerdown", e => { if (result) startGuide(e, "x"); });
+$("#guides").addEventListener("pointerdown", e => { const l = e.target.closest(".guide-hit"); if (l) startGuide(e, guides[+l.dataset.guide].axis, +l.dataset.guide); });
+$("#guides").addEventListener("dblclick", e => { const l = e.target.closest(".guide-hit"); if (!l) return; pushUndo(); guides.splice(+l.dataset.guide, 1); drawGuides(); syncAlignBar(); });
+window.addEventListener("pointermove", e => {
+  if (view === "align" && result && !guideDrag) drawRulers([e.clientX, e.clientY]);
+  if (!guideDrag || e.pointerId !== guideDrag.id) return;
+  const gd = guides[guideDrag.idx]; gd.v = Math.round(guideValue(e, gd.axis) * 100) / 100; drawGuides(); drawRulers([e.clientX, e.clientY]);
+  $("#alignNote").textContent = `Guide at ${fmtPx(gd.v / workPerOrig())} px${overRuler(e) ? ". Let go here to remove it." : ""}`;
+});
+window.addEventListener("pointerup", e => {
+  if (!guideDrag || e.pointerId !== guideDrag.id) return;
+  const g = guideDrag; guideDrag = null; const now = guides[g.idx];
+  const remove = overRuler(e);
+  // Record the step for undo as it was before the drag.
+  if (g.isNew) { guides.splice(g.idx, 1); if (!remove) { pushUndo(); guides.push(now); } }
+  else { guides[g.idx] = g.before; pushUndo(); if (remove) guides.splice(g.idx, 1); else guides[g.idx] = now; }
+  drawGuides(); syncAlignBar();
+});
+
+/* ---------- Hooks the rest of the app calls ---------- */
+function afterAlignRender() {
+  if (!alignReady) return;
+  if (view !== "align") return;
+  drawGuides(); syncAlignBar(); drawRulers();
+  clearTimeout(diffTimer); if (alignMode === "diff") diffTimer = setTimeout(drawDiff, 120);
+}
+function applyAlignView() {
+  if (!alignReady) return;
+  const on = view === "align", st = $("#stage"), was = st.classList.contains("aligning");
+  st.classList.toggle("aligning", on); st.classList.toggle("onion", on && alignMode === "onion"); st.classList.toggle("diff", on && alignMode === "diff");
+  st.style.setProperty("--vec-op", vecOpacity);
+  $("#diffCanvas").hidden = !(on && alignMode === "diff");
+  if (on) { $("#tagL").hidden = true; $("#tagR").hidden = true; }
+  drawGuides(); syncAlignBar();
+  if (on !== was && job) layoutSheet();          // the bar takes room from the canvas, so fit the image again
+  drawRulers();
+  if (on && alignMode === "diff") drawDiff();
+}
+alignReady = true;
 
 </script>
 </body></html>

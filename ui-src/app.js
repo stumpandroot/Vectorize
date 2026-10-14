@@ -650,7 +650,7 @@ function traceNow(cancelled = () => false) {
 
       useShape = {};
       for (const s of shapes) useShape[s.id] = S.shapes === "auto";
-      return { palette, layers, shapes, w: W, h: H, pieces, seconds: (performance.now() - t0) / 1000, transparent: S.bg !== "keep" || job.hasAlpha };
+      return { palette, layers, shapes, w: W, h: H, pieces, lab, seconds: (performance.now() - t0) / 1000, transparent: S.bg !== "keep" || job.hasAlpha };
     }
   }
 }
@@ -664,10 +664,35 @@ function orderedLayers(withDeleted = false) {
   return withDeleted ? Ls : Ls.filter(L => !deletedLayers.has(L.hex));
 }
 function visibleLayers() { return orderedLayers().filter(L => !hidden.has(L.hex)); }
+// Moves every absolute point in SVG path data by (dx, dy). Relative commands move with their start point,
+// except a path's opening "m", which is absolute in effect.
+function translateD(d, dx, dy) {
+  if (!dx && !dy) return d;
+  const f = v => { const r = Math.round(v * 100) / 100; return Object.is(r, -0) ? "0" : String(r); };
+  const NUM = /-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi, ARGS = { M: 2, L: 2, T: 2, H: 1, V: 1, C: 6, S: 4, Q: 4, A: 7, Z: 0 };
+  let out = "", first = true;
+  for (const m of d.matchAll(/([MLHVCSQTAZmlhvcsqtaz])([^MLHVCSQTAZmlhvcsqtaz]*)/g)) {
+    const c = m[1], C = c.toUpperCase(), n = (m[2].match(NUM) || []).map(Number), k = ARGS[C];
+    if (c !== C && !(first && c === "m")) { out += c + n.map(f).join(" "); first = false; continue; }
+    const v = n.slice();
+    for (let i = 0; k && i + k <= v.length; i += k) {
+      if (C === "H") v[i] += dx; else if (C === "V") v[i] += dy;
+      else if (C === "A") { v[i + 5] += dx; v[i + 6] += dy; }
+      else for (let j = 0; j < k; j += 2) { v[i + j] += dx; v[i + j + 1] += dy; }
+      if (first && c === "m") break;               // only the opening pair of an "m" is absolute
+    }
+    out += c + v.map(f).join(" "); first = false;
+  }
+  return out;
+}
+// A part's offset from where it was traced, in work pixels (set in Align view).
+const offOf = it => [it.dx || 0, it.dy || 0];
+const movedBox = it => { const b = itemBox(it), [dx, dy] = offOf(it); return [b[0] + dx, b[1] + dy, b[2] + dx, b[3] + dy]; };
 function itemD(it) {
   const s = it.outer.shape, on = s && useShape[s.id];
   const holes = on && s.consumesHole ? it.holes.slice(1) : it.holes;
-  return (on ? VZ.shapeD(s) : VZ.outlineD(it.outer.outline)) + holes.map(r => r.shape && useShape[r.shape.id] ? VZ.shapeD(r.shape) : VZ.outlineD(r.outline)).join("");
+  const d = (on ? VZ.shapeD(s) : VZ.outlineD(it.outer.outline)) + holes.map(r => r.shape && useShape[r.shape.id] ? VZ.shapeD(r.shape) : VZ.outlineD(r.outline)).join("");
+  return translateD(d, ...offOf(it));
 }
 function activeWords(li) { return (result.texts || []).filter(T => T.li === li && !T.removed && T.mode !== "original" && T.repl); }
 // part: "all", "art" (everything except words), or "text" (words only). Bounds of what was drawn go into box.
@@ -680,15 +705,17 @@ function layerBody(L, li, keyed, part = "all", box = null, only = null) {
   L.items.forEach((it, ii) => {
     if (skip.has(ii) || it.off || !pick(ii)) return;
     const isText = textItems.has(ii); if ((part === "art" && isText) || (part === "text" && !isText)) return;
-    const s = it.outer.shape, on = s && useShape[s.id], k = keyed ? ` data-k="${li}:${ii}"` : "";
-    grow(bboxOf(it.outer.q));
-    if (on && !it.holes.length) { out.push(VZ.shapeElement(s, s.id).replace(/^<(\w+)/, `<$1${k}`)); return; }
+    const s = it.outer.shape, on = s && useShape[s.id], k = keyed ? ` data-k="${li}:${ii}"` : "", moved = it.dx || it.dy;
+    grow(movedBox(it));
+    if (on && !it.holes.length && !moved) { out.push(VZ.shapeElement(s, s.id).replace(/^<(\w+)/, `<$1${k}`)); return; }
     out.push(`<path${k} d="${itemD(it)}"/>`);
   });
   if (part !== "art") for (const T of words) {
     const font = T.mode === "font" && T.pick ? ` data-font="${esc(T.pick.label || T.pick.fam)} ${T.pick.w}"` : "";
-    for (const it of T.repl) grow(bboxOf(it.outer.q));
-    out.push(`<g data-text="${esc(T.text || "")}"${font}>` + `<path${keyed ? ` data-t="${T.id}"` : ""} d="${T.repl.map(it => [it.outer, ...it.holes].map(r => VZ.outlineD(r.outline)).join("")).join("")}"/>` + `</g>`);
+    // A word moves with its first letter's offset (letters of a word always move together).
+    const [wx, wy] = offOf(L.items[T.items[0]] || {});
+    for (const it of T.repl) { const b = bboxOf(it.outer.q); grow([b[0] + wx, b[1] + wy, b[2] + wx, b[3] + wy]); }
+    out.push(`<g data-text="${esc(T.text || "")}"${font}>` + `<path${keyed ? ` data-t="${T.id}"` : ""} d="${translateD(T.repl.map(it => [it.outer, ...it.holes].map(r => VZ.outlineD(r.outline)).join("")).join(""), wx, wy)}"/>` + `</g>`);
   }
   return out.map(e => "    " + e + "\n").join("");
 }
@@ -1327,6 +1354,8 @@ function applyView() {
   sp.style.left = split + "%"; sp.setAttribute("aria-valuenow", String(Math.round(split)));
   $("#tagL").hidden = view === "vector"; $("#tagR").hidden = view === "original";
   $("#tagL").textContent = "Original"; $("#tagR").textContent = "Vector";
+  if (view === "align") { img.hidden = false; vec.hidden = false; sp.hidden = true; vec.style.clipPath = ""; }
+  if (typeof applyAlignView === "function") applyAlignView();
 }
 document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => { if (picking) endPick(); setView(b.dataset.view); }));
 (() => {

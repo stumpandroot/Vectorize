@@ -132,6 +132,7 @@ def build_menu(window):
             MenuAction("Compare", run("view:compare")),
             MenuAction("Original", run("view:original")),
             MenuAction("Vector", run("view:vector")),
+            MenuAction("Align", run("view:align")),
             MenuAction("Outlines", run("outlines")),
             MenuSeparator(),
             MenuAction("Zoom In", run("zoomIn")),

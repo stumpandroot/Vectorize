@@ -2,6 +2,17 @@
 
 The app shows its version and build in the window title and the toolbar. Each GitHub build has a new build number; the version changes when features change.
 
+## 1.4.0
+
+- New Align view (View > Align, or the Align tab above the canvas) for lining parts up with the original exactly.
+- Onion skin shows the original under the vector, with a slider for how strongly the vector shows. Difference shows the original in gray and marks in red where the vector is off by more than about half a pixel.
+- Drag parts to move them, or nudge them with the arrow keys: 0.1 px, or 1 px with Shift. A letter in a word set in a font moves with its whole word.
+- Align to original moves the selection, or every part, to where it best matches the original, within 3 px.
+- Rulers along the top and left edges, in the original image's pixels. Drag from a ruler to add a guide. Drag a guide back onto a ruler, or double-click it, to remove it.
+- While you drag, parts snap to guides, to the edges and centers of other parts, and to the middle of the image, and a pink line shows what they snapped to. Hold Option to drag without snapping, or Shift to keep the move level or upright.
+- Align buttons line up left edges, centers, right edges, tops, middles, or bottoms across selected parts. Reset positions puts parts back where they were traced.
+- Moves stay through retraces, undo, and every export.
+
 ## 1.3.0
 
 - New presets under What is it?, named for the art you start with: One color, Logo, Detailed logo, Silhouette, Sketch, and Grayscale. Photo moves under More presets. Flat art is now Detailed logo.

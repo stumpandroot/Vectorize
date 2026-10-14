@@ -21,10 +21,12 @@ let pendingUseShape = null;
 // where set holds only the dials changed from the global settings.
 let tunes = [];
 let tuneScope = null;          // what the dials edit: null (everything), { kind: "layer", hex }, or { kind: "parts", parts }
+let moves = [];                // parts moved in Align view: { hex, box (as traced), dx, dy } in work pixels
+let guides = [];               // Align view guides: { axis: "x" | "y", v } in work pixels
 
 function resetDoc() {
   drawOrder = null; deletedLayers = new Set(); objEdits = []; selection = []; partMode = "all"; expanded = new Set();
-  pendingUseShape = null; undoStack = []; undoKey = null; tunes = []; tuneScope = null;
+  pendingUseShape = null; undoStack = []; undoKey = null; tunes = []; tuneScope = null; moves = []; guides = [];
 }
 const itemBox = it => it.box || (it.box = bboxOf(it.outer.q));
 function setSelection(list) { selection = list; sel = list.length === 1 ? list[0] : null; }
@@ -91,10 +93,20 @@ async function matchWords(res, j, stale = () => false) {
   }
   return swapped;
 }
+// Finds the part an edit was made to, by its traced box, after a retrace.
+function findPart(e, tol) {
+  let best = null, bd = Infinity;
+  for (const L of result.layers) for (const it of L.items) {
+    const b = itemBox(it); let d = 0; for (let i = 0; i < 4; i++) d = Math.max(d, Math.abs(b[i] - e.box[i]));
+    if (d < tol) { const dd = d + (L.hex === e.hex ? 0 : tol); if (dd < bd) { bd = dd; best = it; } }
+  }
+  return best;
+}
 function applyObjEdits() {
   if (!result) return;
   const tol = 0.02 * Math.max(result.w, result.h);
-  for (const L of result.layers) for (const it of L.items) it.off = null;
+  for (const L of result.layers) for (const it of L.items) { it.off = null; it.dx = it.dy = 0; }
+  for (const m of moves) { const it = findPart(m, tol); if (it) { it.dx = m.dx; it.dy = m.dy; } }
   for (const e of objEdits) {
     let best = null, bd = Infinity;
     for (const L of result.layers) for (const it of L.items) {
@@ -116,13 +128,14 @@ let undoStack = [], undoKey = null, undoAt = 0;
 function tracingS() { const o = { ...S }; delete o.exportFormat; return o; }
 const settingsKey = () => JSON.stringify([tracingS(), locked]);
 function editState() {
-  return JSON.parse(JSON.stringify({ recolor, hidden: [...hidden], useShape, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers: [...deletedLayers], partMode, tunes }));
+  return JSON.parse(JSON.stringify({ recolor, hidden: [...hidden], useShape, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers: [...deletedLayers], partMode, tunes, moves, guides }));
 }
 function applyEditState(st) {
   recolor = { ...st.recolor }; hidden = new Set(st.hidden); manualSnaps = st.manualSnaps.map(m => ({ ...m }));
   textMemory = st.textMemory.map(m => ({ ...m })); objEdits = st.objEdits.map(e => ({ ...e }));
   drawOrder = st.drawOrder ? st.drawOrder.slice() : null; deletedLayers = new Set(st.deletedLayers); partMode = st.partMode || "all";
   tunes = JSON.parse(JSON.stringify(st.tunes || []));
+  moves = (st.moves || []).map(m => ({ ...m, box: m.box.slice() })); guides = (st.guides || []).map(g => ({ ...g }));
 }
 function pushUndo(key) {
   if (!result) return;
@@ -343,7 +356,7 @@ $("#snapBar").addEventListener("click", e => { const b = e.target.closest("[data
       if (view === "original") return;
       // Parts fully inside the box are selected.
       const a = toWork(Math.min(p.x, e.clientX), Math.min(p.y, e.clientY)), b = toWork(Math.max(p.x, e.clientX), Math.max(p.y, e.clientY));
-      const found = []; for (const L of visibleLayers()) { const li = result.layers.indexOf(L); L.items.forEach((it, ii) => { if (it.off) return; const q = itemBox(it); if (q[0] >= a[0] && q[1] >= a[1] && q[2] <= b[0] && q[3] <= b[1]) found.push({ li, ii }); }); }
+      const found = []; for (const L of visibleLayers()) { const li = result.layers.indexOf(L); L.items.forEach((it, ii) => { if (it.off) return; const q = movedBox(it); if (q[0] >= a[0] && q[1] >= a[1] && q[2] <= b[0] && q[3] <= b[1]) found.push({ li, ii }); }); }
       const keys = new Set(selection.map(k => k.li + ":" + k.ii));
       setSelection(p.shift ? selection.concat(found.filter(k => !keys.has(k.li + ":" + k.ii))) : found);
       drawSelection(); renderPalette(); return;
@@ -374,6 +387,7 @@ function applyZoom() {
   sh.style.transform = `translate(calc(-50% + ${pan[0].toFixed(1)}px), calc(-50% + ${pan[1].toFixed(1)}px))`;
   $("#zoomPct").textContent = Math.round(fitScale * zoom * 100) + "%";
   $("#stage").classList.toggle("zoomed", zoom > 1.001);
+  if (typeof drawRulers === "function") drawRulers();
 }
 function fitView() { zoom = 1; pan = [0, 0]; layoutSheet(); }
 function zoomAt(f, cx, cy) {
@@ -603,10 +617,10 @@ $("#batchClose").onclick = () => { leaveBatch(); toast("Closed the batch. The op
 // Traces another image with the current settings and its own saved edits, sets its words in their
 // fonts, runs fn, then puts everything back. The screen doesn't redraw while it runs.
 async function withJob(j, st, fn) {
-  const keep = { job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode, tunes, tuneScope }, keepSticker = stickerCache;
+  const keep = { job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode, tunes, tuneScope, moves, guides }, keepSticker = stickerCache;
   renderPaused = true; checkSeq++;                         // a check still running belongs to the image on screen
   try {
-    job = j; useShape = {}; recolor = {}; hidden = new Set(); manualSnaps = []; textMemory = []; objEdits = []; drawOrder = null; deletedLayers = new Set(); selection = []; sel = null; textSel = null; partMode = "all"; tunes = []; tuneScope = null;
+    job = j; useShape = {}; recolor = {}; hidden = new Set(); manualSnaps = []; textMemory = []; objEdits = []; drawOrder = null; deletedLayers = new Set(); selection = []; sel = null; textSel = null; partMode = "all"; tunes = []; tuneScope = null; moves = []; guides = [];
     const fontMems = st ? st.textMemory.filter(m => m.mode === "font" && m.pick && m.text) : [];
     // Fonts are applied below and awaited, so setupText leaves those words traced for now.
     if (st) { applyEditState(st); textMemory = textMemory.map(m => m.mode === "font" ? { ...m, mode: "original" } : m); }
@@ -628,7 +642,7 @@ async function withJob(j, st, fn) {
     if (S.output === "sticker") await buildSticker();        // the cut line is drawn off screen, so wait for it
     return await fn();
   } finally {
-    ({ job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode, tunes, tuneScope } = keep);
+    ({ job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode, tunes, tuneScope, moves, guides } = keep);
     stickerCache = keepSticker; if (result) afterRender();
     renderPaused = false;
   }
@@ -729,7 +743,7 @@ function syncDest() {
 // The artwork's box in work pixels, from everything visible.
 function artBox() {
   const b = [Infinity, Infinity, -Infinity, -Infinity];
-  for (const L of visibleLayers()) for (const it of L.items) if (!it.off) { const q = bboxOf(it.outer.q); b[0] = Math.min(b[0], q[0]); b[1] = Math.min(b[1], q[1]); b[2] = Math.max(b[2], q[2]); b[3] = Math.max(b[3], q[3]); }
+  for (const L of visibleLayers()) for (const it of L.items) if (!it.off) { const q = movedBox(it); b[0] = Math.min(b[0], q[0]); b[1] = Math.min(b[1], q[1]); b[2] = Math.max(b[2], q[2]); b[3] = Math.max(b[3], q[3]); }
   return isFinite(b[0]) ? b : null;
 }
 // Work pixels per inch (or per pixel for web icons) at the final size.
@@ -791,7 +805,7 @@ function hasEdge(m) { const v = m[0]; for (let i = 1; i < m.length; i++) if (m[i
 async function thinScan(layers, bx, s, rLine, rGap, alive) {
   const W = Math.ceil((bx[2] - bx[0]) * s), H = Math.ceil((bx[3] - bx[1]) * s);
   const bodies = layers.map(L => buildSVG(false, { layers: [L], noDest: true }).replace(/^[\s\S]*?<svg[^>]*>/, "").replace(/<\/svg>\s*$/, ""));
-  const boxes = layers.map(L => { const b = [Infinity, Infinity, -Infinity, -Infinity]; for (const it of L.items) if (!it.off) { const q = bboxOf(it.outer.q); b[0] = Math.min(b[0], q[0]); b[1] = Math.min(b[1], q[1]); b[2] = Math.max(b[2], q[2]); b[3] = Math.max(b[3], q[3]); } return b.map((v, i) => (v - bx[i % 2]) * s); });
+  const boxes = layers.map(L => { const b = [Infinity, Infinity, -Infinity, -Infinity]; for (const it of L.items) if (!it.off) { const q = movedBox(it); b[0] = Math.min(b[0], q[0]); b[1] = Math.min(b[1], q[1]); b[2] = Math.max(b[2], q[2]); b[3] = Math.max(b[3], q[3]); } return b.map((v, i) => (v - bx[i % 2]) * s); });
   const T = 768, M = Math.ceil(2 * Math.max(rLine || 0, rGap || 0)) + 3;
   const f = Math.min(1, Math.sqrt(1.2e6 / (W * H))), MW = Math.max(1, Math.ceil(W * f)), MH = Math.max(1, Math.ceil(H * f)), marks = new Uint8Array(MW * MH);
   const c = document.createElement("canvas"), g = c.getContext("2d", { willReadFrequently: true });
@@ -830,7 +844,7 @@ let stickerCache = null, stickerShown = null, jobIds = 0;
 function stickerKey() {
   const d = S.dest, b = artBox(); if (!d || !b || !result) return null;
   if (!job._id) job._id = ++jobIds;
-  return JSON.stringify([job._id, d, b, visibleLayers().map(L => [L.hex, L.items.filter(it => !it.off).length]), hidden.size, deletedLayers.size, objEdits.length, result.seconds]);
+  return JSON.stringify([job._id, d, b, visibleLayers().map(L => [L.hex, L.items.filter(it => !it.off).length]), moves, hidden.size, deletedLayers.size, objEdits.length, result.seconds]);
 }
 function mapOutline(o, s, ox, oy) {
   const P = p => [p[0] / s + ox, p[1] / s + oy], V = p => [p[0] / s, p[1] / s];
@@ -877,6 +891,7 @@ function destDecor(opts, keyed) {
 let checkTimer = 0, checkSeq = 0, thinOverlay = null, showThin = false;
 function afterRender() {
   syncDest();
+  if (typeof afterAlignRender === "function") afterAlignRender();
   if (showThin && thinOverlay) drawThinOverlay();
   // The cut line is drawn off screen; draw again once it's ready, unless the screen already shows it
   // (or can't, as in the Words view).
@@ -1126,7 +1141,7 @@ function runCommand(cmd) {
     case "deselect": clearSelection(); break;
     case "hide": selAct("hide"); break;
     case "delete": selAct("delete"); break;
-    case "view:compare": case "view:original": case "view:vector": if (picking) endPick(); setView(cmd.slice(5)); break;
+    case "view:compare": case "view:original": case "view:vector": case "view:align": if (picking) endPick(); setView(cmd.slice(5)); break;
     case "outlines": toggleOutlines(); break;
     case "fit": fitView(); break;
     case "zoomIn": zoomAt(1.5); break;
