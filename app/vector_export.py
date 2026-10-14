@@ -1,9 +1,10 @@
 """Write Vectorize's SVG output as PDF and EPS, with no outside libraries.
 
-Vectorize draws only filled shapes in solid colors: <g fill> groups holding
+Vectorize draws filled shapes in solid colors: <g fill> groups holding
 <path>, <circle>, <ellipse>, <rect>, and <polygon> elements, with an optional
-rotate() transform. This module turns that subset into vector PDF and EPS so
-the app ships without Cairo or Ghostscript.
+rotate() transform. A sticker cut line is a stroked path in a group marked
+data-spot="CutContour", written as a named spot color. This module turns that
+subset into vector PDF and EPS so the app ships without Cairo or Ghostscript.
 """
 from __future__ import annotations
 
@@ -234,31 +235,59 @@ def _hex(c: str | None):
     return None
 
 
+_UNIT_PT = {"pt": 1.0, "in": 72.0, "mm": 72 / 25.4, "cm": 72 / 2.54, "px": 1.0, "": 1.0}
+
+
+def _length_pt(v: str | None, default: float) -> float:
+    """A width or height attribute in points. Plain numbers and px count as points, as before."""
+    m = re.fullmatch(r"\s*([-+]?(?:\d+\.?\d*|\.\d+))\s*(pt|in|mm|cm|px)?\s*", v or "")
+    return float(m.group(1)) * _UNIT_PT[m.group(2) or ""] if m else default
+
+
+class Shape(tuple):
+    """(rgb, evenodd, segments) for a fill. A stroke also carries .stroke: {"width", "spot"}."""
+    stroke = None
+
+
 def read_svg(svg: str):
     """Returns (width_pt, height_pt, viewbox, shapes) where shapes are
-    (rgb, evenodd, segments) in drawing order."""
+    (rgb, evenodd, segments) in drawing order. Stroked shapes have shape.stroke set.
+
+    The page size comes from the root's width and height. If the root has
+    data-pt-per-unit (Vectorize sets it when you choose a final size), the page is
+    the viewBox times that many points per unit instead.
+    """
     root = ET.fromstring(svg.encode("utf-8") if isinstance(svg, str) else svg)
     vb = [float(v) for v in _NUM.findall(root.get("viewBox") or "")]
-    w = _f(root, "width", vb[2] if len(vb) == 4 else 0)
-    h = _f(root, "height", vb[3] if len(vb) == 4 else 0)
+    w = _length_pt(root.get("width"), vb[2] if len(vb) == 4 else 0)
+    h = _length_pt(root.get("height"), vb[3] if len(vb) == 4 else 0)
     if len(vb) != 4:
         vb = [0, 0, w, h]
+    ppu = _f(root, "data-pt-per-unit", 0.0)
+    if ppu > 0:
+        w, h = vb[2] * ppu, vb[3] * ppu
     shapes = []
 
-    def walk(el, fill, rule):
+    def walk(el, st):
         tag = el.tag.replace(SVG_NS, "")
-        fill = el.get("fill", fill)
-        rule = el.get("fill-rule", rule)
+        st = dict(st)
+        for k in ("fill", "fill-rule", "stroke", "stroke-width", "data-spot"):
+            if el.get(k) is not None:
+                st[k] = el.get(k)
         if tag in ("path", "circle", "ellipse", "rect", "polygon", "polyline"):
-            rgb = _hex(fill)
-            if rgb is not None and fill != "none":
-                segs = element_segments(el)
-                if segs:
-                    shapes.append((rgb, rule == "evenodd", segs))
+            segs = element_segments(el)
+            rgb = _hex(st["fill"]) if st["fill"] != "none" else None
+            if segs and rgb is not None:
+                shapes.append(Shape((rgb, st["fill-rule"] == "evenodd", segs)))
+            srgb = _hex(st.get("stroke")) if st.get("stroke") not in (None, "none") else None
+            if segs and srgb is not None:
+                sh = Shape((srgb, False, segs))
+                sh.stroke = {"width": _length_pt(st.get("stroke-width"), 1.0), "spot": st.get("data-spot")}
+                shapes.append(sh)
         for ch in el:
-            walk(ch, fill, rule)
+            walk(ch, st)
 
-    walk(root, "#000000", "nonzero")
+    walk(root, {"fill": "#000000", "fill-rule": "nonzero"})
     return w, h, vb, shapes
 
 
@@ -270,12 +299,47 @@ def _num(v: float) -> str:
     return "0" if s in ("-0", "") else s
 
 
-def _ops(shapes, tx, flip: bool, h_pt: float, ps: bool):
-    """Path operators for PDF (m l c h) or PostScript (moveto ...)."""
+def _spots(shapes) -> list[str]:
+    """Spot color names in the order they first appear."""
     out = []
-    for rgb, evenodd, segs in shapes:
+    for sh in shapes:
+        sp = sh.stroke and sh.stroke.get("spot")
+        if sp and sp not in out:
+            out.append(sp)
+    return out
+
+
+def _cmyk(rgb):
+    r, g, b = rgb
+    k = 1 - max(r, g, b)
+    if k >= 1:
+        return 0.0, 0.0, 0.0, 1.0
+    return (1 - r - k) / (1 - k), (1 - g - k) / (1 - k), (1 - b - k) / (1 - k), k
+
+
+def _ops(shapes, tx, flip: bool, h_pt: float, ps: bool, scale: float = 1.0):
+    """Path operators for PDF (m l c h) or PostScript (moveto ...).
+    scale: points per SVG unit, for stroke widths given in SVG units."""
+    out = []
+    spots = _spots(shapes)
+    for sh in shapes:
+        rgb, evenodd, segs = sh
         r, g, b = rgb
-        out.append(f"{_num(r)} {_num(g)} {_num(b)} {'setrgbcolor' if ps else 'rg'}")
+        stroke = sh.stroke
+        if stroke and stroke.get("spot"):
+            i = spots.index(stroke["spot"])
+            if ps:
+                c, m, y, k = _cmyk(rgb)
+                name = re.sub(r"[^A-Za-z0-9_.-]", "", stroke["spot"]) or "Spot"
+                out.append(f"[/Separation /{name} /DeviceCMYK {{dup {_num(c)} mul exch dup {_num(m)} mul exch dup {_num(y)} mul exch {_num(k)} mul}}] setcolorspace 1 setcolor")
+            else:
+                out.append(f"/CS{i} CS 1 SCN")
+        elif stroke:
+            out.append(f"{_num(r)} {_num(g)} {_num(b)} {'setrgbcolor' if ps else 'RG'}")
+        else:
+            out.append(f"{_num(r)} {_num(g)} {_num(b)} {'setrgbcolor' if ps else 'rg'}")
+        if stroke:
+            out.append(f"{_num(stroke['width'])} {'setlinewidth 1 setlinejoin' if ps else 'w 1 j'}")
         if ps:
             out.append("newpath")
         for sg in segs:
@@ -290,7 +354,10 @@ def _ops(shapes, tx, flip: bool, h_pt: float, ps: bool):
                 out.append(f"{flat} {'lineto' if ps else 'l'}")
             else:
                 out.append(f"{flat} {'curveto' if ps else 'c'}")
-        out.append(("eofill" if evenodd else "fill") if ps else ("f*" if evenodd else "f"))
+        if stroke:
+            out.append("stroke" if ps else "S")
+        else:
+            out.append(("eofill" if evenodd else "fill") if ps else ("f*" if evenodd else "f"))
     return "\n".join(out)
 
 
@@ -304,17 +371,38 @@ def _transform(w, h, vb):
     return tx
 
 
+def _scale_strokes(shapes, w, vb):
+    """Stroke widths are read in SVG units; the writers need points."""
+    k = w / vb[2] if vb[2] else 1.0
+    for sh in shapes:
+        if sh.stroke:
+            sh.stroke = {**sh.stroke, "width": sh.stroke["width"] * k}
+    return shapes
+
+
 def svg_to_pdf(svg: str, title: str = "Vectorize") -> bytes:
     w, h, vb, shapes = read_svg(svg)
+    shapes = _scale_strokes(shapes, w, vb)
     content = zlib.compress(_ops(shapes, _transform(w, h, vb), True, h, False).encode("ascii"))
+    spots = _spots(shapes)
+    color_spaces = ""
+    extra = []
+    for i, name in enumerate(spots):
+        rgb = next(sh[0] for sh in shapes if sh.stroke and sh.stroke.get("spot") == name)
+        c, m, y, k = _cmyk(rgb)
+        pdf_name = re.sub(r"[^A-Za-z0-9_.-]", lambda mm: "#%02X" % ord(mm.group()), name)
+        extra.append(f"[/Separation /{pdf_name} /DeviceCMYK << /FunctionType 2 /Domain [0 1] /C0 [0 0 0 0] "
+                     f"/C1 [{_num(c)} {_num(m)} {_num(y)} {_num(k)}] /N 1 >>]".encode())
+        color_spaces += f" /CS{i} {6 + i} 0 R"
+    resources = f"<< /ColorSpace <<{color_spaces} >> >>" if spots else "<< >>"
     safe_title = re.sub(r"[()\\]", "", title)[:120]
     objs = [
         b"<< /Type /Catalog /Pages 2 0 R >>",
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-        f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {_num(w)} {_num(h)}] /Contents 4 0 R /Resources << >> >>".encode(),
+        f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {_num(w)} {_num(h)}] /Contents 4 0 R /Resources {resources} >>".encode(),
         b"<< /Length " + str(len(content)).encode() + b" /Filter /FlateDecode >>\nstream\n" + content + b"\nendstream",
         f"<< /Title ({safe_title}) /Producer (Vectorize) >>".encode(),
-    ]
+    ] + extra
     out = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
     offsets = []
     for i, o in enumerate(objs, 1):
@@ -330,6 +418,7 @@ def svg_to_pdf(svg: str, title: str = "Vectorize") -> bytes:
 
 def svg_to_eps(svg: str, title: str = "Vectorize") -> bytes:
     w, h, vb, shapes = read_svg(svg)
+    shapes = _scale_strokes(shapes, w, vb)
     safe_title = re.sub(r"[\r\n]", " ", title)[:120]
     head = (
         "%!PS-Adobe-3.0 EPSF-3.0\n"

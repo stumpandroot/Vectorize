@@ -93,6 +93,45 @@ Licensing stays off until the GreenLaunch license service is running. To turn it
 
 With licensing on, anyone can open, convert, and edit images. Exporting, separations, and Send to Versa ask for a license key first. The **Buy a license** button opens `https://greenlaunch.co`; change `BUY_URL` at the top of `ui-src/editor.js` if the store lives elsewhere.
 
+## Presets
+
+**What is it?** sets how Vectorize reads the image. Illustrator's closest Image Trace preset is listed for reference.
+
+| Preset | What it does | Closest Illustrator preset |
+| --- | --- | --- |
+| One color | Black and white, sharp corners | Black and White Logo |
+| Logo | Up to 10 flat colors | 3 Colors, 6 Colors |
+| Detailed logo | Up to 16 colors, keeps small parts | 16 Colors |
+| Silhouette | One solid shape, no holes | Silhouettes |
+| Sketch | Black and white against the paper around each pixel, smoothed | Sketched Art |
+| Grayscale | Shades of gray, 6 to start | Shades of Gray |
+| Photo (under More presets) | Many colors, stylized | High and Low Fidelity Photo |
+
+Line Art and Technical Drawing need a centerline trace, which Vectorize doesn't have yet.
+
+**Made for** sets how colors layer and which format Export saves, then checks the result at the final width you enter. The numbers are editable starting points from published shop guidelines:
+
+| Destination | Layers | Checks |
+| --- | --- | --- |
+| Screen print | Cut out | Lines of 1 pt or more ([FM Expressions](https://support.fmexpressions.com/fine-details-spot-color)), 6 inks at most ([Stitchi](https://www.stitchi.com/blog/screen-printing-artwork-preparation-6-guidelines)) |
+| Vinyl and HTV | Cut out | Lines of 1.8 mm and gaps of 1.5 mm, typical for metallic and glitter HTV ([Printify](https://help.printify.com/hc/en-us/articles/43890557264529-What-are-the-design-guidelines-for-Heat-Transfer-Vinyl-products)) |
+| Sticker | Stacked | Closed cut line 2 mm outside the art on a 1 pt CutContour spot color, plus 2 mm of border ([StickerApp](https://stickerapp.com/support/artwork-design/templates-guidelines/how-to-make-your-own-cutlines)) |
+| Laser engrave | Cut out | One color, closed paths |
+| Print and brand | Stacked | Every color is a brand color |
+| Web icon | Stacked | Details at least 1 px wide at the icon size |
+
+## Score tracing changes
+
+`bench/testset` holds 42 generated test logos: 14 designs, each saved as a 240 px PNG, a 480 px PNG, and a 480 px JPEG. Each design was drawn from known shapes and open-license Google Fonts, so the right answer is known exactly. `bench/score.py` traces them with the app's engine and measures shape error, edge error, corner error, and points against the true artwork.
+
+1. Build the interface: `python3 ui-src/build.py`
+2. Run: `python3 bench/score.py bench-out --check bench/baseline.json`
+3. Open `bench-out/report.html`. Each image shows the trace with wrong pixels in red.
+
+GitHub runs the same command on every build and fails it if shape, edge, or corner error gets more than 10 percent worse. When a change makes tracing better, run `python3 bench/score.py bench-out --save-baseline` and commit `bench/baseline.json`, so the next change has to beat it. Try settings without changing code with `--set`, such as `--set corners=80`.
+
+To regenerate the test logos, download the fonts listed in `bench/make_testset.py` and run `python3 bench/make_testset.py FONTS_DIR`.
+
 ## Test
 
 - Python tests: `python3 -m unittest discover -s tests`
@@ -101,6 +140,9 @@ With licensing on, anyone can open, convert, and edit images. Exporting, separat
   ```
   python3 tests/ui/test_editor.py
   python3 tests/ui/test_native.py
+  python3 tests/ui/test_autofont.py
+  python3 tests/ui/test_tune.py
+  python3 tests/ui/test_presets.py
   ```
 
 - A built app checks itself: `dist/Vectorize.app/Contents/MacOS/Vectorize --self-test` checks the bundled parts, and `--smoke-test` opens the window, converts the sample logo, and closes.

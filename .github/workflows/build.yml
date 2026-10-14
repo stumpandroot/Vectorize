@@ -29,7 +29,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y poppler-utils ghostscript libcairo2
-          pip install cryptography pillow numpy cairosvg playwright==1.48.0
+          pip install cryptography pillow numpy scipy cairosvg playwright==1.48.0
           python -m playwright install --with-deps chromium
       - name: Build the interface
         run: python ui-src/build.py
@@ -43,6 +43,16 @@ jobs:
           python tests/ui/test_native.py
           python tests/ui/test_autofont.py
           python tests/ui/test_tune.py
+          python tests/ui/test_presets.py
+      - name: Tracing scores (generated test logos)
+        run: python bench/score.py bench-out --check bench/baseline.json
+      - name: Upload the tracing scores
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tracing scores
+          path: bench-out/
+          if-no-files-found: ignore
 
   build:
     name: Mac app (${{ matrix.label }})

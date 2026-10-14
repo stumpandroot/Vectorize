@@ -467,6 +467,7 @@ async function saveMany(items, folderName) {
 }
 async function doExport() {
   if (!result || !visibleLayers().length || !gate()) return;
+  if (S.output === "sticker") await buildSticker();
   const fmt = fmtNow(), svg = buildSVG(false, { part: partMode });
   await saveItem(await makeItem(svg, stemOf(job.name) + (partMode === "art" ? " icon" : partMode === "text" ? " words" : ""), fmt));
   if (batch && batch.cur >= 0) { batch.items[batch.cur].status = "Exported"; renderBatch(); }
@@ -600,7 +601,7 @@ $("#batchClose").onclick = () => { leaveBatch(); toast("Closed the batch. The op
 // Traces another image with the current settings and its own saved edits, sets its words in their
 // fonts, runs fn, then puts everything back. The screen doesn't redraw while it runs.
 async function withJob(j, st, fn) {
-  const keep = { job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode, tunes, tuneScope };
+  const keep = { job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode, tunes, tuneScope }, keepSticker = stickerCache;
   renderPaused = true;
   try {
     job = j; useShape = {}; recolor = {}; hidden = new Set(); manualSnaps = []; textMemory = []; objEdits = []; drawOrder = null; deletedLayers = new Set(); selection = []; sel = null; textSel = null; partMode = "all"; tunes = []; tuneScope = null;
@@ -621,9 +622,12 @@ async function withJob(j, st, fn) {
       } catch (e) { console.error(e); }
     }
     if (NATIVE && APP && APP.ocr && S.textMode !== "off") await matchWords(result, j);
-    return fn();
+    stickerCache = null;
+    if (S.output === "sticker") await buildSticker();        // the cut line is drawn off screen, so wait for it
+    return await fn();
   } finally {
     ({ job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode, tunes, tuneScope } = keep);
+    stickerCache = keepSticker;
     renderPaused = false;
   }
 }
@@ -637,7 +641,7 @@ async function exportAll() {
     for (let i = 0; i < n; i++) {
       const it = batch.items[i];
       setStatus("working", `Exporting ${i + 1} of ${n}`); await sleep(30);
-      let svg = it.svgOut && it.sKey === key ? it.svgOut : null;
+      let svg = it.svgOut && it.sKey === key && S.output !== "sticker" ? it.svgOut : null;
       if (!svg) {
         if (!it.job) it.job = await makeJob(it.src, it.name, it.meta);
         if (!it.job) { it.status = "Couldn't open"; continue; }
@@ -653,32 +657,258 @@ async function exportAll() {
 }
 $("#batchExport").onclick = exportAll;
 
-/* ---------- Made for: output presets ---------- */
+/* ---------- Made for: destination presets ---------- */
+// Each destination sets how colors layer and which format Export saves, then checks the result
+// against typical shop rules at the size you'll use it. The numbers are editable starting points:
+// shops disagree, so Vectorize warns instead of changing your art.
+//   Screen print: lines of 1 pt or more (2 pt on performance fabric), 6 inks at most (FM Expressions, Stitchi).
+//   Vinyl and HTV: lines of 1.8 mm and gaps of 1.5 mm for metallic and glitter HTV (Printify).
+//   Sticker: a closed cut line 2 mm outside the art on a 1 pt spot color named CutContour, and 2 mm of bleed (StickerApp).
 const OUTPUTS = {
-  screen: { label: "Screen print", set: { layering: "cutout", bg: "remove", cmode: "auto", maxAuto: 6, detail: 60, smooth: 55, snap: true }, format: "pdf", help: "Cut-out colors, six inks at most. Export color separations for one film per ink." },
-  vinyl: { label: "Vinyl cut", set: { layering: "cutout", bg: "remove", cmode: "auto", maxAuto: 6, detail: 45, smooth: 65, snap: true }, format: "eps", help: "Cut-out colors and no tiny specks, so every piece weeds cleanly." },
-  laser: { label: "Laser engrave", set: { layering: "cutout", bg: "remove", cmode: "bw", detail: 70, smooth: 55, snap: true }, format: "svg", help: "One color in black, ready for engraving software." },
-  web: { label: "Web icon", set: { layering: "stacked", bg: "remove", cmode: "auto", maxAuto: 8, detail: 60, smooth: 60, snap: true, shapes: "auto" }, format: "svg", help: "Stacked colors and smooth curves for a small, clean SVG." },
+  screen: { noun: "screen printing", label: "Screen print", set: { layering: "cutout", bg: "remove" }, format: "pdf", size: 11, unit: "in", minLine: 1, lineUnit: "pt", maxColors: 6,
+    help: "Cut-out colors, so no ink prints under another. Export separations for one film per ink. Use 2 pt lines for performance fabric." },
+  vinyl: { noun: "vinyl and HTV", label: "Vinyl and HTV", set: { layering: "cutout", bg: "remove" }, format: "eps", size: 10, unit: "in", minLine: 1.8, lineUnit: "mm", minGap: 1.5,
+    help: "Cut-out colors, one cut per vinyl color. The minimums are typical for metallic and glitter heat-transfer vinyl. Check your vinyl's spec." },
+  laser: { noun: "laser engraving", label: "Laser engrave", set: { layering: "cutout", bg: "remove", cmode: "bw", gray: false }, format: "svg", size: 4, unit: "in", maxColors: 1,
+    help: "One color with every shape closed, ready for engraving software. Fewer points engrave more smoothly." },
+  web: { noun: "web icons", label: "Web icon", set: { layering: "stacked", bg: "remove" }, format: "svg", size: 64, unit: "px", minLine: 1, lineUnit: "px",
+    help: "Stacked colors for a small, clean SVG. Checks that details stay at least 1 px wide at the size you set." },
+  sticker: { noun: "stickers", label: "Sticker", set: { layering: "stacked", bg: "remove" }, format: "pdf", size: 3, unit: "in", cut: 2, bleed: 2, border: "#FFFFFF",
+    help: "Adds a closed cut line around the art on a spot color named CutContour, and a border that runs 2 mm past it. Export PDF to keep the spot color." },
+  brand: { noun: "print and brand files", label: "Print and brand", set: { layering: "stacked", bg: "remove" }, format: "pdf", size: 3, unit: "in", brand: true,
+    help: "Stacked colors, so no hairline gaps show between them, in your exact brand colors." },
 };
+const destNow = () => S.output && OUTPUTS[S.output] ? OUTPUTS[S.output] : null;
+function destDefaults(o) { return { size: o.size, unit: o.unit, minLine: o.minLine ?? null, minGap: o.minGap ?? null, cut: o.cut ?? null, border: o.border || null }; }
 function applyOutput(id, quiet) {
   const o = OUTPUTS[id]; if (!o) return;
   if (!quiet) pushUndo();
-  Object.assign(S, o.set, { output: id });
+  if (S.output === id && !quiet) { S.output = ""; S.dest = null; syncControls(); render(); return; }   // click again to turn off
+  Object.assign(S, o.set, { output: id, dest: destDefaults(o) });
   if (S.bg === "remove" && APP && APP.cutout && S.preset === "photo") S.bg = "ai";
   S.exportFormat = NATIVE || o.format === "svg" ? o.format : "svg";
   if (NATIVE) { NATIVE.remember("lastPreset", id); NATIVE.remember("exportFormat", S.exportFormat); }
   syncControls(); convert();
-  if (!quiet) toast(`Set up for ${o.label.toLowerCase()}. Export saves ${FORMATS[S.exportFormat]}.`);
+  if (!quiet) toast(`Set up for ${o.noun}. Export saves ${FORMATS[S.exportFormat]}.`);
 }
 document.querySelectorAll("[data-output]").forEach(b => b.addEventListener("click", () => applyOutput(b.dataset.output)));
 document.querySelectorAll("[data-layering]").forEach(b => b.addEventListener("click", () => { if (S.layering === b.dataset.layering) return; pushUndo(); S.layering = b.dataset.layering; syncControls(); convert(); }));
-document.querySelectorAll("[data-preset]").forEach(b => b.addEventListener("click", () => { S.output = ""; syncEditorControls(); }));
+// A new source preset keeps the destination: it puts back the destination's layering and background.
+document.querySelectorAll("[data-preset]").forEach(b => b.addEventListener("click", () => { const o = destNow(); if (o) { S.layering = o.set.layering; if (S.bg !== "ai") S.bg = o.set.bg; syncControls(); convert(); } }));
+
+// Size and minimum fields
+const toIn = (v, u) => u === "mm" ? v / 25.4 : u === "pt" ? v / 72 : v;
+function destField(id, key, parse = v => +v) {
+  $(id).addEventListener("change", e => {
+    if (!S.dest) return; const v = parse(e.target.value);
+    if (typeof v === "number" && !(v > 0)) { syncDest(); return; }
+    if (v === S.dest[key]) return;              // a change event with nothing changed isn't an undo step
+    pushUndo(); S.dest = { ...S.dest, [key]: v }; stickerCache = null; render();
+  });
+}
+destField("#destSize", "size"); destField("#destLine", "minLine"); destField("#destGap", "minGap"); destField("#destCut", "cut");
+destField("#destBorder", "border", v => v.toUpperCase());
+$("#destUnit").addEventListener("change", e => {
+  // Keep the same physical size when you switch inches and millimeters.
+  if (!S.dest) return; const u = e.target.value; if (u === S.dest.unit) return;
+  pushUndo(); S.dest = { ...S.dest, unit: u, size: +(u === "mm" ? S.dest.size * 25.4 : S.dest.size / 25.4).toFixed(u === "mm" ? 1 : 2) }; stickerCache = null; render();
+});
+function syncDest() {
+  const o = destNow(), d = S.dest; $("#destBox").hidden = !o || !d; if (!o || !d) return;
+  const px = d.unit === "px";
+  $("#destSize").value = d.size; $("#destUnit").hidden = px; $("#destPxUnit").hidden = !px;
+  if (!px) $("#destUnit").value = d.unit;
+  $("#rowLine").hidden = d.minLine == null; $("#destLine").value = d.minLine ?? ""; $("#destLineUnit").textContent = o.lineUnit || "";
+  $("#rowGap").hidden = d.minGap == null; $("#destGap").value = d.minGap ?? "";
+  $("#rowCut").hidden = d.cut == null; $("#destCut").value = d.cut ?? "";
+  $("#rowBorder").hidden = !d.border; if (d.border) $("#destBorder").value = d.border.toLowerCase();
+}
+
+// The artwork's box in work pixels, from everything visible.
+function artBox() {
+  const b = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const L of visibleLayers()) for (const it of L.items) if (!it.off) { const q = bboxOf(it.outer.q); b[0] = Math.min(b[0], q[0]); b[1] = Math.min(b[1], q[1]); b[2] = Math.max(b[2], q[2]); b[3] = Math.max(b[3], q[3]); }
+  return isFinite(b[0]) ? b : null;
+}
+// Work pixels per inch (or per pixel for web icons) at the final size.
+function unitsPer() { const d = S.dest, b = artBox(); if (!d || !b || !(d.size > 0)) return null; const w = b[2] - b[0]; return d.unit === "px" ? w / d.size : w / toIn(d.size, d.unit); }
+
+/* Distance transform (Felzenszwalb and Huttenlocher): squared distance from every pixel to the nearest pixel where on(i) is true. */
+function edt2(w, h, on) {
+  const INF = 1e20, f = new Float64Array(Math.max(w, h)), d = new Float64Array(Math.max(w, h)), v = new Int32Array(Math.max(w, h)), z = new Float64Array(Math.max(w, h) + 1);
+  const out = new Float64Array(w * h);
+  const pass = n => {
+    let k = 0; v[0] = 0; z[0] = -INF; z[1] = INF;
+    for (let q = 1; q < n; q++) {
+      let s; for (;;) { const r = v[k]; s = ((f[q] + q * q) - (f[r] + r * r)) / (2 * q - 2 * r); if (s <= z[k] && k > 0) k--; else break; }
+      if (s <= z[k]) { v[0] = q; z[0] = -INF; z[1] = INF; k = 0; continue; }
+      k++; v[k] = q; z[k] = s; z[k + 1] = INF;
+    }
+    k = 0; for (let q = 0; q < n; q++) { while (z[k + 1] < q) k++; const r = v[k]; d[q] = (q - r) * (q - r) + f[r]; }
+  };
+  for (let x = 0; x < w; x++) { for (let y = 0; y < h; y++) f[y] = on(y * w + x) ? 0 : INF; pass(h); for (let y = 0; y < h; y++) out[y * w + x] = d[y]; }
+  for (let y = 0; y < h; y++) { for (let x = 0; x < w; x++) f[x] = out[y * w + x]; pass(w); for (let x = 0; x < w; x++) out[y * w + x] = d[x]; }
+  return out;
+}
+// Parts of a mask narrower than 2r: pixels no disc of radius r inside the mask can reach.
+function thinParts(mask, w, h, r) {
+  const toBg = edt2(w, h, i => !mask[i]), r2 = r * r;
+  const toCore = edt2(w, h, i => mask[i] && toBg[i] >= r2);
+  const thin = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) thin[i] = mask[i] && toCore[i] > r2 ? 1 : 0;
+  return thin;
+}
+// Groups thin pixels into spots, keeping only spots long enough to matter (corner tips aren't flagged).
+function thinSpots(thin, w, h, r) {
+  const cc = components8(thin, w, h), size = new Map(); for (let i = 0; i < w * h; i++) if (cc[i]) size.set(cc[i], (size.get(cc[i]) || 0) + 1);
+  const keep = new Set([...size].filter(([, n]) => n >= 2 * r * r + 4).map(([id]) => id));
+  const marks = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) if (keep.has(cc[i])) marks[i] = 1;
+  return { count: keep.size, marks };
+}
+// Draws one layer (or all visible layers) into a mask, s raster pixels per work pixel over the box [x0, y0, x1, y1].
+async function layerMask(layers, s, bx) {
+  const cw = Math.max(1, Math.round((bx[2] - bx[0]) * s)), ch = Math.max(1, Math.round((bx[3] - bx[1]) * s));
+  const svg = buildSVG(false, { layers, noDest: true }).replace(/<svg[^>]*>/, `<svg xmlns="http://www.w3.org/2000/svg" width="${cw}" height="${ch}" viewBox="${bx[0]} ${bx[1]} ${bx[2] - bx[0]} ${bx[3] - bx[1]}" preserveAspectRatio="none">`);
+  const im = await loadImage("data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg));
+  const c = document.createElement("canvas"); c.width = cw; c.height = ch; const g = c.getContext("2d"); g.drawImage(im, 0, 0, cw, ch);
+  const a = g.getImageData(0, 0, cw, ch).data, m = new Uint8Array(cw * ch); for (let i = 0; i < m.length; i++) m[i] = a[i * 4 + 3] >= 128 ? 1 : 0;
+  return { m, cw, ch };
+}
+
+/* Sticker: border and cut line, offset from the art */
+let stickerCache = null;
+function mapOutline(o, s, ox, oy) {
+  const P = p => [p[0] / s + ox, p[1] / s + oy], V = p => [p[0] / s, p[1] / s];
+  return { V: o.V.map(P), segs: o.segs.map(sg => sg[0] === "C" ? ["C", V(sg[1]), V(sg[2])] : sg[0] === "A" ? ["A", sg[1] / s, sg[2], sg[3]] : sg) };
+}
+async function buildSticker() {
+  const d = S.dest, per = unitsPer(), b = artBox(); if (!d || !per || !b) return null;
+  const key = JSON.stringify([d, b, visibleLayers().map(L => L.hex), hidden.size, deletedLayers.size, objEdits.length, result.seconds]);
+  if (stickerCache && stickerCache.key === key) return stickerCache;
+  const cutU = toIn(d.cut, "mm") * per, outU = cutU + toIn(OUTPUTS.sticker.bleed, "mm") * per, pad = outU + 4;
+  const bx = [b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad], s = Math.min(2, Math.sqrt(1.2e6 / ((bx[2] - bx[0]) * (bx[3] - bx[1]))));
+  const { m, cw, ch } = await layerMask(visibleLayers(), s, bx);
+  const dist = edt2(cw, ch, i => m[i]);
+  const shape = r => { const k = new Uint8Array(cw * ch), r2 = (r * s) ** 2; for (let i = 0; i < k.length; i++) k[i] = dist[i] <= r2 ? 1 : 0; return fillMaskHoles(k, cw, ch); };
+  const trace = r => {
+    const cs = VZ.maskContours(blurMask(shape(r), cw, ch, 1.2), cw, ch).filter(q => Math.abs(VZ.area(q)) > 30);
+    const outers = VZ.nest(cs).map(([o]) => cs[o]);
+    return outers.map(q => mapOutline(VZ.fitOutline(q, 0.6, 6, 150, 0.5, 40, 2.5), s, bx[0], bx[1]));
+  };
+  const cut = trace(cutU), border = trace(outU);
+  const pts = border.flatMap(o => o.V); const ext = pts.length ? bboxOf(pts) : null;
+  const mm = toIn(1, "mm") * per;   // 1 mm of page around the border
+  stickerCache = { key, cut, border, extent: ext && [ext[0] - mm, ext[1] - mm, ext[2] + mm, ext[3] + mm] };
+  return stickerCache;
+}
+// Called by buildSVG: what this destination adds to the file.
+function destDecor(opts, keyed) {
+  const o = destNow(), d = S.dest; if (!o || !d) return null;
+  const per = unitsPer(); if (!per) return null;
+  const ppu = d.unit === "px" ? null : 72 / per;          // points per work pixel at the final size
+  if (S.output !== "sticker" || opts.layers || opts.only || opts.part === "text") return { before: "", after: "", ppu };
+  const st = stickerCache;
+  if (!st) { buildSticker().then(x => { if (x) render(); }); return { before: "", after: "", ppu }; }
+  const D = arr => arr.map(VZ.outlineD).join("");
+  const before = `  <g id="sticker-border" data-name="Sticker border" fill="${d.border}">\n    <path d="${D(st.border)}"/>\n  </g>\n`;
+  const after = `  <g id="CutContour" data-name="CutContour" data-spot="CutContour" fill="none" stroke="#FF00FF" stroke-width="${+(1 / ppu).toPrecision(5)}"${keyed ? ' pointer-events="none"' : ""}>\n    <path d="${D(st.cut)}"/>\n  </g>\n`;
+  return { before, after, ppu, extent: keyed ? null : st.extent, overflow: keyed };
+}
+
+/* Checks: run after each change, a moment after the screen updates */
+let checkTimer = 0, checkSeq = 0, thinOverlay = null, showThin = false;
+function afterRender() {
+  syncDest();
+  if (showThin && thinOverlay) drawThinOverlay();
+  if (S.output === "sticker" && result) buildSticker().then(st => { if (st && !$("#vec").querySelector("#CutContour")) render(); });
+  checkSeq++; $("#checks").dataset.done = "0";   // stop a check that's still running for the old result
+  if ($("#checks").dataset.out !== (S.output || "")) { $("#checks").innerHTML = ""; $("#checks").dataset.out = S.output || ""; thinOverlay = null; }
+  clearTimeout(checkTimer); checkTimer = setTimeout(runChecks, 350);
+}
+function drawThinOverlay() {
+  const svg = $("#vec svg"); if (!svg || !thinOverlay) return;
+  const old = svg.querySelector("#thinMarks"); if (old) old.remove();
+  const NS = "http://www.w3.org/2000/svg", g = document.createElementNS(NS, "image");
+  const [x0, y0, x1, y1] = thinOverlay.box; g.setAttribute("id", "thinMarks"); g.setAttribute("href", thinOverlay.url);
+  g.setAttribute("x", x0); g.setAttribute("y", y0); g.setAttribute("width", x1 - x0); g.setAttribute("height", y1 - y0); g.setAttribute("preserveAspectRatio", "none"); g.setAttribute("pointer-events", "none");
+  svg.appendChild(g);
+}
+function svgPoints(svg) {
+  let n = 0; for (const m of svg.matchAll(/\sd="([^"]*)"/g)) n += (m[1].match(/[MLHVCSQTA]/gi) || []).length;
+  return n + 4 * (svg.match(/<(circle|ellipse|rect)\b/g) || []).length + (svg.match(/points="([^"]*)"/g) || []).reduce((s, p) => s + p.split(/\s+/).length, 0);
+}
+const fmtLen = (v, u) => `${+v.toFixed(2)} ${u}`;
+async function runChecks() {
+  const o = destNow(), list = $("#checks"); if (!o || !result || !S.dest) { list.innerHTML = ""; thinOverlay = null; return; }
+  list.dataset.done = "0";
+  const seq = ++checkSeq, d = S.dest, items = [], add = (kind, text, act) => items.push({ kind, text, act });
+  const layers = visibleLayers(), per = unitsPer(), b = artBox();
+  const show = (last) => { if (seq !== checkSeq) return; if (last) list.dataset.done = "1"; list.innerHTML = items.map((it, i) => `<li class="check ${it.kind}"><span class="mark" aria-hidden="true">${it.kind === "ok" ? "✓" : it.kind === "warn" ? "!" : "i"}</span><span class="txt">${it.text}</span>${it.act ? `<button type="button" class="link-btn" data-check="${i}">${it.act.label}</button>` : ""}</li>`).join(""); list._items = items; };
+  if (!layers.length || !per || !b) { add("info", "Nothing to check yet."); show(true); return; }
+  const colors = layers.map(L => (recolor[L.hex] || L.hex).toUpperCase());
+  // Colors
+  if (o.maxColors === 1) add(colors.length === 1 ? "ok" : "warn", colors.length === 1 ? "One color." : `${colors.length} colors. Engraving software expects one. Choose One color under What is it?`);
+  else if (o.maxColors) add(colors.length <= o.maxColors ? "ok" : "warn", colors.length <= o.maxColors ? `${colors.length} ${colors.length === 1 ? "ink" : "inks"}. Most shops charge per ink.` : `${colors.length} inks. Most shops print ${o.maxColors} at most. Lower the color count or merge colors under Layers.`);
+  else if (S.output === "vinyl") add("info", `${colors.length} ${colors.length === 1 ? "color" : "colors"}, so ${colors.length} vinyl ${colors.length === 1 ? "layer" : "layers"} to cut and press.`);
+  // Layering
+  if (o.set.layering === "cutout") add(S.layering === "cutout" ? "ok" : "warn", S.layering === "cutout" ? "No shapes overlap, so nothing cuts or prints twice." : "Colors overlap, so a cutter cuts the hidden edges too. Choose Cut out under Layers.");
+  else add(S.layering === "stacked" ? "ok" : "info", S.layering === "stacked" ? "Colors stack, so no hairline gaps show between them." : "Colors are cut out, so a thin gap can show where two colors meet.");
+  if (S.output === "laser" || S.output === "vinyl" || S.output === "sticker") add("ok", "Every shape is a closed path.");
+  // Brand colors
+  if (o.brand) {
+    if (!locked.length) add("warn", "No brand colors yet. Add them so the file uses your exact values.", { label: "Add", run: () => { $("#t-layers").click(); setTimeout(() => { scrollPanelTo($("#brandHex"), true); $("#brandHex").focus(); }, 30); } });
+    else { const off = colors.filter(c => !locked.includes(c)); add(off.length ? "warn" : "ok", off.length ? `${off.length === 1 ? "This color isn't" : "These colors aren't"} a brand color: ${off.join(", ")}. Recolor ${off.length === 1 ? "it" : "them"} under Layers, or add ${off.length === 1 ? "it as a brand color" : "them as brand colors"}.` : "Every color is a brand color."); }
+  }
+  // Points and size
+  const svg = buildSVG(false, { part: partMode }), pts = svgPoints(svg), kb = new Blob([svg]).size / 1024;
+  add("info", `${pts.toLocaleString()} points${S.output === "web" ? `, ${kb.toFixed(1)} KB` : ""}.`);
+  show();
+  // Sticker cut line
+  if (S.output === "sticker") {
+    const st = await buildSticker(); if (seq !== checkSeq) return;
+    if (st) add(st.cut.length === 1 ? "ok" : "warn", st.cut.length === 1 ? `One closed cut line, ${fmtLen(d.cut, "mm")} outside the art, on the CutContour spot color.` : `The cut line has ${st.cut.length} separate pieces. Most printers need one: raise the cut line distance, or move the pieces closer.`);
+    add("info", "PDF keeps CutContour as a spot color. SVG and EPS show it as magenta.");
+    show();
+  }
+  // Thin lines and narrow gaps, measured on the shapes as drawn
+  const minLine = d.minLine != null ? (o.lineUnit === "px" ? d.minLine * per : toIn(d.minLine, o.lineUnit) * per) : null;
+  const minGap = d.minGap != null ? toIn(d.minGap, "mm") * per : null;
+  thinOverlay = null;
+  if (minLine || minGap) {
+    const want = Math.min(...[minLine, minGap].filter(Boolean)) / 2;   // radius in work pixels
+    const pad = Math.max(4, (minGap || 0)), bx = [b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad];
+    const s = Math.max(0.2, Math.min(2.5 / Math.max(want, 1e-6), Math.sqrt(0.9e6 / ((bx[2] - bx[0]) * (bx[3] - bx[1])))));
+    const masks = [];
+    for (const L of layers) { masks.push(await layerMask([L], s, bx)); if (seq !== checkSeq) return; await sleep(0); }
+    const { cw, ch } = masks[0], marks = new Uint8Array(cw * ch); let lines = 0, gaps = 0;
+    const above = new Uint8Array(cw * ch);
+    for (let li = masks.length - 1; li >= 0; li--) {               // top layer first: what shows of each color
+      const m = masks[li].m, vis = new Uint8Array(cw * ch); for (let i = 0; i < vis.length; i++) vis[i] = m[i] && !above[i] ? 1 : 0;
+      if (minLine) { const r = minLine / 2 * s, t = thinSpots(thinParts(vis, cw, ch, r), cw, ch, r); lines += t.count; for (let i = 0; i < marks.length; i++) if (t.marks[i]) marks[i] = 1; }
+      if (minGap) { const inv = new Uint8Array(cw * ch); for (let i = 0; i < inv.length; i++) inv[i] = m[i] ? 0 : 1; const r = minGap / 2 * s, t = thinSpots(thinParts(inv, cw, ch, r), cw, ch, r); gaps += t.count; for (let i = 0; i < marks.length; i++) if (t.marks[i]) marks[i] = 1; }
+      for (let i = 0; i < above.length; i++) if (m[i]) above[i] = 1;
+      await sleep(0); if (seq !== checkSeq) return;
+    }
+    const sizeTxt = `at ${fmtLen(d.size, d.unit)} wide`;
+    const showAct = { label: showThin ? "Hide" : "Show", run: () => { showThin = !showThin; render(); } };
+    if (minLine) add(lines ? "warn" : "ok", lines ? `${lines} ${lines === 1 ? "spot is" : "spots are"} thinner than ${fmtLen(d.minLine, o.lineUnit)} ${sizeTxt}. Thicken ${lines === 1 ? "it" : "them"} with Grow, or use a larger size.` : `Every line is at least ${fmtLen(d.minLine, o.lineUnit)} ${sizeTxt}.`, lines ? showAct : null);
+    if (minGap) add(gaps ? "warn" : "ok", gaps ? `${gaps} ${gaps === 1 ? "gap is" : "gaps are"} narrower than ${fmtLen(d.minGap, "mm")} ${sizeTxt}, which makes weeding hard.` : `Every gap is at least ${fmtLen(d.minGap, "mm")} ${sizeTxt}.`, gaps && !lines ? showAct : null);
+    if (lines || gaps) {
+      const c = document.createElement("canvas"); c.width = cw; c.height = ch; const g = c.getContext("2d"), img = g.createImageData(cw, ch);
+      for (let i = 0; i < marks.length; i++) if (marks[i]) { img.data[i * 4] = 230; img.data[i * 4 + 1] = 30; img.data[i * 4 + 2] = 60; img.data[i * 4 + 3] = 235; }
+      g.putImageData(img, 0, 0); thinOverlay = { url: c.toDataURL(), box: bx };
+      if (showThin) drawThinOverlay();
+    } else showThin = false;
+  }
+  show(true);
+}
+$("#checks").addEventListener("click", e => { const b = e.target.closest("[data-check]"); if (!b) return; const it = $("#checks")._items[+b.dataset.check]; if (it && it.act) it.act.run(); });
 
 function syncEditorControls() {
   document.querySelectorAll("[data-layering]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.layering === S.layering)));
   $("#layHelp").textContent = S.layering === "cutout" ? "Each color is only its own area, with no overlap. Best for vinyl, screen printing, and separations." : "Colors sit on top of each other with no gaps between them. Best for screens and most design work.";
   document.querySelectorAll("[data-output]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.output === S.output)));
-  $("#outHelp").textContent = S.output ? OUTPUTS[S.output].help : "Pick what it's for, and Vectorize sets the options below.";
+  $("#outHelp").textContent = S.output ? OUTPUTS[S.output].help : "Pick what it's for. Vectorize sets the options below and checks the result at the size you'll use.";
+  syncDest();
   $("#bg-ai").hidden = !(APP && APP.cutout);
   const f = fmtNow(); $("#exportLabel").textContent = `Export ${FORMATS[f]}`;
   document.querySelectorAll("[data-fmt]").forEach(b => { b.setAttribute("aria-checked", String(b.dataset.fmt === f)); b.disabled = !NATIVE && (b.dataset.fmt === "pdf" || b.dataset.fmt === "eps"); });

@@ -1,4 +1,11 @@
-# Tracing benchmark
+# Tracing benchmarks
+
+There are two:
+
+- `score.py` scores the engine on the generated test logos in `testset/`, where the right answer is known. Use it to check that a change helps. See "Score tracing changes" in the main README.
+- `run.py`, described below, compares Vectorize with VTracer on your own images, such as client logos. There's no right answer to compare with, so it scores each trace against the original pixels.
+
+## Compare with VTracer on your own images
 
 Compares the Vectorize engine with VTracer 1.0 on a folder of real images and writes a side-by-side report.
 

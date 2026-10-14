@@ -1,0 +1,14 @@
+{
+ "name": "overlap-circles",
+ "about": "Three overlapping circles: where colors meet",
+ "width": 1000,
+ "height": 800,
+ "background": "#FFFFFF",
+ "colors": [
+  "#2563EB",
+  "#E07A5F",
+  "#E8C25A",
+  "#FFFFFF"
+ ],
+ "corners": []
+}

@@ -272,6 +272,22 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
 .deleted-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-top:4px}
 .lock-chip.restore{padding:4px 10px 4px 6px;background:var(--mist-tint);color:var(--ink);font-family:var(--font)}
 .outputs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.preset{text-align:center;line-height:1.2}
+.dest-box{display:flex;flex-direction:column;gap:8px;margin-top:2px;padding:12px;border-radius:16px;background:var(--mist-tint)}
+.dest-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;font-weight:600}
+.dest-in{display:inline-flex;align-items:center;gap:6px}
+.dest-in input[type=number]{width:72px;height:32px;border-radius:10px;border:0;box-shadow:inset 0 0 0 1px var(--line);background:var(--surface);color:var(--ink);font:600 13px var(--font);padding:0 8px;text-align:right}
+.dest-in select{height:32px;border-radius:10px;border:0;box-shadow:inset 0 0 0 1px var(--line);background:var(--surface);color:var(--ink);font:600 13px var(--font);padding:0 6px}
+.dest-in input[type=color]{width:44px;height:32px;border:0;border-radius:10px;padding:2px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--line)}
+.dest-in .unit{min-width:22px;color:var(--muted)}
+.checks{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.check{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;line-height:1.4;color:var(--ink)}
+.check .mark{flex:none;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800;margin-top:1px}
+.check.ok .mark{background:var(--lime-tint);color:var(--lime-ink)}
+.check.warn .mark{background:var(--coral-tint, #FFE3DA);color:var(--coral-ink)}
+.check.info .mark{background:var(--surface);color:var(--muted);box-shadow:inset 0 0 0 1px var(--line)}
+.check .txt{flex:1;min-width:0}
+.check .link-btn{flex:none}
 .out-chip{min-height:38px;border-radius:14px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--line);font-size:13px;font-weight:600;color:var(--muted)}
 .out-chip[aria-pressed="true"]{background:var(--sun-tint);color:var(--sun-ink);box-shadow:inset 0 0 0 2px var(--sun)}
 .modal{position:fixed;inset:0;z-index:40;background:#14172A80;display:grid;place-items:center;padding:16px}
@@ -400,21 +416,39 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
         <div class="group">
           <span class="group-title">What is it?</span>
           <div class="presets" role="group" aria-label="Presets">
-            <button class="preset" data-preset="logo" aria-pressed="true" data-press><span class="tile"><svg viewBox="0 0 24 24"><path d="M12 2.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 8.8l6.1-.7z"/></svg></span>Logo</button>
-            <button class="preset" data-preset="art" aria-pressed="false" data-press><span class="tile"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3zM6.5 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg></span>Flat art</button>
-            <button class="preset" data-preset="photo" aria-pressed="false" data-press><span class="tile"><svg viewBox="0 0 24 24"><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm1 13h12l-3.8-5-3 3.8-2.1-2.6zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg></span>Photo</button>
+            <button class="preset" data-preset="onecolor" aria-pressed="false" data-press><span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zm0 2v14a7 7 0 0 0 0-14z"/></svg></span>One color</button>
+            <button class="preset" data-preset="logo" aria-pressed="true" data-press><span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 8.8l6.1-.7z"/></svg></span>Logo</button>
+            <button class="preset" data-preset="detailed" aria-pressed="false" data-press><span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3zM6.5 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg></span>Detailed logo</button>
+            <button class="preset" data-preset="silhouette" aria-pressed="false" data-press><span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l6.5 8.5H15l4.5 6.5H13.6V22h-3.2v-5H4.5L9 10.5H5.5z"/></svg></span>Silhouette</button>
+            <button class="preset" data-preset="sketch" aria-pressed="false" data-press><span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21l1.4-5.4L15.9 4.1a2 2 0 0 1 2.8 0l1.2 1.2a2 2 0 0 1 0 2.8L8.4 19.6z"/></svg></span>Sketch</button>
+            <button class="preset" data-preset="gray" aria-pressed="false" data-press><span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="5" height="14" rx="1.5" opacity=".28"/><rect x="9.5" y="5" width="5" height="14" rx="1.5" opacity=".6"/><rect x="16" y="5" width="5" height="14" rx="1.5"/></svg></span>Grayscale</button>
           </div>
+          <div class="presets" id="morePresets" role="group" aria-label="More presets" hidden>
+            <button class="preset" data-preset="photo" aria-pressed="false" data-press><span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm1 13h12l-3.8-5-3 3.8-2.1-2.6zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg></span>Photo</button>
+          </div>
+          <div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px"><p class="help" id="presetHelp" style="margin:0">Flat-color logos and wordmarks, up to 10 colors.</p><button class="link-btn" id="morePresetsBtn" type="button" aria-expanded="false" aria-controls="morePresets" style="white-space:nowrap">More presets</button></div>
         </div>
 
         <div class="group">
           <span class="group-title">Made for</span>
           <div class="outputs" role="group" aria-label="Made for">
             <button class="out-chip" data-output="screen" aria-pressed="false">Screen print</button>
-            <button class="out-chip" data-output="vinyl" aria-pressed="false">Vinyl cut</button>
+            <button class="out-chip" data-output="vinyl" aria-pressed="false">Vinyl and HTV</button>
+            <button class="out-chip" data-output="sticker" aria-pressed="false">Sticker</button>
             <button class="out-chip" data-output="laser" aria-pressed="false">Laser engrave</button>
+            <button class="out-chip" data-output="brand" aria-pressed="false">Print and brand</button>
             <button class="out-chip" data-output="web" aria-pressed="false">Web icon</button>
           </div>
-          <p class="help" id="outHelp">Pick what it's for, and Vectorize sets the options below.</p>
+          <p class="help" id="outHelp">Pick what it's for. Vectorize sets the options below and checks the result at the size you'll use.</p>
+          <div class="dest-box" id="destBox" hidden>
+            <div class="dest-row"><label for="destSize">Final width</label><span class="dest-in"><input id="destSize" type="number" min="0.1" step="0.1" inputmode="decimal"><select id="destUnit" aria-label="Unit"><option value="in">in</option><option value="mm">mm</option></select><span id="destPxUnit" class="unit" hidden>px</span></span></div>
+            <div class="dest-row" id="rowLine"><label for="destLine">Thinnest line</label><span class="dest-in"><input id="destLine" type="number" min="0.1" step="0.1" inputmode="decimal"><span class="unit" id="destLineUnit">pt</span></span></div>
+            <div class="dest-row" id="rowGap"><label for="destGap">Narrowest gap</label><span class="dest-in"><input id="destGap" type="number" min="0.1" step="0.1" inputmode="decimal"><span class="unit">mm</span></span></div>
+            <div class="dest-row" id="rowCut"><label for="destCut">Cut line distance</label><span class="dest-in"><input id="destCut" type="number" min="0.5" step="0.5" inputmode="decimal"><span class="unit">mm</span></span></div>
+            <div class="dest-row" id="rowBorder"><label for="destBorder">Border color</label><span class="dest-in"><input id="destBorder" type="color" value="#ffffff"></span></div>
+            <ul class="checks" id="checks" aria-live="polite" aria-label="Checks"></ul>
+            <p class="help">Typical shop numbers. Your printer's spec wins.</p>
+          </div>
         </div>
 
         <div class="group">
@@ -426,7 +460,7 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
           </div>
           <div class="stepper" id="stepper" hidden>
             <button id="kMinus" aria-label="Fewer colors" data-press><span class="inner">−</span></button>
-            <span><b id="kVal">6</b> colors</span>
+            <span><b id="kVal">6</b> <span id="kUnit">colors</span></span>
             <button id="kPlus" aria-label="More colors" data-press><span class="inner">+</span></button>
           </div>
         </div>
@@ -530,7 +564,8 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
           <span class="group-title">Brand colors</span>
           <p class="help">Locked colors replace the closest colors in the trace with these exact values, and they hold when you change other settings.</p>
           <div class="lock-list" id="lockList"></div>
-          <div class="row"><button class="btn btn-soft btn-sm" id="pickLock" data-press><span class="inner">Pick from image</span></button></div>
+          <div class="row" style="flex-wrap:wrap;gap:8px"><button class="btn btn-soft btn-sm" id="pickLock" data-press><span class="inner">Pick from image</span></button>
+            <span class="dest-in"><input id="brandHex" type="text" placeholder="#1E2340" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Brand color code" style="width:92px;height:32px;border-radius:10px;border:0;box-shadow:inset 0 0 0 1px var(--line);background:var(--surface);color:var(--ink);font:600 13px var(--mono);padding:0 8px"><button class="btn btn-soft btn-sm" id="addBrandHex" data-press><span class="inner">Add</span></button></span></div>
         </div>
       </div>
     </aside>

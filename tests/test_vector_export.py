@@ -64,5 +64,40 @@ class T(unittest.TestCase):
         self.assertIn("%%BoundingBox: 0 0 ", eps)
         self.assertIn("eofill", eps)
 
+    STICKER = ('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100" data-pt-per-unit="1.08">'
+               '<g fill="#FFFFFF"><path d="M2 2h76v76h-76z"/></g><g fill="#1E2340"><path d="M10 10h60v60h-60z"/></g>'
+               '<g id="CutContour" data-spot="CutContour" fill="none" stroke="#FF00FF" stroke-width="0.92593"><path d="M5 5h70v70h-70z"/></g></svg>')
+
+    def test_page_size_and_spot_color_pdf(self):
+        pdf = svg_to_pdf(self.STICKER)
+        self.assertIn(b"/MediaBox [0 0 216 108]", pdf)                 # viewBox times points per unit
+        self.assertIn(b"/Separation /CutContour /DeviceCMYK", pdf)
+        self.assertIn(b"/C1 [0 1 0 0]", pdf)                          # magenta stands in for the spot color
+        import zlib, re
+        stream = zlib.decompress(re.search(rb"stream\n(.*?)\nendstream", pdf, re.S).group(1)).decode()
+        self.assertIn("/CS0 CS 1 SCN", stream)
+        self.assertIn("1 w 1 j", stream)                               # 0.92593 units x 1.08 = 1 pt
+        self.assertTrue(stream.rstrip().endswith("S"))                 # stroked, not filled
+
+    def test_spot_color_eps(self):
+        eps = svg_to_eps(self.STICKER).decode()
+        self.assertIn("%%BoundingBox: 0 0 216 108", eps)
+        self.assertIn("[/Separation /CutContour /DeviceCMYK", eps)
+        self.assertIn("1 setlinewidth", eps)
+        self.assertIn("stroke", eps)
+
+    @unittest.skipUnless(shutil.which("gs"), "Ghostscript not installed")
+    def test_separation_is_real(self):
+        """Ghostscript's separation device writes one plate per spot color."""
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "s.pdf"; p.write_bytes(svg_to_pdf(self.STICKER))
+            subprocess.run(["gs", "-q", "-dSAFER", "-dBATCH", "-dNOPAUSE", "-sDEVICE=tiffsep", "-r36", f"-sOutputFile={Path(d) / 'sep.tif'}", str(p)], check=True)
+            self.assertTrue((Path(d) / "sep(CutContour).tif").exists(), sorted(x.name for x in Path(d).iterdir()))
+
+    def test_units_in_width(self):
+        svg = '<svg xmlns="http://www.w3.org/2000/svg" width="2in" height="1in" viewBox="0 0 20 10"><path d="M0 0h20v10h-20z"/></svg>'
+        self.assertIn(b"/MediaBox [0 0 144 72]", svg_to_pdf(svg))
+
+
 if __name__ == "__main__":
     unittest.main()

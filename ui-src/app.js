@@ -3,11 +3,29 @@ const $ = s => document.querySelector(s);
 const WORK_MAX = 1600, WORK_MIN = 1600;
 
 /* ---------- Settings ---------- */
+// Named for the kind of art you start with. Illustrator's names are in the comments for reference.
+// Every preset sets every flag, so switching presets never leaves one behind.
+const PRESET_BASE = { grow: 0, gray: false, adaptive: false, fillHoles: false };
 const PRESETS = {
-  logo:  { cmode: "auto",   k: 6,  bg: "remove", detail: 70, straight: 50, smooth: 50, corners: 50, grow: 0, shapes: "auto", snap: true,  maxAuto: 10 },
-  art:   { cmode: "auto",   k: 12, bg: "keep",   detail: 85, straight: 35, smooth: 40, corners: 40, grow: 0, shapes: "auto", snap: false, maxAuto: 16 },
-  photo: { cmode: "number", k: 12, bg: "keep",   detail: 80, straight: 15, smooth: 30, corners: 30, grow: 0, shapes: "off",  snap: false, maxAuto: 24 },
+  onecolor:   { ...PRESET_BASE, cmode: "bw",     k: 2,  bg: "remove", detail: 70, straight: 55, smooth: 50, corners: 60, shapes: "auto", snap: true,  maxAuto: 10 },   // Black and White Logo
+  logo:       { ...PRESET_BASE, cmode: "auto",   k: 6,  bg: "remove", detail: 70, straight: 50, smooth: 50, corners: 50, shapes: "auto", snap: true,  maxAuto: 10 },   // 3 and 6 Colors
+  detailed:   { ...PRESET_BASE, cmode: "auto",   k: 12, bg: "remove", detail: 85, straight: 40, smooth: 45, corners: 45, shapes: "auto", snap: false, maxAuto: 16 },   // 16 Colors
+  silhouette: { ...PRESET_BASE, cmode: "bw",     k: 2,  bg: "remove", detail: 50, straight: 40, smooth: 70, corners: 40, shapes: "off",  snap: false, maxAuto: 10, fillHoles: true },   // Silhouettes
+  sketch:     { ...PRESET_BASE, cmode: "bw",     k: 2,  bg: "remove", detail: 40, straight: 30, smooth: 75, corners: 30, shapes: "off",  snap: false, maxAuto: 10, adaptive: true },    // Sketched Art
+  gray:       { ...PRESET_BASE, cmode: "number", k: 6,  bg: "keep",   detail: 75, straight: 30, smooth: 45, corners: 40, shapes: "off",  snap: false, maxAuto: 10, gray: true },        // Shades of Gray
+  photo:      { ...PRESET_BASE, cmode: "number", k: 12, bg: "keep",   detail: 80, straight: 15, smooth: 30, corners: 30, shapes: "off",  snap: false, maxAuto: 24 },   // High and Low Fidelity Photo
 };
+const PRESET_HELP = {
+  onecolor: "Black-and-white art, stamps, and stencils. Every shape becomes one color.",
+  logo: "Flat-color logos and wordmarks, up to 10 colors.",
+  detailed: "Detailed logos and illustrations, up to 16 colors, keeping small parts.",
+  silhouette: "One solid shape with no holes, for shadows, cut outlines, and stencils.",
+  sketch: "Hand drawing on paper. Evens out uneven light and smooths shaky lines.",
+  gray: "Shades of gray, 6 to start. Use + and − to change the count.",
+  photo: "Pictures with many colors. The result is stylized, not a copy of the photo.",
+};
+// Earlier versions called Detailed logo "Flat art".
+const PRESET_ALIAS = { art: "detailed" };
 const S = Object.assign({ preset: "logo", textMode: "auto", layering: "stacked", output: "", exportFormat: "svg" }, PRESETS.logo);
 const locked = [];            // brand colors, "#RRGGBB"
 let recolor = {};             // "#ORIG" -> "#NEW"
@@ -238,10 +256,20 @@ function buildPalette(imgd) {
 function fromHexSafe(rgb) { return { rgb, lock: false }; }
 
 function prepareImage(imgd) {
-  // Copy, make alpha binary, and apply black-and-white thresholding when asked.
+  // Copy, make alpha binary, and apply black-and-white thresholding or grayscale when asked.
   const out = new ImageData(new Uint8ClampedArray(imgd.data), imgd.width, imgd.height), d = out.data;
-  let thr = 128;
-  if (S.cmode === "bw") {
+  let thr = 128, local = null;
+  const lum = i => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+  if (S.cmode === "bw" && S.adaptive) {
+    // Sketch: compare each pixel with the average around it, so shadows and uneven paper don't turn black.
+    const w = out.width, h = out.height, R = Math.max(8, Math.round(Math.min(w, h) / 24)), I = new Float64Array((w + 1) * (h + 1));
+    for (let y = 0; y < h; y++) { let row = 0; for (let x = 0; x < w; x++) { const i = (y * w + x) * 4; row += d[i + 3] < 128 ? 255 : lum(i); I[(y + 1) * (w + 1) + x + 1] = I[y * (w + 1) + x + 1] + row; } }
+    local = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const x0 = Math.max(0, x - R), y0 = Math.max(0, y - R), x1 = Math.min(w, x + R + 1), y1 = Math.min(h, y + R + 1);
+      local[y * w + x] = (I[y1 * (w + 1) + x1] - I[y0 * (w + 1) + x1] - I[y1 * (w + 1) + x0] + I[y0 * (w + 1) + x0]) / ((x1 - x0) * (y1 - y0)) - 14;
+    }
+  } else if (S.cmode === "bw") {
     const hist = new Array(256).fill(0); let n = 0;
     for (let i = 0; i < d.length; i += 4) if (d[i + 3] >= 128) { hist[Math.round(0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2])]++; n++; }
     let sum = 0; for (let t = 0; t < 256; t++) sum += t * hist[t];
@@ -251,7 +279,8 @@ function prepareImage(imgd) {
   for (let i = 0; i < d.length; i += 4) {
     if (d[i + 3] < 128) { d[i] = d[i + 1] = d[i + 2] = 0; d[i + 3] = 0; continue; }
     d[i + 3] = 255;
-    if (S.cmode === "bw") { const v = (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) > thr ? 255 : 0; d[i] = d[i + 1] = d[i + 2] = v; }
+    if (S.cmode === "bw") { const v = lum(i) > (local ? local[i >> 2] : thr) ? 255 : 0; d[i] = d[i + 1] = d[i + 2] = v; }
+    else if (S.gray) { const v = Math.round(lum(i)); d[i] = d[i + 1] = d[i + 2] = v; }
   }
   return out;
 }
@@ -421,6 +450,16 @@ function components8(mask, w, h) {
   }
   return cc;
 }
+// Fills every hole in a mask: anything the outside can't reach becomes solid.
+function fillMaskHoles(mask, w, h) {
+  const out = new Uint8Array(w * h), stack = new Int32Array(w * h); let top = 0;
+  const push = i => { if (!mask[i] && !out[i]) { out[i] = 1; stack[top++] = i; } };
+  for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
+  while (top) { const i = stack[--top], x = i % w; if (x > 0) push(i - 1); if (x < w - 1) push(i + 1); if (i >= w) push(i - w); if (i < w * (h - 1)) push(i + w); }
+  for (let i = 0; i < w * h; i++) if (!out[i]) mask[i] = 1;
+  return mask;
+}
 function erodeDisc(mask, w, h, r) {
   const offs = []; for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (dx * dx + dy * dy <= r * r + r) offs.push([dx, dy]);
   const out = new Uint8Array(w * h);
@@ -483,9 +522,15 @@ function traceNow(cancelled = () => false) {
       // Background: every pixel of the color that covers the border becomes transparent.
       const bgl = borderLabel(lab, W, H);
       if (bgl >= 0 && S.bg === "remove") for (let i = 0; i < N; i++) if (lab[i] === bgl) lab[i] = -1;
+      // Silhouette: everything that isn't background becomes the darkest color.
+      if (S.fillHoles) {
+        let dark = -1, dl = Infinity; const present = new Set(); for (let i = 0; i < N; i++) if (lab[i] >= 0) present.add(lab[i]);
+        for (const l of present) { const L = rgb2lab(...pal[l].rgb)[0]; if (L < dl) { dl = L; dark = l; } }
+        if (dark >= 0) for (let i = 0; i < N; i++) if (lab[i] >= 0) lab[i] = dark;
+      }
 
       // True colors: the average of each color's interior pixels (locked and B&W stay exact).
-      const src = sourcePixels().data, sums = pal.map(() => [0, 0, 0, 0]);
+      const src = (S.gray ? job.prepared : sourcePixels()).data, sums = pal.map(() => [0, 0, 0, 0]);   // grayscale keeps its grays
       const rin = Math.max(3, Math.round(2 * Math.max(job.scale, 1)));
       for (let y = rin; y < H - rin; y++) for (let x = rin; x < W - rin; x++) {
         const i = y * W + x, l = lab[i]; if (l < 0 || lab[i - rin] !== l || lab[i + rin] !== l || lab[i - rin * W] !== l || lab[i + rin * W] !== l || lab[i - rin - rin * W] !== l || lab[i + rin + rin * W] !== l) continue;
@@ -525,6 +570,7 @@ function traceNow(cancelled = () => false) {
           const inner = erodeDisc(mask, W, H, Math.max(1, Math.round(sc)));
           for (let i = 0; i < N; i++) mask[i] = (lab[i] === c || (mask[i] && inner[i])) ? 1 : 0;
         }
+        if (S.fillHoles) fillMaskHoles(mask, W, H);
         const f = blurMask(mask, W, H, sigma);
         const minSpeck = Math.min(speckArea, ...partTunes.map(t => tuneParams({ ...LS, ...t.set }, sc).speckArea));
         const contours = VZ.maskContours(f, W, H).filter(q => Math.abs(VZ.area(q)) >= minSpeck).filter(q => Math.abs(VZ.area(q)) >= paramsFor(q).speckArea);
@@ -650,14 +696,24 @@ function buildSVG(keyed = false, opts = {}) {
     const fill = recolor[L.hex] || L.hex; let name = colorName(fill); used[name] = (used[name] || 0) + 1; if (used[name] > 1) name += " " + used[name];
     body += `  <g id="${name.toLowerCase().replace(/\s+/g, "-")}" data-name="${name}"${keyed ? ` data-l="${li}"` : ""} fill="${fill}" fill-rule="evenodd">\n` + inner + `  </g>\n`;
   }
+  // What it's made for can add a sticker border and cut line, and a real-world size for PDF and EPS.
+  const deco = n && !opts.noDest && typeof destDecor === "function" ? destDecor(opts, keyed) : null;
+  if (deco) { body = deco.before + body + deco.after; if (deco.extent) { const e = deco.extent; box[0] = Math.min(box[0], e[0]); box[1] = Math.min(box[1], e[1]); box[2] = Math.max(box[2], e[2]); box[3] = Math.max(box[3], e[3]); } }
+  const ppu = deco && deco.ppu ? ` data-pt-per-unit="${+deco.ppu.toPrecision(6)}"` : "";
+  const f = v => Math.round(v * 100) / 100, k = job.origW / w;
   if (opts.crop) {
     if (!n || !isFinite(box[0])) return null;
     // Tight artwork box with a small margin, sized in the original image's pixels.
-    const m = 0.02 * Math.max(box[2] - box[0], box[3] - box[1]), x = box[0] - m, y = box[1] - m, bw = box[2] - box[0] + 2 * m, bh = box[3] - box[1] + 2 * m, k = job.origW / w;
-    const f = v => Math.round(v * 100) / 100;
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${f(bw * k)}" height="${f(bh * k)}" viewBox="${f(x)} ${f(y)} ${f(bw)} ${f(bh)}">\n` + body + "</svg>\n";
+    const m = 0.02 * Math.max(box[2] - box[0], box[3] - box[1]), x = box[0] - m, y = box[1] - m, bw = box[2] - box[0] + 2 * m, bh = box[3] - box[1] + 2 * m;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${f(bw * k)}" height="${f(bh * k)}" viewBox="${f(x)} ${f(y)} ${f(bw)} ${f(bh)}"${ppu}>\n` + body + "</svg>\n";
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${job.origW}" height="${job.origH}" viewBox="0 0 ${w} ${h}">\n` + body + "</svg>\n";
+  if (deco && deco.extent) {
+    // A sticker border can reach past the image, so the page grows to hold it.
+    const e = deco.extent, x0 = Math.min(0, e[0]), y0 = Math.min(0, e[1]), x1 = Math.max(w, e[2]), y1 = Math.max(h, e[3]);
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${f((x1 - x0) * k)}" height="${f((y1 - y0) * k)}" viewBox="${f(x0)} ${f(y0)} ${f(x1 - x0)} ${f(y1 - y0)}"${ppu}>\n` + body + "</svg>\n";
+  }
+  const over = deco && deco.overflow ? ' overflow="visible"' : "";   // on screen, a sticker border may reach past the image
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${job.origW}" height="${job.origH}" viewBox="0 0 ${w} ${h}"${ppu}${over}>\n` + body + "</svg>\n";
 }
 
 function render() {
@@ -665,6 +721,7 @@ function render() {
   const svg = buildSVG(false, { part: partMode });
   $("#vec").innerHTML = buildSVG(true, { part: partMode });
   drawSelection();
+  if (typeof afterRender === "function") afterRender();
   $("#sheet").classList.toggle("clear", result.transparent || hidden.size > 0 || deletedLayers.size > 0);
   const kb = new Blob([svg]).size / 1024, nColors = visibleLayers().length;
   const nShapes = visibleLayers().reduce((s, L) => s + L.items.filter(it => !it.off).length, 0), matched = result.shapes.filter(s => useShape[s.id]).length;
@@ -1211,6 +1268,14 @@ function isolate(orig) {
 }
 $("#resetColors").onclick = () => { pushUndo(); recolor = {}; hidden = new Set(); render(); toast("Colors reset."); };
 $("#lockList").addEventListener("click", e => { const b = e.target.closest("[data-unlock]"); if (!b) return; pushUndo(); locked.splice(locked.indexOf(b.dataset.unlock), 1); convert(); });
+function addBrandHex() {
+  let v = $("#brandHex").value.trim().toUpperCase(); if (/^[0-9A-F]{6}$/.test(v)) v = "#" + v;
+  if (!/^#[0-9A-F]{6}$/.test(v)) { toast("Type a color code like #1E2340."); return; }
+  if (!locked.includes(v)) { pushUndo(); locked.push(v); convert(); }
+  $("#brandHex").value = ""; toast(`Locked ${v}.`);
+}
+$("#addBrandHex").onclick = addBrandHex;
+$("#brandHex").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addBrandHex(); } });
 $("#pickLock").onclick = () => startPick(hex => { pushUndo(); if (!locked.includes(hex)) locked.push(hex); toast(`Locked ${hex}.`); convert(); });
 
 /* ---------- Dropper ---------- */
@@ -1281,10 +1346,13 @@ document.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click",
   openTab(b.dataset.tab);
 }));
 function syncControls() {
+  if (PRESET_ALIAS[S.preset]) S.preset = PRESET_ALIAS[S.preset];
   document.querySelectorAll("[data-preset]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.preset === S.preset)));
+  $("#presetHelp").textContent = PRESET_HELP[S.preset] || "";
+  if (S.preset === "photo") showMorePresets(true);
   document.querySelectorAll("[data-cmode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.cmode === S.cmode)));
   document.querySelectorAll("[data-bg]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.bg === S.bg)));
-  $("#stepper").hidden = S.cmode !== "number"; $("#kVal").textContent = S.k;
+  $("#stepper").hidden = S.cmode !== "number"; $("#kVal").textContent = S.k; $("#kUnit").textContent = S.gray ? "shades of gray" : "colors";
   syncDials();
   $("#snap").checked = S.snap;
   document.querySelectorAll("[data-smode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.smode === S.shapes)));
@@ -1293,7 +1361,9 @@ function syncControls() {
   syncEditorControls();
 }
 document.querySelectorAll("[data-preset]").forEach(b => b.addEventListener("click", () => { pushUndo(); Object.assign(S, PRESETS[b.dataset.preset], { preset: b.dataset.preset }); syncControls(); convert(); }));
-document.querySelectorAll("[data-cmode]").forEach(b => b.addEventListener("click", () => { pushUndo(); S.cmode = b.dataset.cmode; syncControls(); convert(); }));
+document.querySelectorAll("[data-cmode]").forEach(b => b.addEventListener("click", () => { pushUndo(); S.cmode = b.dataset.cmode; if (S.cmode !== "number") S.gray = false; syncControls(); convert(); }));
+function showMorePresets(open) { $("#morePresets").hidden = !open; $("#morePresetsBtn").setAttribute("aria-expanded", String(open)); $("#morePresetsBtn").textContent = open ? "Fewer presets" : "More presets"; }
+$("#morePresetsBtn").onclick = () => showMorePresets($("#morePresets").hidden);
 document.querySelectorAll("[data-bg]").forEach(b => b.addEventListener("click", () => { if (S.bg === b.dataset.bg) return; pushUndo(); S.bg = b.dataset.bg; syncControls(); convert(); }));
 $("#kMinus").onclick = () => { pushUndo("k"); S.k = Math.max(2, S.k - 1); syncControls(); convert(150); };
 $("#kPlus").onclick = () => { pushUndo("k"); S.k = Math.min(32, S.k + 1); syncControls(); convert(150); };
@@ -1303,7 +1373,7 @@ $("#growMinus").onclick = () => stepGrow(-0.25);
 $("#growPlus").onclick = () => stepGrow(0.25);
 $("#tuneReset").onclick = () => {
   if (tuneScope) { resetScopeTune(); return; }
-  pushUndo(); const P = PRESETS[S.preset] || PRESETS.logo;
+  pushUndo(); const P = PRESETS[PRESET_ALIAS[S.preset] || S.preset] || PRESETS.logo;
   for (const k of ["detail", "straight", "smooth", "corners", "grow", "snap"]) S[k] = P[k];
   syncControls(); convert(); toast("Fine-tune settings reset.");
 };
@@ -1336,7 +1406,7 @@ function brandName() {
   return job.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").replace(/[^\w &'.]+/g, "").trim() || "Logo";
 }
 function versaPackage() {
-  const name = brandName(), master = buildSVG(false, { crop: true }), icon = buildSVG(false, { part: "art", crop: true }), word = buildSVG(false, { part: "text", crop: true });
+  const name = brandName(), master = buildSVG(false, { crop: true, noDest: true }), icon = buildSVG(false, { part: "art", crop: true, noDest: true }), word = buildSVG(false, { part: "text", crop: true, noDest: true });
   const hasWords = (result.texts || []).some(T => !T.removed), files = [{ name: "master.svg", data: master }];
   if (hasWords && icon) files.push({ name: "icon.svg", data: icon });
   if (hasWords && word) files.push({ name: "wordmark.svg", data: word });

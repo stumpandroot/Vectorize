@@ -1,0 +1,33 @@
+{
+ "preset": "logo",
+ "summary": {
+  "all": {
+   "shape_error": 5.075,
+   "edge_error": 0.345,
+   "worst_edge": 2.069,
+   "corner_error": 0.967,
+   "points": 125.238
+  },
+  "PNG 240 px": {
+   "shape_error": 6.966,
+   "edge_error": 0.316,
+   "worst_edge": 1.965,
+   "corner_error": 0.763,
+   "points": 101.214
+  },
+  "PNG 480 px": {
+   "shape_error": 4.012,
+   "edge_error": 0.377,
+   "worst_edge": 2.244,
+   "corner_error": 1.007,
+   "points": 132.0
+  },
+  "JPEG 480 px": {
+   "shape_error": 4.246,
+   "edge_error": 0.34,
+   "worst_edge": 1.999,
+   "corner_error": 1.132,
+   "points": 142.5
+  }
+ }
+}

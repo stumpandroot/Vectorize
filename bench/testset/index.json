@@ -1,0 +1,212 @@
+[
+ {
+  "image": "sans-wordmark-small.png",
+  "truth": "sans-wordmark",
+  "width": 240
+ },
+ {
+  "image": "sans-wordmark.png",
+  "truth": "sans-wordmark",
+  "width": 480
+ },
+ {
+  "image": "sans-wordmark.jpg",
+  "truth": "sans-wordmark",
+  "width": 480
+ },
+ {
+  "image": "rounded-badge-small.png",
+  "truth": "rounded-badge",
+  "width": 240
+ },
+ {
+  "image": "rounded-badge.png",
+  "truth": "rounded-badge",
+  "width": 480
+ },
+ {
+  "image": "rounded-badge.jpg",
+  "truth": "rounded-badge",
+  "width": 480
+ },
+ {
+  "image": "serif-wordmark-small.png",
+  "truth": "serif-wordmark",
+  "width": 240
+ },
+ {
+  "image": "serif-wordmark.png",
+  "truth": "serif-wordmark",
+  "width": 480
+ },
+ {
+  "image": "serif-wordmark.jpg",
+  "truth": "serif-wordmark",
+  "width": 480
+ },
+ {
+  "image": "script-wordmark-small.png",
+  "truth": "script-wordmark",
+  "width": 240
+ },
+ {
+  "image": "script-wordmark.png",
+  "truth": "script-wordmark",
+  "width": 480
+ },
+ {
+  "image": "script-wordmark.jpg",
+  "truth": "script-wordmark",
+  "width": 480
+ },
+ {
+  "image": "reversed-condensed-small.png",
+  "truth": "reversed-condensed",
+  "width": 240
+ },
+ {
+  "image": "reversed-condensed.png",
+  "truth": "reversed-condensed",
+  "width": 480
+ },
+ {
+  "image": "reversed-condensed.jpg",
+  "truth": "reversed-condensed",
+  "width": 480
+ },
+ {
+  "image": "slab-hexagon-small.png",
+  "truth": "slab-hexagon",
+  "width": 240
+ },
+ {
+  "image": "slab-hexagon.png",
+  "truth": "slab-hexagon",
+  "width": 480
+ },
+ {
+  "image": "slab-hexagon.jpg",
+  "truth": "slab-hexagon",
+  "width": 480
+ },
+ {
+  "image": "mountain-small.png",
+  "truth": "mountain",
+  "width": 240
+ },
+ {
+  "image": "mountain.png",
+  "truth": "mountain",
+  "width": 480
+ },
+ {
+  "image": "mountain.jpg",
+  "truth": "mountain",
+  "width": 480
+ },
+ {
+  "image": "shield-chevrons-small.png",
+  "truth": "shield-chevrons",
+  "width": 240
+ },
+ {
+  "image": "shield-chevrons.png",
+  "truth": "shield-chevrons",
+  "width": 480
+ },
+ {
+  "image": "shield-chevrons.jpg",
+  "truth": "shield-chevrons",
+  "width": 480
+ },
+ {
+  "image": "thin-lines-small.png",
+  "truth": "thin-lines",
+  "width": 240
+ },
+ {
+  "image": "thin-lines.png",
+  "truth": "thin-lines",
+  "width": 480
+ },
+ {
+  "image": "thin-lines.jpg",
+  "truth": "thin-lines",
+  "width": 480
+ },
+ {
+  "image": "rounded-square-small.png",
+  "truth": "rounded-square",
+  "width": 240
+ },
+ {
+  "image": "rounded-square.png",
+  "truth": "rounded-square",
+  "width": 480
+ },
+ {
+  "image": "rounded-square.jpg",
+  "truth": "rounded-square",
+  "width": 480
+ },
+ {
+  "image": "arrow-small.png",
+  "truth": "arrow",
+  "width": 240
+ },
+ {
+  "image": "arrow.png",
+  "truth": "arrow",
+  "width": 480
+ },
+ {
+  "image": "arrow.jpg",
+  "truth": "arrow",
+  "width": 480
+ },
+ {
+  "image": "small-tagline-small.png",
+  "truth": "small-tagline",
+  "width": 240
+ },
+ {
+  "image": "small-tagline.png",
+  "truth": "small-tagline",
+  "width": 480
+ },
+ {
+  "image": "small-tagline.jpg",
+  "truth": "small-tagline",
+  "width": 480
+ },
+ {
+  "image": "starburst-seal-small.png",
+  "truth": "starburst-seal",
+  "width": 240
+ },
+ {
+  "image": "starburst-seal.png",
+  "truth": "starburst-seal",
+  "width": 480
+ },
+ {
+  "image": "starburst-seal.jpg",
+  "truth": "starburst-seal",
+  "width": 480
+ },
+ {
+  "image": "overlap-circles-small.png",
+  "truth": "overlap-circles",
+  "width": 240
+ },
+ {
+  "image": "overlap-circles.png",
+  "truth": "overlap-circles",
+  "width": 480
+ },
+ {
+  "image": "overlap-circles.jpg",
+  "truth": "overlap-circles",
+  "width": 480
+ }
+]
