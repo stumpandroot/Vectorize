@@ -109,14 +109,14 @@ With licensing on, anyone can open, convert, and edit images. Exporting, separat
 
 Line Art and Technical Drawing need a centerline trace, which Vectorize doesn't have yet.
 
-**Made for** sets how colors layer and which format Export saves, then checks the result at the final width you enter. The numbers are editable starting points from published shop guidelines:
+**Made for** sets how colors layer and which format Export saves, then checks the result at the final width of the art you enter. PDF and EPS exports are scaled so the art comes out at that width. Every number is an editable starting point. The screen print, vinyl, and sticker numbers come from the published shop guidelines linked below; the others are Vectorize defaults with no published source.
 
 | Destination | Layers | Checks |
 | --- | --- | --- |
 | Screen print | Cut out | Lines of 1 pt or more ([FM Expressions](https://support.fmexpressions.com/fine-details-spot-color)), 6 inks at most ([Stitchi](https://www.stitchi.com/blog/screen-printing-artwork-preparation-6-guidelines)) |
 | Vinyl and HTV | Cut out | Lines of 1.8 mm and gaps of 1.5 mm, typical for metallic and glitter HTV ([Printify](https://help.printify.com/hc/en-us/articles/43890557264529-What-are-the-design-guidelines-for-Heat-Transfer-Vinyl-products)) |
-| Sticker | Stacked | Closed cut line 2 mm outside the art on a 1 pt CutContour spot color, plus 2 mm of border ([StickerApp](https://stickerapp.com/support/artwork-design/templates-guidelines/how-to-make-your-own-cutlines)) |
-| Laser engrave | Cut out | One color, closed paths |
+| Sticker | Stacked | Closed cut line 2 mm outside the art as a 1 pt spot-color stroke, plus 2 mm of border ([StickerApp](https://stickerapp.com/support/artwork-design/templates-guidelines/how-to-make-your-own-cutlines)). The spot color is named CutContour, the name Roland VersaWorks reads as a cut line ([Roland DGA](https://www.rolanddga.com/blog/versaworks-installation-info-2)). |
+| Laser engrave | Cut out | One color, every outline closed |
 | Print and brand | Stacked | Every color is a brand color |
 | Web icon | Stacked | Details at least 1 px wide at the icon size |
 

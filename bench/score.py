@@ -153,7 +153,12 @@ def main():
     over = {}
     for kv in args.set:
         key, val = kv.split("=", 1)
-        over[key] = json.loads(val) if val[:1] in "0123456789-tf[{\"" else val
+        try:
+            over[key] = json.loads(val)          # numbers, true, false, lists
+        except ValueError:
+            over[key] = val                      # plain words, such as cmode=bw
+    if args.check and not Path(args.check).exists():
+        sys.exit(f"No baseline at {args.check}")
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
     index = json.loads((SET / "index.json").read_text())
     images = [SET / "images" / it["image"] for it in index]
@@ -206,6 +211,8 @@ def report(result: dict, cards: list, base: dict | None) -> str:
     def cell(g, m):
         v = result["summary"][g][m]
         s = f"{v}{units[m]}"
+        if v is None:
+            return "<td>–</td>"
         if base and g in base["summary"] and base["summary"][g].get(m):
             old = base["summary"][g][m]
             ch = (v - old) / old * 100

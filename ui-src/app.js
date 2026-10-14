@@ -260,21 +260,25 @@ function prepareImage(imgd) {
   const out = new ImageData(new Uint8ClampedArray(imgd.data), imgd.width, imgd.height), d = out.data;
   let thr = 128, local = null;
   const lum = i => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+  if (S.cmode === "bw") {
+    // One threshold for the whole image (Otsu's method).
+    const hist = new Array(256).fill(0); let n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i + 3] >= 128) { hist[Math.round(lum(i))]++; n++; }
+    let sum = 0; for (let t = 0; t < 256; t++) sum += t * hist[t];
+    let sB = 0, wB = 0, best = 0;
+    for (let t = 0; t < 256; t++) { wB += hist[t]; if (!wB) continue; const wF = n - wB; if (!wF) break; sB += t * hist[t]; const mB = sB / wB, mF = (sum - sB) / wF, v = wB * wF * (mB - mF) ** 2; if (v > best) { best = v; thr = t; } }
+  }
   if (S.cmode === "bw" && S.adaptive) {
-    // Sketch: compare each pixel with the average around it, so shadows and uneven paper don't turn black.
-    const w = out.width, h = out.height, R = Math.max(8, Math.round(Math.min(w, h) / 24)), I = new Float64Array((w + 1) * (h + 1));
+    // Sketch: a pixel is ink when it's darker than the paper around it, so shadows and uneven light
+    // don't turn black. Pixels far darker than the whole image's threshold are always ink, so solid
+    // fills wider than the neighborhood stay solid.
+    const w = out.width, h = out.height, R = Math.max(8, Math.round(Math.min(w, h) / 24)), I = new Float64Array((w + 1) * (h + 1)), always = thr * 0.5;
     for (let y = 0; y < h; y++) { let row = 0; for (let x = 0; x < w; x++) { const i = (y * w + x) * 4; row += d[i + 3] < 128 ? 255 : lum(i); I[(y + 1) * (w + 1) + x + 1] = I[y * (w + 1) + x + 1] + row; } }
     local = new Float32Array(w * h);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const x0 = Math.max(0, x - R), y0 = Math.max(0, y - R), x1 = Math.min(w, x + R + 1), y1 = Math.min(h, y + R + 1);
-      local[y * w + x] = (I[y1 * (w + 1) + x1] - I[y0 * (w + 1) + x1] - I[y1 * (w + 1) + x0] + I[y0 * (w + 1) + x0]) / ((x1 - x0) * (y1 - y0)) - 14;
+      local[y * w + x] = Math.max(always, (I[y1 * (w + 1) + x1] - I[y0 * (w + 1) + x1] - I[y1 * (w + 1) + x0] + I[y0 * (w + 1) + x0]) / ((x1 - x0) * (y1 - y0)) - 14);
     }
-  } else if (S.cmode === "bw") {
-    const hist = new Array(256).fill(0); let n = 0;
-    for (let i = 0; i < d.length; i += 4) if (d[i + 3] >= 128) { hist[Math.round(0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2])]++; n++; }
-    let sum = 0; for (let t = 0; t < 256; t++) sum += t * hist[t];
-    let sB = 0, wB = 0, best = 0;
-    for (let t = 0; t < 256; t++) { wB += hist[t]; if (!wB) continue; const wF = n - wB; if (!wF) break; sB += t * hist[t]; const mB = sB / wB, mF = (sum - sB) / wF, v = wB * wF * (mB - mF) ** 2; if (v > best) { best = v; thr = t; } }
   }
   for (let i = 0; i < d.length; i += 4) {
     if (d[i + 3] < 128) { d[i] = d[i + 1] = d[i + 2] = 0; d[i + 3] = 0; continue; }

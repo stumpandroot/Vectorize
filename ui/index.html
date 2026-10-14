@@ -1655,21 +1655,25 @@ function prepareImage(imgd) {
   const out = new ImageData(new Uint8ClampedArray(imgd.data), imgd.width, imgd.height), d = out.data;
   let thr = 128, local = null;
   const lum = i => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+  if (S.cmode === "bw") {
+    // One threshold for the whole image (Otsu's method).
+    const hist = new Array(256).fill(0); let n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i + 3] >= 128) { hist[Math.round(lum(i))]++; n++; }
+    let sum = 0; for (let t = 0; t < 256; t++) sum += t * hist[t];
+    let sB = 0, wB = 0, best = 0;
+    for (let t = 0; t < 256; t++) { wB += hist[t]; if (!wB) continue; const wF = n - wB; if (!wF) break; sB += t * hist[t]; const mB = sB / wB, mF = (sum - sB) / wF, v = wB * wF * (mB - mF) ** 2; if (v > best) { best = v; thr = t; } }
+  }
   if (S.cmode === "bw" && S.adaptive) {
-    // Sketch: compare each pixel with the average around it, so shadows and uneven paper don't turn black.
-    const w = out.width, h = out.height, R = Math.max(8, Math.round(Math.min(w, h) / 24)), I = new Float64Array((w + 1) * (h + 1));
+    // Sketch: a pixel is ink when it's darker than the paper around it, so shadows and uneven light
+    // don't turn black. Pixels far darker than the whole image's threshold are always ink, so solid
+    // fills wider than the neighborhood stay solid.
+    const w = out.width, h = out.height, R = Math.max(8, Math.round(Math.min(w, h) / 24)), I = new Float64Array((w + 1) * (h + 1)), always = thr * 0.5;
     for (let y = 0; y < h; y++) { let row = 0; for (let x = 0; x < w; x++) { const i = (y * w + x) * 4; row += d[i + 3] < 128 ? 255 : lum(i); I[(y + 1) * (w + 1) + x + 1] = I[y * (w + 1) + x + 1] + row; } }
     local = new Float32Array(w * h);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const x0 = Math.max(0, x - R), y0 = Math.max(0, y - R), x1 = Math.min(w, x + R + 1), y1 = Math.min(h, y + R + 1);
-      local[y * w + x] = (I[y1 * (w + 1) + x1] - I[y0 * (w + 1) + x1] - I[y1 * (w + 1) + x0] + I[y0 * (w + 1) + x0]) / ((x1 - x0) * (y1 - y0)) - 14;
+      local[y * w + x] = Math.max(always, (I[y1 * (w + 1) + x1] - I[y0 * (w + 1) + x1] - I[y1 * (w + 1) + x0] + I[y0 * (w + 1) + x0]) / ((x1 - x0) * (y1 - y0)) - 14);
     }
-  } else if (S.cmode === "bw") {
-    const hist = new Array(256).fill(0); let n = 0;
-    for (let i = 0; i < d.length; i += 4) if (d[i + 3] >= 128) { hist[Math.round(0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2])]++; n++; }
-    let sum = 0; for (let t = 0; t < 256; t++) sum += t * hist[t];
-    let sB = 0, wB = 0, best = 0;
-    for (let t = 0; t < 256; t++) { wB += hist[t]; if (!wB) continue; const wF = n - wB; if (!wF) break; sB += t * hist[t]; const mB = sB / wB, mF = (sum - sB) / wF, v = wB * wF * (mB - mF) ** 2; if (v > best) { best = v; thr = t; } }
   }
   for (let i = 0; i < d.length; i += 4) {
     if (d[i + 3] < 128) { d[i] = d[i + 1] = d[i + 2] = 0; d[i + 3] = 0; continue; }
@@ -2998,7 +3002,9 @@ function undo() {
   const st = undoStack.pop();
   if (!st) { toast("Nothing to undo."); return; }
   undoKey = null;
-  const retrace = JSON.stringify([st.S, st.locked, st.manualSnaps, st.textMemory, st.tunes]) !== JSON.stringify([tracingS(), locked, manualSnaps, textMemory, tunes]);
+  // The destination's size and minimums don't change the trace, so undoing them only redraws.
+  const strip = o => { const c = { ...o }; delete c.output; delete c.dest; return c; };
+  const retrace = JSON.stringify([strip(st.S), st.locked, st.manualSnaps, st.textMemory, st.tunes]) !== JSON.stringify([strip(tracingS()), locked, manualSnaps, textMemory, tunes]);
   Object.assign(S, st.S); locked.splice(0, locked.length, ...st.locked);
   applyEditState(st); setSelection([]); syncControls();
   if (retrace) { pendingUseShape = st.useShape; convert(); }
@@ -3463,7 +3469,7 @@ $("#batchClose").onclick = () => { leaveBatch(); toast("Closed the batch. The op
 // fonts, runs fn, then puts everything back. The screen doesn't redraw while it runs.
 async function withJob(j, st, fn) {
   const keep = { job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode, tunes, tuneScope }, keepSticker = stickerCache;
-  renderPaused = true;
+  renderPaused = true; checkSeq++;                         // a check still running belongs to the image on screen
   try {
     job = j; useShape = {}; recolor = {}; hidden = new Set(); manualSnaps = []; textMemory = []; objEdits = []; drawOrder = null; deletedLayers = new Set(); selection = []; sel = null; textSel = null; partMode = "all"; tunes = []; tuneScope = null;
     const fontMems = st ? st.textMemory.filter(m => m.mode === "font" && m.pick && m.text) : [];
@@ -3488,7 +3494,7 @@ async function withJob(j, st, fn) {
     return await fn();
   } finally {
     ({ job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode, tunes, tuneScope } = keep);
-    stickerCache = keepSticker;
+    stickerCache = keepSticker; if (result) afterRender();
     renderPaused = false;
   }
 }
@@ -3535,7 +3541,7 @@ const OUTPUTS = {
   web: { noun: "web icons", label: "Web icon", set: { layering: "stacked", bg: "remove" }, format: "svg", size: 64, unit: "px", minLine: 1, lineUnit: "px",
     help: "Stacked colors for a small, clean SVG. Checks that details stay at least 1 px wide at the size you set." },
   sticker: { noun: "stickers", label: "Sticker", set: { layering: "stacked", bg: "remove" }, format: "pdf", size: 3, unit: "in", cut: 2, bleed: 2, border: "#FFFFFF",
-    help: "Adds a closed cut line around the art on a spot color named CutContour, and a border that runs 2 mm past it. Export PDF to keep the spot color." },
+    help: "Adds a closed cut line around the art on a spot color named CutContour, and a border that runs 2 mm past it. Export PDF or EPS to keep the spot color." },
   brand: { noun: "print and brand files", label: "Print and brand", set: { layering: "stacked", bg: "remove" }, format: "pdf", size: 3, unit: "in", brand: true,
     help: "Stacked colors, so no hairline gaps show between them, in your exact brand colors." },
 };
@@ -3544,7 +3550,7 @@ function destDefaults(o) { return { size: o.size, unit: o.unit, minLine: o.minLi
 function applyOutput(id, quiet) {
   const o = OUTPUTS[id]; if (!o) return;
   if (!quiet) pushUndo();
-  if (S.output === id && !quiet) { S.output = ""; S.dest = null; syncControls(); render(); return; }   // click again to turn off
+  if (S.output === id && !quiet) { S.output = ""; S.dest = null; if (NATIVE) NATIVE.remember("lastPreset", ""); syncControls(); render(); return; }   // click again to turn off
   Object.assign(S, o.set, { output: id, dest: destDefaults(o) });
   if (S.bg === "remove" && APP && APP.cutout && S.preset === "photo") S.bg = "ai";
   S.exportFormat = NATIVE || o.format === "svg" ? o.format : "svg";
@@ -3594,61 +3600,117 @@ function artBox() {
 // Work pixels per inch (or per pixel for web icons) at the final size.
 function unitsPer() { const d = S.dest, b = artBox(); if (!d || !b || !(d.size > 0)) return null; const w = b[2] - b[0]; return d.unit === "px" ? w / d.size : w / toIn(d.size, d.unit); }
 
-/* Distance transform (Felzenszwalb and Huttenlocher): squared distance from every pixel to the nearest pixel where on(i) is true. */
-function edt2(w, h, on) {
-  const INF = 1e20, f = new Float64Array(Math.max(w, h)), d = new Float64Array(Math.max(w, h)), v = new Int32Array(Math.max(w, h)), z = new Float64Array(Math.max(w, h) + 1);
-  const out = new Float64Array(w * h);
-  const pass = n => {
+/* Distance transform (Felzenszwalb and Huttenlocher): squared distance from every pixel to the nearest pixel where feat[i] is 1. */
+function edt2(w, h, feat) {
+  const INF = 1e20, n = Math.max(w, h), f = new Float64Array(n), d = new Float64Array(n), v = new Int32Array(n), z = new Float64Array(n + 1);
+  const out = new Float32Array(w * h);
+  const pass = len => {
     let k = 0; v[0] = 0; z[0] = -INF; z[1] = INF;
-    for (let q = 1; q < n; q++) {
-      let s; for (;;) { const r = v[k]; s = ((f[q] + q * q) - (f[r] + r * r)) / (2 * q - 2 * r); if (s <= z[k] && k > 0) k--; else break; }
+    for (let q = 1; q < len; q++) {
+      const fq = f[q] + q * q; let s;
+      for (;;) { const r = v[k]; s = (fq - (f[r] + r * r)) / (2 * q - 2 * r); if (s <= z[k] && k > 0) k--; else break; }
       if (s <= z[k]) { v[0] = q; z[0] = -INF; z[1] = INF; k = 0; continue; }
       k++; v[k] = q; z[k] = s; z[k + 1] = INF;
     }
-    k = 0; for (let q = 0; q < n; q++) { while (z[k + 1] < q) k++; const r = v[k]; d[q] = (q - r) * (q - r) + f[r]; }
+    k = 0; for (let q = 0; q < len; q++) { while (z[k + 1] < q) k++; const r = v[k]; d[q] = (q - r) * (q - r) + f[r]; }
   };
-  for (let x = 0; x < w; x++) { for (let y = 0; y < h; y++) f[y] = on(y * w + x) ? 0 : INF; pass(h); for (let y = 0; y < h; y++) out[y * w + x] = d[y]; }
-  for (let y = 0; y < h; y++) { for (let x = 0; x < w; x++) f[x] = out[y * w + x]; pass(w); for (let x = 0; x < w; x++) out[y * w + x] = d[x]; }
+  for (let x = 0; x < w; x++) { for (let y = 0, i = x; y < h; y++, i += w) f[y] = feat[i] ? 0 : INF; pass(h); for (let y = 0, i = x; y < h; y++, i += w) out[i] = d[y]; }
+  for (let y = 0, o = 0; y < h; y++, o += w) { for (let x = 0; x < w; x++) f[x] = out[o + x]; pass(w); for (let x = 0; x < w; x++) out[o + x] = d[x]; }
   return out;
 }
 // Parts of a mask narrower than 2r: pixels no disc of radius r inside the mask can reach.
+// Distances run between pixel centers, so a pixel counts as inside a disc of radius r when it's
+// r + 0.5 from the background. That flags lines up to one raster pixel wider than the minimum,
+// rather than passing lines one pixel thinner.
 function thinParts(mask, w, h, r) {
-  const toBg = edt2(w, h, i => !mask[i]), r2 = r * r;
-  const toCore = edt2(w, h, i => mask[i] && toBg[i] >= r2);
-  const thin = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) thin[i] = mask[i] && toCore[i] > r2 ? 1 : 0;
+  const N = w * h, bg = new Uint8Array(N); for (let i = 0; i < N; i++) bg[i] = mask[i] ? 0 : 1;
+  const toBg = edt2(w, h, bg), R2 = (r + 0.5) ** 2, core = new Uint8Array(N); for (let i = 0; i < N; i++) core[i] = mask[i] && toBg[i] >= R2 ? 1 : 0;
+  const toCore = edt2(w, h, core);
+  const thin = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) thin[i] = mask[i] && toCore[i] > R2 ? 1 : 0;
   return thin;
 }
-// Groups thin pixels into spots, keeping only spots long enough to matter (corner tips aren't flagged).
+// Keeps only thin spots long enough to matter, so the tips of corners and star points aren't flagged.
 function thinSpots(thin, w, h, r) {
   const cc = components8(thin, w, h), size = new Map(); for (let i = 0; i < w * h; i++) if (cc[i]) size.set(cc[i], (size.get(cc[i]) || 0) + 1);
   const keep = new Set([...size].filter(([, n]) => n >= 2 * r * r + 4).map(([id]) => id));
   const marks = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) if (keep.has(cc[i])) marks[i] = 1;
-  return { count: keep.size, marks };
+  return marks;
 }
-// Draws one layer (or all visible layers) into a mask, s raster pixels per work pixel over the box [x0, y0, x1, y1].
-async function layerMask(layers, s, bx) {
-  const cw = Math.max(1, Math.round((bx[2] - bx[0]) * s)), ch = Math.max(1, Math.round((bx[3] - bx[1]) * s));
-  const svg = buildSVG(false, { layers, noDest: true }).replace(/<svg[^>]*>/, `<svg xmlns="http://www.w3.org/2000/svg" width="${cw}" height="${ch}" viewBox="${bx[0]} ${bx[1]} ${bx[2] - bx[0]} ${bx[3] - bx[1]}" preserveAspectRatio="none">`);
-  const im = await loadImage("data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg));
-  const c = document.createElement("canvas"); c.width = cw; c.height = ch; const g = c.getContext("2d"); g.drawImage(im, 0, 0, cw, ch);
-  const a = g.getImageData(0, 0, cw, ch).data, m = new Uint8Array(cw * ch); for (let i = 0; i < m.length; i++) m[i] = a[i * 4 + 3] >= 128 ? 1 : 0;
-  return { m, cw, ch };
+// An image of the given layers over the box bx = [x0, y0, x1, y1], to draw at any scale.
+async function layerImage(layers, bx) {
+  const svg = buildSVG(false, { layers, noDest: true }).replace(/<svg[^>]*>/, `<svg xmlns="http://www.w3.org/2000/svg" width="${bx[2] - bx[0]}" height="${bx[3] - bx[1]}" viewBox="${bx[0]} ${bx[1]} ${bx[2] - bx[0]} ${bx[3] - bx[1]}" preserveAspectRatio="none">`);
+  return loadImage("data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg));
+}
+// Draws a layer image at s raster pixels per work pixel into a tile and returns its mask.
+function tileMask(g, im, s, bx, tx, ty, tw, th) {
+  g.clearRect(0, 0, tw, th); g.drawImage(im, -tx, -ty, (bx[2] - bx[0]) * s, (bx[3] - bx[1]) * s);
+  const a = g.getImageData(0, 0, tw, th).data, m = new Uint8Array(tw * th); for (let i = 0; i < m.length; i++) m[i] = a[i * 4 + 3] >= 128 ? 1 : 0;
+  return m;
+}
+// True when a mask has both inside and outside pixels.
+function hasEdge(m) { const v = m[0]; for (let i = 1; i < m.length; i++) if (m[i] !== v) return true; return false; }
+// Finds lines thinner than 2·rLine and gaps narrower than 2·rGap (raster pixels) in what shows of each color.
+// Works in overlapping tiles, each drawn from its own small SVG, so it can use enough pixels to measure
+// 1 pt on an 11 in print. It skips tiles a layer doesn't reach and pauses between tiles so the window
+// stays responsive. Marks come back at a lower resolution for display.
+async function thinScan(layers, bx, s, rLine, rGap, alive) {
+  const W = Math.ceil((bx[2] - bx[0]) * s), H = Math.ceil((bx[3] - bx[1]) * s);
+  const bodies = layers.map(L => buildSVG(false, { layers: [L], noDest: true }).replace(/^[\s\S]*?<svg[^>]*>/, "").replace(/<\/svg>\s*$/, ""));
+  const boxes = layers.map(L => { const b = [Infinity, Infinity, -Infinity, -Infinity]; for (const it of L.items) if (!it.off) { const q = bboxOf(it.outer.q); b[0] = Math.min(b[0], q[0]); b[1] = Math.min(b[1], q[1]); b[2] = Math.max(b[2], q[2]); b[3] = Math.max(b[3], q[3]); } return b.map((v, i) => (v - bx[i % 2]) * s); });
+  const T = 768, M = Math.ceil(2 * Math.max(rLine || 0, rGap || 0)) + 3;
+  const f = Math.min(1, Math.sqrt(1.2e6 / (W * H))), MW = Math.max(1, Math.ceil(W * f)), MH = Math.max(1, Math.ceil(H * f)), marks = new Uint8Array(MW * MH);
+  const c = document.createElement("canvas"), g = c.getContext("2d", { willReadFrequently: true });
+  const draw = async (li, x0, y0, tw, th) => {
+    const vx = bx[0] + x0 / s, vy = bx[1] + y0 / s, svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tw}" height="${th}" viewBox="${vx} ${vy} ${tw / s} ${th / s}" preserveAspectRatio="none">${bodies[li]}</svg>`;
+    const im = await loadImage("data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg));
+    g.clearRect(0, 0, tw, th); g.drawImage(im, 0, 0, tw, th);
+    const a = g.getImageData(0, 0, tw, th).data, m = new Uint8Array(tw * th); for (let i = 0; i < m.length; i++) m[i] = a[i * 4 + 3] >= 128 ? 1 : 0;
+    return m;
+  };
+  for (let ty = 0; ty < H; ty += T) for (let tx = 0; tx < W; tx += T) {
+    const x0 = Math.max(0, tx - M), y0 = Math.max(0, ty - M), x1 = Math.min(W, tx + T + M), y1 = Math.min(H, ty + T + M), tw = x1 - x0, th = y1 - y0;
+    const reach = layers.map((_, li) => { const b = boxes[li]; return b[0] < x1 && b[2] > x0 && b[1] < y1 && b[3] > y0; });
+    if (!reach.some(Boolean)) continue;
+    c.width = tw; c.height = th;
+    const above = new Uint8Array(tw * th), hit = new Uint8Array(tw * th); let anyHit = false;
+    for (let li = layers.length - 1; li >= 0; li--) {            // top layer first: what shows of each color
+      if (!reach[li]) continue;
+      const m = await draw(li, x0, y0, tw, th); if (!alive()) return null;
+      if (hasEdge(m)) {
+        if (rLine) { const vis = new Uint8Array(tw * th); for (let i = 0; i < vis.length; i++) vis[i] = m[i] && !above[i] ? 1 : 0; if (hasEdge(vis)) { const t = thinSpots(thinParts(vis, tw, th, rLine), tw, th, rLine); for (let i = 0; i < t.length; i++) if (t[i]) { hit[i] |= 1; anyHit = true; } } }
+        if (rGap) { const inv = new Uint8Array(tw * th); for (let i = 0; i < inv.length; i++) inv[i] = m[i] ? 0 : 1; const t = thinSpots(thinParts(inv, tw, th, rGap), tw, th, rGap); for (let i = 0; i < t.length; i++) if (t[i]) { hit[i] |= 2; anyHit = true; } }
+      }
+      for (let i = 0; i < above.length; i++) if (m[i]) above[i] = 1;
+      await sleep(0); if (!alive()) return null;
+    }
+    // Keep marks from the tile's own area; the overlap is only there so edges are measured correctly.
+    if (anyHit) for (let y = ty; y < Math.min(H, ty + T); y++) for (let x = tx; x < Math.min(W, tx + T); x++) { const v = hit[(y - y0) * tw + (x - x0)]; if (v) marks[Math.floor(y * f) * MW + Math.floor(x * f)] |= v; }
+  }
+  const count = bit => { const m = new Uint8Array(MW * MH); for (let i = 0; i < m.length; i++) m[i] = marks[i] & bit ? 1 : 0; const cc = components8(m, MW, MH); let n = 0; for (let i = 0; i < m.length; i++) if (cc[i] > n) n = cc[i]; return n; };
+  return { lines: rLine ? count(1) : 0, gaps: rGap ? count(2) : 0, marks, MW, MH };
 }
 
 /* Sticker: border and cut line, offset from the art */
-let stickerCache = null;
+let stickerCache = null, stickerShown = null, jobIds = 0;
+function stickerKey() {
+  const d = S.dest, b = artBox(); if (!d || !b || !result) return null;
+  if (!job._id) job._id = ++jobIds;
+  return JSON.stringify([job._id, d, b, visibleLayers().map(L => [L.hex, L.items.filter(it => !it.off).length]), hidden.size, deletedLayers.size, objEdits.length, result.seconds]);
+}
 function mapOutline(o, s, ox, oy) {
   const P = p => [p[0] / s + ox, p[1] / s + oy], V = p => [p[0] / s, p[1] / s];
   return { V: o.V.map(P), segs: o.segs.map(sg => sg[0] === "C" ? ["C", V(sg[1]), V(sg[2])] : sg[0] === "A" ? ["A", sg[1] / s, sg[2], sg[3]] : sg) };
 }
 async function buildSticker() {
-  const d = S.dest, per = unitsPer(), b = artBox(); if (!d || !per || !b) return null;
-  const key = JSON.stringify([d, b, visibleLayers().map(L => L.hex), hidden.size, deletedLayers.size, objEdits.length, result.seconds]);
+  const d = S.dest, per = unitsPer(), b = artBox(), key = stickerKey(); if (!d || !per || !b || !key) return null;
   if (stickerCache && stickerCache.key === key) return stickerCache;
   const cutU = toIn(d.cut, "mm") * per, outU = cutU + toIn(OUTPUTS.sticker.bleed, "mm") * per, pad = outU + 4;
   const bx = [b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad], s = Math.min(2, Math.sqrt(1.2e6 / ((bx[2] - bx[0]) * (bx[3] - bx[1]))));
-  const { m, cw, ch } = await layerMask(visibleLayers(), s, bx);
-  const dist = edt2(cw, ch, i => m[i]);
+  const im = await layerImage(visibleLayers(), bx), cw = Math.max(1, Math.round((bx[2] - bx[0]) * s)), ch = Math.max(1, Math.round((bx[3] - bx[1]) * s));
+  const cv = document.createElement("canvas"); cv.width = cw; cv.height = ch;
+  const m = tileMask(cv.getContext("2d", { willReadFrequently: true }), im, s, bx, 0, 0, cw, ch);
+  if (stickerKey() !== key) return null;                    // the art changed while drawing
+  const dist = edt2(cw, ch, m);
   const shape = r => { const k = new Uint8Array(cw * ch), r2 = (r * s) ** 2; for (let i = 0; i < k.length; i++) k[i] = dist[i] <= r2 ? 1 : 0; return fillMaskHoles(k, cw, ch); };
   const trace = r => {
     const cs = VZ.maskContours(blurMask(shape(r), cw, ch, 1.2), cw, ch).filter(q => Math.abs(VZ.area(q)) > 30);
@@ -3667,8 +3729,9 @@ function destDecor(opts, keyed) {
   const per = unitsPer(); if (!per) return null;
   const ppu = d.unit === "px" ? null : 72 / per;          // points per work pixel at the final size
   if (S.output !== "sticker" || opts.layers || opts.only || opts.part === "text") return { before: "", after: "", ppu };
-  const st = stickerCache;
-  if (!st) { buildSticker().then(x => { if (x) render(); }); return { before: "", after: "", ppu }; }
+  const st = stickerCache && stickerCache.key === stickerKey() ? stickerCache : null;
+  if (keyed) stickerShown = st ? st.key : null;
+  if (!st) return { before: "", after: "", ppu };            // afterRender builds it and draws again
   const D = arr => arr.map(VZ.outlineD).join("");
   const before = `  <g id="sticker-border" data-name="Sticker border" fill="${d.border}">\n    <path d="${D(st.border)}"/>\n  </g>\n`;
   const after = `  <g id="CutContour" data-name="CutContour" data-spot="CutContour" fill="none" stroke="#FF00FF" stroke-width="${+(1 / ppu).toPrecision(5)}"${keyed ? ' pointer-events="none"' : ""}>\n    <path d="${D(st.cut)}"/>\n  </g>\n`;
@@ -3680,7 +3743,9 @@ let checkTimer = 0, checkSeq = 0, thinOverlay = null, showThin = false;
 function afterRender() {
   syncDest();
   if (showThin && thinOverlay) drawThinOverlay();
-  if (S.output === "sticker" && result) buildSticker().then(st => { if (st && !$("#vec").querySelector("#CutContour")) render(); });
+  // The cut line is drawn off screen; draw again once it's ready, unless the screen already shows it
+  // (or can't, as in the Words view).
+  if (S.output === "sticker" && result && partMode !== "text") buildSticker().then(st => { if (st && st.key !== stickerShown && S.output === "sticker" && partMode !== "text") render(); });
   checkSeq++; $("#checks").dataset.done = "0";   // stop a check that's still running for the old result
   if ($("#checks").dataset.out !== (S.output || "")) { $("#checks").innerHTML = ""; $("#checks").dataset.out = S.output || ""; thinOverlay = null; }
   clearTimeout(checkTimer); checkTimer = setTimeout(runChecks, 350);
@@ -3692,6 +3757,12 @@ function drawThinOverlay() {
   const [x0, y0, x1, y1] = thinOverlay.box; g.setAttribute("id", "thinMarks"); g.setAttribute("href", thinOverlay.url);
   g.setAttribute("x", x0); g.setAttribute("y", y0); g.setAttribute("width", x1 - x0); g.setAttribute("height", y1 - y0); g.setAttribute("preserveAspectRatio", "none"); g.setAttribute("pointer-events", "none");
   svg.appendChild(g);
+}
+// Subpaths that don't end with Z (or z) before the next move.
+function openPaths(svg) {
+  let n = 0;
+  for (const m of svg.matchAll(/\sd="([^"]*)"/g)) for (const sub of m[1].split(/(?=[Mm])/)) if (sub.trim() && !/[Zz]\s*$/.test(sub.trim())) n++;
+  return n;
 }
 function svgPoints(svg) {
   let n = 0; for (const m of svg.matchAll(/\sd="([^"]*)"/g)) n += (m[1].match(/[MLHVCSQTA]/gi) || []).length;
@@ -3711,9 +3782,12 @@ async function runChecks() {
   else if (o.maxColors) add(colors.length <= o.maxColors ? "ok" : "warn", colors.length <= o.maxColors ? `${colors.length} ${colors.length === 1 ? "ink" : "inks"}. Most shops charge per ink.` : `${colors.length} inks. Most shops print ${o.maxColors} at most. Lower the color count or merge colors under Layers.`);
   else if (S.output === "vinyl") add("info", `${colors.length} ${colors.length === 1 ? "color" : "colors"}, so ${colors.length} vinyl ${colors.length === 1 ? "layer" : "layers"} to cut and press.`);
   // Layering
-  if (o.set.layering === "cutout") add(S.layering === "cutout" ? "ok" : "warn", S.layering === "cutout" ? "No shapes overlap, so nothing cuts or prints twice." : "Colors overlap, so a cutter cuts the hidden edges too. Choose Cut out under Layers.");
+  if (o.set.layering === "cutout") add(S.layering === "cutout" ? "ok" : "warn", S.layering === "cutout" ? "Colors are cut out, so no color sits under another." : "Colors stack, so a cutter also cuts the hidden edges. Choose Cut out under Layers.");
   else add(S.layering === "stacked" ? "ok" : "info", S.layering === "stacked" ? "Colors stack, so no hairline gaps show between them." : "Colors are cut out, so a thin gap can show where two colors meet.");
-  if (S.output === "laser" || S.output === "vinyl" || S.output === "sticker") add("ok", "Every shape is a closed path.");
+  if (S.output === "laser" || S.output === "vinyl" || S.output === "sticker") {
+    const open = openPaths(buildSVG(false, { part: partMode }));
+    add(open ? "warn" : "ok", open ? `${open} ${open === 1 ? "outline isn't" : "outlines aren't"} closed. Cutters may skip ${open === 1 ? "it" : "them"}.` : "Every shape is a closed path.");
+  }
   // Brand colors
   if (o.brand) {
     if (!locked.length) add("warn", "No brand colors yet. Add them so the file uses your exact values.", { label: "Add", run: () => { $("#t-layers").click(); setTimeout(() => { scrollPanelTo($("#brandHex"), true); $("#brandHex").focus(); }, 30); } });
@@ -3727,7 +3801,8 @@ async function runChecks() {
   if (S.output === "sticker") {
     const st = await buildSticker(); if (seq !== checkSeq) return;
     if (st) add(st.cut.length === 1 ? "ok" : "warn", st.cut.length === 1 ? `One closed cut line, ${fmtLen(d.cut, "mm")} outside the art, on the CutContour spot color.` : `The cut line has ${st.cut.length} separate pieces. Most printers need one: raise the cut line distance, or move the pieces closer.`);
-    add("info", "PDF keeps CutContour as a spot color. SVG and EPS show it as magenta.");
+    if (st && st.extent) { const wIn = (st.extent[2] - st.extent[0]) / per - toIn(2, "mm"); add("info", `With its border, the sticker is ${fmtLen(d.unit === "mm" ? wIn * 25.4 : wIn, d.unit)} wide.`); }
+    add("info", "PDF and EPS keep CutContour as a spot color. SVG shows it as magenta.");
     show();
   }
   // Thin lines and narrow gaps, measured on the shapes as drawn
@@ -3735,30 +3810,26 @@ async function runChecks() {
   const minGap = d.minGap != null ? toIn(d.minGap, "mm") * per : null;
   thinOverlay = null;
   if (minLine || minGap) {
-    const want = Math.min(...[minLine, minGap].filter(Boolean)) / 2;   // radius in work pixels
-    const pad = Math.max(4, (minGap || 0)), bx = [b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad];
-    const s = Math.max(0.2, Math.min(2.5 / Math.max(want, 1e-6), Math.sqrt(0.9e6 / ((bx[2] - bx[0]) * (bx[3] - bx[1])))));
-    const masks = [];
-    for (const L of layers) { masks.push(await layerMask([L], s, bx)); if (seq !== checkSeq) return; await sleep(0); }
-    const { cw, ch } = masks[0], marks = new Uint8Array(cw * ch); let lines = 0, gaps = 0;
-    const above = new Uint8Array(cw * ch);
-    for (let li = masks.length - 1; li >= 0; li--) {               // top layer first: what shows of each color
-      const m = masks[li].m, vis = new Uint8Array(cw * ch); for (let i = 0; i < vis.length; i++) vis[i] = m[i] && !above[i] ? 1 : 0;
-      if (minLine) { const r = minLine / 2 * s, t = thinSpots(thinParts(vis, cw, ch, r), cw, ch, r); lines += t.count; for (let i = 0; i < marks.length; i++) if (t.marks[i]) marks[i] = 1; }
-      if (minGap) { const inv = new Uint8Array(cw * ch); for (let i = 0; i < inv.length; i++) inv[i] = m[i] ? 0 : 1; const r = minGap / 2 * s, t = thinSpots(thinParts(inv, cw, ch, r), cw, ch, r); gaps += t.count; for (let i = 0; i < marks.length; i++) if (t.marks[i]) marks[i] = 1; }
-      for (let i = 0; i < above.length; i++) if (m[i]) above[i] = 1;
-      await sleep(0); if (seq !== checkSeq) return;
+    const want = Math.min(...[minLine, minGap].filter(Boolean)) / 2;   // smallest radius, in work pixels
+    const pad = Math.max(4, (minGap || 0)), bx = [b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad], area = (bx[2] - bx[0]) * (bx[3] - bx[1]);
+    // Aim for a 3-pixel radius, within 16 million raster pixels.
+    const s = Math.min(3 / Math.max(want, 1e-6), Math.sqrt(1.6e7 / area)), sizeTxt = `at ${fmtLen(d.size, d.unit)} wide`;
+    const rLine = minLine ? minLine / 2 * s : 0, rGap = minGap ? minGap / 2 * s : 0;
+    if (Math.min(...[rLine, rGap].filter(Boolean)) < 2) {
+      add("info", `Lines this fine are too small to measure on art this large, so Vectorize didn't check them ${sizeTxt}.`);
+    } else {
+      add("info", "Checking line widths…"); show(); items.pop();
+      const r = await thinScan(layers, bx, s, rLine, rGap, () => seq === checkSeq); if (!r) return;
+      const showAct = { label: showThin ? "Hide" : "Show", run: () => { showThin = !showThin; render(); } };
+      if (minLine) add(r.lines ? "warn" : "ok", r.lines ? `${r.lines} ${r.lines === 1 ? "spot is" : "spots are"} thinner than ${fmtLen(d.minLine, o.lineUnit)} ${sizeTxt}. Thicken ${r.lines === 1 ? "it" : "them"} with Grow, or use a larger size.` : `Every line is at least ${fmtLen(d.minLine, o.lineUnit)} ${sizeTxt}.`, r.lines ? showAct : null);
+      if (minGap) add(r.gaps ? "warn" : "ok", r.gaps ? `${r.gaps} ${r.gaps === 1 ? "gap is" : "gaps are"} narrower than ${fmtLen(d.minGap, "mm")} ${sizeTxt}, which makes weeding hard.` : `Every gap is at least ${fmtLen(d.minGap, "mm")} ${sizeTxt}.`, r.gaps && !r.lines ? showAct : null);
+      if (r.lines || r.gaps) {
+        const c = document.createElement("canvas"); c.width = r.MW; c.height = r.MH; const g = c.getContext("2d"), img = g.createImageData(r.MW, r.MH);
+        for (let i = 0; i < r.marks.length; i++) if (r.marks[i]) { img.data[i * 4] = 230; img.data[i * 4 + 1] = 30; img.data[i * 4 + 2] = 60; img.data[i * 4 + 3] = 235; }
+        g.putImageData(img, 0, 0); thinOverlay = { url: c.toDataURL(), box: bx };
+        if (showThin) drawThinOverlay();
+      } else showThin = false;
     }
-    const sizeTxt = `at ${fmtLen(d.size, d.unit)} wide`;
-    const showAct = { label: showThin ? "Hide" : "Show", run: () => { showThin = !showThin; render(); } };
-    if (minLine) add(lines ? "warn" : "ok", lines ? `${lines} ${lines === 1 ? "spot is" : "spots are"} thinner than ${fmtLen(d.minLine, o.lineUnit)} ${sizeTxt}. Thicken ${lines === 1 ? "it" : "them"} with Grow, or use a larger size.` : `Every line is at least ${fmtLen(d.minLine, o.lineUnit)} ${sizeTxt}.`, lines ? showAct : null);
-    if (minGap) add(gaps ? "warn" : "ok", gaps ? `${gaps} ${gaps === 1 ? "gap is" : "gaps are"} narrower than ${fmtLen(d.minGap, "mm")} ${sizeTxt}, which makes weeding hard.` : `Every gap is at least ${fmtLen(d.minGap, "mm")} ${sizeTxt}.`, gaps && !lines ? showAct : null);
-    if (lines || gaps) {
-      const c = document.createElement("canvas"); c.width = cw; c.height = ch; const g = c.getContext("2d"), img = g.createImageData(cw, ch);
-      for (let i = 0; i < marks.length; i++) if (marks[i]) { img.data[i * 4] = 230; img.data[i * 4 + 1] = 30; img.data[i * 4 + 2] = 60; img.data[i * 4 + 3] = 235; }
-      g.putImageData(img, 0, 0); thinOverlay = { url: c.toDataURL(), box: bx };
-      if (showThin) drawThinOverlay();
-    } else showThin = false;
   }
   show(true);
 }

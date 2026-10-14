@@ -77,6 +77,19 @@ async def main():
         # The strokes cover about 2 percent of the page; a single threshold also turns the dark paper black.
         check("Sketch ignores the darker paper", ink_sketch < 0.05 and ink_sketch < ink_global, f"one color {ink_global:.3f}, sketch {ink_sketch:.3f}")
 
+        disc = await pg.evaluate("""(() => { const c = document.createElement('canvas'); c.width = 600; c.height = 600; const g = c.getContext('2d');
+          g.fillStyle = '#F4F2EC'; g.fillRect(0, 0, 600, 600); g.fillStyle = '#111'; g.beginPath(); g.arc(300, 300, 190, 0, 7); g.fill(); return c.toDataURL('image/png'); })()""")
+        await pg.evaluate("async u => { const d = convertDone(); await openImage(u, 'disc.png', ''); await d; }", disc)
+        ink_disc = await pg.evaluate(INK)
+        check("Sketch keeps a solid fill solid", abs(ink_disc - 3.14159 * 190 ** 2 / 600 ** 2) < 0.02, f"{ink_disc:.3f}")
+
+        # The thin test measures to the pixel: a bar 2r - 1 wide is thin, 2r + 1 is not.
+        bars = await pg.evaluate("""(() => { const out = []; for (const r of [2.5, 3, 4, 5.5]) for (const W of [Math.ceil(2 * r) - 1, Math.ceil(2 * r) + 1]) {
+            const w = 60, h = 40, m = new Uint8Array(w * h); for (let y = 0; y < h; y++) for (let x = 20; x < 20 + W; x++) m[y * w + x] = 1;
+            const t = thinParts(m, w, h, r); let n = 0; for (let y = 15; y < 25; y++) for (let x = 20; x < 20 + W; x++) n += t[y * w + x];
+            out.push([r, W, n > 0]); } return out; })()""")
+        check("thin test is exact to the pixel", all(thin == (W < 2 * r) for r, W, thin in bars), bars)
+
         await pg.evaluate("S.preset = 'art'; syncControls()")
         check("old Flat art maps to Detailed logo", await pg.evaluate("S.preset") == "detailed")
 
@@ -112,6 +125,10 @@ async def main():
         await pg.click("[data-output=screen]"); await done(pg)
         items = await checks_done(pg)
         check("Screen print counts inks", any("ink" in i for i in items), items)
+        check("lines are fine at 11 in", any(i.startswith("ok") and "1 pt at 11 in" in i for i in items), items)
+        await pg.fill("#destSize", "2"); await pg.dispatch_event("#destSize", "change")
+        items = await checks_done(pg)
+        check("1 pt is measured: thin at 2 in", any(i.startswith("warn") and "thinner than 1 pt at 2 in" in i for i in items), items)
         await pg.click("[data-output=screen]"); await done(pg)
         check("clicking again turns it off", await pg.evaluate("S.output === '' && $('#destBox').hidden"))
 
@@ -163,6 +180,15 @@ async def main():
         per_mm = art_w / (3 * 25.4)
         gap = min(art[0] - border_box[0], border_box[2] - art[2]) / per_mm
         check("border reaches about 4 mm past the art", 3.4 < gap < 4.8, f"{gap:.2f} mm")
+        # Undo a size change: the screen shows the cut line for the size in effect.
+        await pg.fill("#destSize", "6"); await pg.dispatch_event("#destSize", "change"); await checks_done(pg)
+        await pg.evaluate("document.activeElement.blur()"); await pg.keyboard.press("Control+z"); await checks_done(pg); await pg.wait_for_timeout(400)
+        same = await pg.evaluate("(() => { const a = $('#vec #CutContour path'), b = buildSVG().match(/id=\"CutContour\"[^>]*>\\s*<path d=\"([^\"]+)/); return !!a && !!b && a.getAttribute('d') === b[1] && S.dest.size === 3; })()")
+        check("screen cut line follows undo", same)
+        # The Words view can't show a cut line; it must not redraw forever.
+        n = await pg.evaluate("""(async () => { let n = 0; const orig = render; window.render = function () { n++; return orig.apply(this, arguments); };
+            partMode = 'text'; orig(); await new Promise(r => setTimeout(r, 1500)); window.render = orig; partMode = 'all'; orig(); return n; })()""")
+        check("Words view doesn't redraw in a loop", n < 5, f"{n} redraws")
         sel = await pg.evaluate("buildSVG(false, { only: new Set(['0:0']), crop: true })")
         check("a selection export has no cut line", "CutContour" not in sel)
         check("Versa gets the plain logo", "CutContour" not in await pg.evaluate("buildSVG(false, { crop: true, noDest: true })"))

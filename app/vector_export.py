@@ -420,11 +420,17 @@ def svg_to_eps(svg: str, title: str = "Vectorize") -> bytes:
     w, h, vb, shapes = read_svg(svg)
     shapes = _scale_strokes(shapes, w, vb)
     safe_title = re.sub(r"[\r\n]", " ", title)[:120]
+    # Spot colors are listed in the header too, so page-layout apps and RIPs find them on import.
+    custom = ""
+    for name in _spots(shapes):
+        rgb = next(sh[0] for sh in shapes if sh.stroke and sh.stroke.get("spot") == name)
+        nm = re.sub(r"[^A-Za-z0-9_.-]", "", name) or "Spot"
+        custom += f"%%DocumentCustomColors: ({nm})\n%%CMYKCustomColor: {' '.join(_num(v) for v in _cmyk(rgb))} ({nm})\n"
     head = (
         "%!PS-Adobe-3.0 EPSF-3.0\n"
         f"%%BoundingBox: 0 0 {math.ceil(w)} {math.ceil(h)}\n"
         f"%%HiResBoundingBox: 0 0 {_num(w)} {_num(h)}\n"
-        f"%%Title: {safe_title}\n%%Creator: Vectorize\n%%LanguageLevel: 2\n%%Pages: 1\n%%EndComments\n"
+        f"%%Title: {safe_title}\n%%Creator: Vectorize\n%%LanguageLevel: 2\n%%Pages: 1\n{custom}%%EndComments\n"
         "%%BeginProlog\n%%EndProlog\n%%Page: 1 1\ngsave\n"
     )
     body = _ops(shapes, _transform(w, h, vb), True, h, True)

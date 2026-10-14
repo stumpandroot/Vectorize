@@ -83,6 +83,8 @@ class T(unittest.TestCase):
         eps = svg_to_eps(self.STICKER).decode()
         self.assertIn("%%BoundingBox: 0 0 216 108", eps)
         self.assertIn("[/Separation /CutContour /DeviceCMYK", eps)
+        self.assertIn("%%DocumentCustomColors: (CutContour)", eps)
+        self.assertIn("%%CMYKCustomColor: 0 1 0 0 (CutContour)", eps)
         self.assertIn("1 setlinewidth", eps)
         self.assertIn("stroke", eps)
 

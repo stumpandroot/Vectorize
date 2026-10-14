@@ -5,10 +5,10 @@ The app shows its version and build in the window title and the toolbar. Each Gi
 ## 1.3.0
 
 - New presets under What is it?, named for the art you start with: One color, Logo, Detailed logo, Silhouette, Sketch, and Grayscale. Photo moves under More presets. Flat art is now Detailed logo.
-- Silhouette turns everything into one solid shape with no holes. Sketch compares each pixel with the paper around it, so shadows and uneven light don't turn black. Grayscale traces shades of gray.
+- Silhouette turns everything into one solid shape with no holes. Sketch compares each pixel with the paper around it, so shadows and uneven light don't turn black, while solid black fills stay solid. Grayscale traces shades of gray.
 - Made for adds Sticker and Print and brand, and renames Vinyl cut to Vinyl and HTV. Each destination has a final width and checks the result at that size: thin lines, narrow gaps, ink count, overlap, and brand colors. Show marks thin spots in red.
-- Sticker draws a closed cut line 2 mm outside the art on a spot color named CutContour, plus a border 2 mm past it. PDF keeps CutContour as a real spot color.
-- PDF and EPS exports for a destination with a final width come out at that size.
+- Sticker draws a closed cut line 2 mm outside the art on a spot color named CutContour, plus a border 2 mm past it. PDF and EPS keep CutContour as a real spot color.
+- With a destination chosen, PDF and EPS exports are scaled so the art comes out at the final width you enter.
 - Destinations no longer change the dials. Picking a source preset keeps the destination you chose. Click a destination again to turn it off.
 - Brand colors can be typed as a code, such as #1E2340.
 - Every build scores the tracing on 42 generated test logos and fails if it gets more than 10 percent worse.
