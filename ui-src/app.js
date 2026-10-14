@@ -368,6 +368,29 @@ function borderLabel(lab, w, h) {
   return total && bc / total > 0.5 ? best : -1;
 }
 
+/* ---------- Dials to tracing numbers ---------- */
+// The dials, measured in the source image's pixels so they act the same at any size.
+//   Small details: the smallest piece kept.
+//   Straight edges: how far an edge may stray from a line and still be drawn straight (0.4 to 2.6 px),
+//   and how close to level or upright a line snaps (1 to 5 degrees).
+//   Curves: how much edges are smoothed before fitting, and how loosely curves follow them.
+//   Corners: how sharp a turn must be to stay a corner (60 degrees, rounder, to 20 degrees, sharper).
+//   Grow or shrink: how far every edge moves out or in.
+function tuneParams(T, sc) {
+  const smooth = (T.smooth ?? 50) / 100, detail = (T.detail ?? 70) / 100, straight = (T.straight ?? 50) / 100, corners = (T.corners ?? 50) / 100;
+  return {
+    sigma: Math.max(0.8, sc * 0.45 * (0.5 + smooth)),
+    speckArea: (2 + (1 - detail) * 8) ** 2 * 0.5 * sc,
+    lineSrc: straight <= 0.5 ? 0.4 + 1.6 * straight : 1.2 + 2.8 * (straight - 0.5),
+    snapDeg: 1 + 4 * straight, cornerDeg: 60 - 40 * corners, grow: (T.grow || 0) * sc,
+    tol: 0.55 * sc * (0.6 + 0.8 * smooth), k: Math.max(4, Math.round(1.2 * sc)),
+  };
+}
+// Two colors count as the same layer across retraces when they're within a small color distance.
+function hexNear(a, b) { return a === b || d2(rgb2lab(...fromHex(a)), rgb2lab(...fromHex(b))) < 12 * 12; }
+// The layer's own tune (parts tunes are looked up per shape).
+function tuneFor(hex) { return (typeof tunes !== "undefined" ? tunes : []).find(t => t.kind === "layer" && hexNear(t.hex, hex)) || null; }
+
 /* ---------- Mask tools for tracing ---------- */
 // Moves every point of a closed outline d pixels along its normal (positive: out of the outline's inside).
 function offsetContour(q, d) {
@@ -474,20 +497,19 @@ function traceNow(cancelled = () => false) {
       const areas = new Array(pal.length).fill(0); for (let i = 0; i < N; i++) if (lab[i] >= 0) areas[lab[i]]++;
       const order = areas.map((a, l) => l).filter(l => areas[l] > 0).sort((a, b) => areas[b] - areas[a]);
 
-      const sc = Math.max(job.scale, 1), smooth = S.smooth / 100, detail = S.detail / 100;
-      const sigma = Math.max(0.8, sc * 0.45 * (0.5 + smooth));
-      const speckArea = (2 + (1 - detail) * 8) ** 2 * 0.5 * sc;
-      // The dials, measured in the source image's pixels so they act the same at any size.
-      //   Straight edges: how far an edge may stray from a line and still be drawn straight (0.4 to 2.6 px),
-      //   and how close to level or upright a line snaps (1 to 5 degrees).
-      //   Corners: how sharp a turn must be to stay a corner (60 degrees, rounder, to 20 degrees, sharper).
-      const straight = (S.straight ?? 50) / 100, corners = (S.corners ?? 50) / 100;
-      const lineSrc = straight <= 0.5 ? 0.4 + 1.6 * straight : 1.2 + 2.8 * (straight - 0.5);
-      const snapDeg = 1 + 4 * straight, cornerDeg = 60 - 40 * corners, grow = (S.grow || 0) * sc;
-      const tol = 0.55 * sc * (0.6 + 0.8 * smooth), k = Math.max(4, Math.round(1.2 * sc));
+      const sc = Math.max(job.scale, 1), P0 = tuneParams(S, sc), { snapDeg } = P0;
       const strict = 0.7, matching = S.shapes;
       const layers = [], shapes = [], allOutlines = []; let pieces = 0, budget = 2500, tplBudget = 60;
       order.forEach((c, li) => {
+        // A tuned layer traces with its own dials; a tuned shape inside it, with its own on top of those.
+        const hex = colors[c], lt = tuneFor(hex, null), LS = lt ? { ...S, ...lt.set } : S, LP = lt ? tuneParams(LS, sc) : P0;
+        const { sigma, speckArea } = LP;
+        const partTunes = (typeof tunes !== "undefined" ? tunes : []).filter(t => t.kind === "parts" && t.parts.some(pt => hexNear(pt.hex, hex)));
+        const paramsFor = q => {
+          if (!partTunes.length) return LP;
+          const b = bboxOf(q), t = partTunes.find(t => t.parts.some(pt => hexNear(pt.hex, hex) && boxIoU(pt.box, b) > 0.5));
+          return t ? tuneParams({ ...LS, ...t.set }, sc) : LP;
+        };
         const upper = new Set(order.slice(li)); let mask = new Uint8Array(N);
         // Cut out: each color is only its own pixels, so colors never overlap (for separations, vinyl, and print).
         if (S.layering === "cutout") { for (let i = 0; i < N; i++) mask[i] = lab[i] === c ? 1 : 0; }
@@ -504,15 +526,17 @@ function traceNow(cancelled = () => false) {
           for (let i = 0; i < N; i++) mask[i] = (lab[i] === c || (mask[i] && inner[i])) ? 1 : 0;
         }
         const f = blurMask(mask, W, H, sigma);
-        const contours = VZ.maskContours(f, W, H).filter(q => Math.abs(VZ.area(q)) >= speckArea);
+        const minSpeck = Math.min(speckArea, ...partTunes.map(t => tuneParams({ ...LS, ...t.set }, sc).speckArea));
+        const contours = VZ.maskContours(f, W, H).filter(q => Math.abs(VZ.area(q)) >= minSpeck).filter(q => Math.abs(VZ.area(q)) >= paramsFor(q).speckArea);
         if (!contours.length) return;
-        const nested = VZ.nest(contours);
-        if (grow) {
+        const nested = VZ.nest(contours), cp = contours.map(paramsFor);
+        if (cp.some(P => P.grow)) {
           // Each outline's normal points out of its own inside, so outer edges move out and holes move in.
           const isHole = new Set(); for (const [, hs] of nested) for (const h of hs) isHole.add(h);
-          contours.forEach((q, ci) => { contours[ci] = offsetContour(q, isHole.has(ci) ? -grow : grow); });
+          contours.forEach((q, ci) => { const g = cp[ci].grow; if (g) contours[ci] = offsetContour(q, isHole.has(ci) ? -g : g); });
         }
-        const recs = contours.map(q => {
+        const recs = contours.map((q, ci) => {
+          const { tol, k, cornerDeg, lineSrc } = cp[ci];
           // Up to 0.6 source pixels of stray is pixel noise; past that a run must also be two-sided to be straight.
           const ol = VZ.fitOutline(q, tol, k, cornerDeg, lineSrc * sc, Math.max(16, Math.round(12 * sc)), 1.6, 0.6 * sc);
           allOutlines.push(ol); pieces += ol.segs.length;
@@ -1261,9 +1285,7 @@ function syncControls() {
   document.querySelectorAll("[data-cmode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.cmode === S.cmode)));
   document.querySelectorAll("[data-bg]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.bg === S.bg)));
   $("#stepper").hidden = S.cmode !== "number"; $("#kVal").textContent = S.k;
-  for (const id of ["detail", "straight", "smooth", "corners"]) { $("#" + id).value = S[id] ?? 50; $("#" + id + "Out").textContent = S[id] ?? 50; }
-  const g = S.grow || 0; $("#growOut").textContent = (g > 0 ? "+" : g < 0 ? "−" : "") + Math.abs(g) + " px";
-  $("#growVal").textContent = g === 0 ? "Same size" : g > 0 ? `Grow ${g} px` : `Shrink ${-g} px`;
+  syncDials();
   $("#snap").checked = S.snap;
   document.querySelectorAll("[data-smode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.smode === S.shapes)));
   document.querySelectorAll("[data-xmode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.xmode === S.textMode)));
@@ -1275,11 +1297,12 @@ document.querySelectorAll("[data-cmode]").forEach(b => b.addEventListener("click
 document.querySelectorAll("[data-bg]").forEach(b => b.addEventListener("click", () => { if (S.bg === b.dataset.bg) return; pushUndo(); S.bg = b.dataset.bg; syncControls(); convert(); }));
 $("#kMinus").onclick = () => { pushUndo("k"); S.k = Math.max(2, S.k - 1); syncControls(); convert(150); };
 $("#kPlus").onclick = () => { pushUndo("k"); S.k = Math.min(32, S.k + 1); syncControls(); convert(150); };
-for (const id of ["detail", "straight", "smooth", "corners"]) $("#" + id).addEventListener("input", e => { pushUndo(id); S[id] = +e.target.value; $("#" + id + "Out").textContent = e.target.value; convert(300); });
-const stepGrow = d => { pushUndo("grow"); S.grow = Math.max(-3, Math.min(3, Math.round(((S.grow || 0) + d) * 4) / 4)); syncControls(); convert(250); };
+for (const id of ["detail", "straight", "smooth", "corners"]) $("#" + id).addEventListener("input", e => { pushUndo(id); setDial(id, +e.target.value); convert(300); });
+const stepGrow = d => { pushUndo("grow"); const g = dialValues().grow || 0; setDial("grow", Math.max(-3, Math.min(3, Math.round((g + d) * 4) / 4))); convert(250); };
 $("#growMinus").onclick = () => stepGrow(-0.25);
 $("#growPlus").onclick = () => stepGrow(0.25);
 $("#tuneReset").onclick = () => {
+  if (tuneScope) { resetScopeTune(); return; }
   pushUndo(); const P = PRESETS[S.preset] || PRESETS.logo;
   for (const k of ["detail", "straight", "smooth", "corners", "grow", "snap"]) S[k] = P[k];
   syncControls(); convert(); toast("Fine-tune settings reset.");

@@ -17,10 +17,14 @@ let partMode = "all";          // "all" | "art" (icon) | "text" (words)
 let expanded = new Set();      // layer hexes open in the Layers list
 let outlines = false, tool = "select", spaceDown = false;
 let pendingUseShape = null;
+// Fine-tuning a layer or a few shapes: { kind: "layer", hex, set } or { kind: "parts", parts: [{ hex, box }], set },
+// where set holds only the dials changed from the global settings.
+let tunes = [];
+let tuneScope = null;          // what the dials edit: null (everything), { kind: "layer", hex }, or { kind: "parts", parts }
 
 function resetDoc() {
   drawOrder = null; deletedLayers = new Set(); objEdits = []; selection = []; partMode = "all"; expanded = new Set();
-  pendingUseShape = null; undoStack = []; undoKey = null;
+  pendingUseShape = null; undoStack = []; undoKey = null; tunes = []; tuneScope = null;
 }
 const itemBox = it => it.box || (it.box = bboxOf(it.outer.q));
 function setSelection(list) { selection = list; sel = list.length === 1 ? list[0] : null; }
@@ -39,6 +43,9 @@ function afterTrace() {
   hidden = mapSet(hidden); deletedLayers = mapSet(deletedLayers); expanded = mapSet(expanded);
   if (drawOrder) drawOrder = [...new Set(drawOrder.map(near).filter(Boolean))];
   for (const e of objEdits) e.hex = near(e.hex) || e.hex;
+  for (const t of tunes) { if (t.kind === "layer") t.hex = near(t.hex) || t.hex; else for (const pt of t.parts) pt.hex = near(pt.hex) || pt.hex; }
+  if (tuneScope && tuneScope.kind === "layer") tuneScope.hex = near(tuneScope.hex) || tuneScope.hex;
+  syncDials();
   if (pendingUseShape) { for (const k of Object.keys(pendingUseShape)) if (k in useShape) useShape[k] = pendingUseShape[k]; pendingUseShape = null; }
   applyObjEdits();
   autoFonts();
@@ -109,12 +116,13 @@ let undoStack = [], undoKey = null, undoAt = 0;
 function tracingS() { const o = { ...S }; delete o.exportFormat; return o; }
 const settingsKey = () => JSON.stringify([tracingS(), locked]);
 function editState() {
-  return JSON.parse(JSON.stringify({ recolor, hidden: [...hidden], useShape, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers: [...deletedLayers], partMode }));
+  return JSON.parse(JSON.stringify({ recolor, hidden: [...hidden], useShape, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers: [...deletedLayers], partMode, tunes }));
 }
 function applyEditState(st) {
   recolor = { ...st.recolor }; hidden = new Set(st.hidden); manualSnaps = st.manualSnaps.map(m => ({ ...m }));
   textMemory = st.textMemory.map(m => ({ ...m })); objEdits = st.objEdits.map(e => ({ ...e }));
   drawOrder = st.drawOrder ? st.drawOrder.slice() : null; deletedLayers = new Set(st.deletedLayers); partMode = st.partMode || "all";
+  tunes = JSON.parse(JSON.stringify(st.tunes || []));
 }
 function pushUndo(key) {
   if (!result) return;
@@ -129,7 +137,7 @@ function undo() {
   const st = undoStack.pop();
   if (!st) { toast("Nothing to undo."); return; }
   undoKey = null;
-  const retrace = JSON.stringify([st.S, st.locked, st.manualSnaps, st.textMemory]) !== JSON.stringify([tracingS(), locked, manualSnaps, textMemory]);
+  const retrace = JSON.stringify([st.S, st.locked, st.manualSnaps, st.textMemory, st.tunes]) !== JSON.stringify([tracingS(), locked, manualSnaps, textMemory, tunes]);
   Object.assign(S, st.S); locked.splice(0, locked.length, ...st.locked);
   applyEditState(st); setSelection([]); syncControls();
   if (retrace) { pendingUseShape = st.useShape; convert(); }
@@ -153,7 +161,9 @@ function renderPalette() {
   const rows = top.filter(L => !deletedLayers.has(L.hex)).map(L => {
     const li = result.layers.indexOf(L), p = byHex.get(L.hex) || { hex: L.hex }, now = recolor[L.hex] || L.hex, off = hidden.has(L.hex), open = expanded.has(L.hex);
     const live = L.items.filter(it => it.off !== "delete"), nHid = live.filter(it => it.off === "hide").length, nDel = L.items.length - live.length;
-    const sub = recolor[L.hex] ? `was ${L.hex} · <button type="button" data-reset="${L.hex}">Reset</button>` : p.lock ? "Locked brand color" : `${colorName(now)} · ${live.length} ${live.length === 1 ? "part" : "parts"}${nHid ? ` · ${nHid} hidden` : ""}`;
+    const nTuned = tunes.filter(t => t.kind === "layer" ? hexNear(t.hex, L.hex) : t.parts.some(pt => hexNear(pt.hex, L.hex))).length;
+    const sub = (recolor[L.hex] ? `was ${L.hex} · <button type="button" data-reset="${L.hex}">Reset</button>` : p.lock ? "Locked brand color" : `${colorName(now)} · ${live.length} ${live.length === 1 ? "part" : "parts"}${nHid ? ` · ${nHid} hidden` : ""}`)
+      + (nTuned ? ` · <b class="tuned">fine-tuned</b>` : "");
     let more = "";
     if (open) {
       const objs = []; L.items.forEach((it, ii) => { if (it.off !== "delete") objs.push(ii); });
@@ -164,7 +174,7 @@ function renderPalette() {
           <button type="button" class="pal-act sm" data-odel="${k}" aria-label="Delete ${esc(lab)} ${n[lab]}">${TRASH}</button></div>`;
       });
       more = `<div class="pal-more">
-        <div class="row wrap"><button type="button" class="link-btn" data-pickfor="${L.hex}">Take color from image</button><button type="button" class="link-btn" data-lsel="${li}">Select all ${live.length}</button>
+        <div class="row wrap"><button type="button" class="link-btn" data-ltune="${L.hex}">Fine-tune this layer</button><button type="button" class="link-btn" data-pickfor="${L.hex}">Take color from image</button><button type="button" class="link-btn" data-lsel="${li}">Select all ${live.length}</button>
         ${nHid ? `<button type="button" class="link-btn" data-lshow="${li}">Show ${nHid} hidden</button>` : ""}${nDel ? `<button type="button" class="link-btn" data-lrestore="${li}">Restore ${nDel} deleted</button>` : ""}
         <button type="button" class="link-btn danger" data-ldel="${L.hex}">Delete layer</button></div>
         <div class="obj-list">${rowsO.join("")}${objs.length > OBJ_LIMIT ? `<p class="help">And ${objs.length - OBJ_LIMIT} more. Drag a box around parts in the vector to select them.</p>` : ""}${!objs.length ? '<p class="help">Every part of this layer is deleted.</p>' : ""}</div></div>`;
@@ -200,6 +210,7 @@ function moveLayer(hex, toIdx) {
 }
 $("#palette").addEventListener("click", e => {
   const mo = e.target.closest("[data-more]"); if (mo) { const h = mo.dataset.more; expanded.has(h) ? expanded.delete(h) : expanded.add(h); renderPalette(); return; }
+  const lt = e.target.closest("[data-ltune]"); if (lt) { setTuneScope({ kind: "layer", hex: lt.dataset.ltune }); return; }
   const ld = e.target.closest("[data-ldel]"); if (ld) { pushUndo(); deletedLayers.add(ld.dataset.ldel); expanded.delete(ld.dataset.ldel); setSelection([]); render(); toast(`Deleted the ${colorName(recolor[ld.dataset.ldel] || ld.dataset.ldel)} layer. Undo or restore it below the list.`); return; }
   const lu = e.target.closest("[data-lundel]"); if (lu) { pushUndo(); deletedLayers.delete(lu.dataset.lundel); render(); return; }
   const ls = e.target.closest("[data-lsel]"); if (ls) { const li = +ls.dataset.lsel; setSelection(result.layers[li].items.map((it, ii) => ({ li, ii })).filter(k => !result.layers[li].items[k.ii].off)); if (view === "original") setView("vector"); drawSelection(); renderPalette(); return; }
@@ -284,6 +295,7 @@ $("#snapClose").onclick = clearSelection;
 function selAct(act) {
   if (!selection.length) { toast("Select parts first: click one, Shift-click more, or drag a box around them."); return; }
   if (act === "export") { exportSelection(); return; }
+  if (act === "tune") { tuneSelection(); return; }
   if (act === "text") { const T = wordOf(sel.li, sel.ii); if (T) { textSel = T.id; openTab("text"); renderTexts(); highlightText(T.id); const i = $(`#tx-${T.id}`); if (i) i.focus(); } return; }
   pushUndo();
   const n = selection.length;
@@ -336,7 +348,7 @@ $("#snapBar").addEventListener("click", e => { const b = e.target.closest("[data
     }
     if (view === "original") return;
     const tw = p.target.closest && p.target.closest("[data-t]");
-    if (tw && !p.shift) { setSelection([]); drawSelection(); textSel = +tw.dataset.t; openTab("text"); renderTexts(); highlightText(textSel); const c = $(`.text-card[data-tid="${textSel}"]`); if (c) c.scrollIntoView({ block: "nearest", behavior: "smooth" }); return; }
+    if (tw && !p.shift) { setSelection([]); drawSelection(); textSel = +tw.dataset.t; openTab("text"); renderTexts(); highlightText(textSel); const c = $(`.text-card[data-tid="${textSel}"]`); if (c) scrollPanelTo(c, true); return; }
     const t = p.target.closest && p.target.closest("[data-k]");
     if (!t) { if (!p.shift) clearSelection(); return; }
     const [li, ii] = t.dataset.k.split(":").map(Number);
@@ -588,10 +600,10 @@ $("#batchClose").onclick = () => { leaveBatch(); toast("Closed the batch. The op
 // Traces another image with the current settings and its own saved edits, sets its words in their
 // fonts, runs fn, then puts everything back. The screen doesn't redraw while it runs.
 async function withJob(j, st, fn) {
-  const keep = { job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode };
+  const keep = { job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode, tunes, tuneScope };
   renderPaused = true;
   try {
-    job = j; useShape = {}; recolor = {}; hidden = new Set(); manualSnaps = []; textMemory = []; objEdits = []; drawOrder = null; deletedLayers = new Set(); selection = []; sel = null; textSel = null; partMode = "all";
+    job = j; useShape = {}; recolor = {}; hidden = new Set(); manualSnaps = []; textMemory = []; objEdits = []; drawOrder = null; deletedLayers = new Set(); selection = []; sel = null; textSel = null; partMode = "all"; tunes = []; tuneScope = null;
     const fontMems = st ? st.textMemory.filter(m => m.mode === "font" && m.pick && m.text) : [];
     // Fonts are applied below and awaited, so setupText leaves those words traced for now.
     if (st) { applyEditState(st); textMemory = textMemory.map(m => m.mode === "font" ? { ...m, mode: "original" } : m); }
@@ -611,7 +623,7 @@ async function withJob(j, st, fn) {
     if (NATIVE && APP && APP.ocr && S.textMode !== "off") await matchWords(result, j);
     return fn();
   } finally {
-    ({ job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode } = keep);
+    ({ job, result, useShape, recolor, hidden, manualSnaps, textMemory, objEdits, drawOrder, deletedLayers, sel, selection, textSel, partMode, tunes, tuneScope } = keep);
     renderPaused = false;
   }
 }
@@ -671,6 +683,82 @@ function syncEditorControls() {
   const f = fmtNow(); $("#exportLabel").textContent = `Export ${FORMATS[f]}`;
   document.querySelectorAll("[data-fmt]").forEach(b => { b.setAttribute("aria-checked", String(b.dataset.fmt === f)); b.disabled = !NATIVE && (b.dataset.fmt === "pdf" || b.dataset.fmt === "eps"); });
   $("#outlinesBtn").setAttribute("aria-pressed", String(outlines));
+}
+
+/* ---------- Fine-tune a layer or a few shapes ---------- */
+const DIALS = ["detail", "straight", "smooth", "corners", "grow"];
+// The same shapes: matched by overlap, since a tuned shape's box moves when it grows or shrinks.
+const sameParts = (a, b) => a.length === b.length && a.every(p => b.some(q => hexNear(p.hex, q.hex) && boxIoU(p.box, q.box) > 0.5));
+function scopeTune(create) {
+  if (!tuneScope) return null;
+  let t = tuneScope.kind === "layer" ? tunes.find(t => t.kind === "layer" && hexNear(t.hex, tuneScope.hex)) : tunes.find(t => t.kind === "parts" && sameParts(t.parts, tuneScope.parts));
+  if (!t && create) { t = tuneScope.kind === "layer" ? { kind: "layer", hex: tuneScope.hex, set: {} } : { kind: "parts", parts: tuneScope.parts.map(p => ({ hex: p.hex, box: p.box.slice() })), set: {} }; tunes.push(t); }
+  return t;
+}
+// The values the dials show: the global settings, then the layer's own, then the shapes' own.
+function dialValues() {
+  const v = {}; for (const k of DIALS) v[k] = S[k] ?? (k === "grow" ? 0 : 50);
+  if (!tuneScope) return v;
+  const hex = tuneScope.kind === "layer" ? tuneScope.hex : tuneScope.parts[0].hex, lt = tunes.find(t => t.kind === "layer" && hexNear(t.hex, hex));
+  if (lt) Object.assign(v, lt.set);
+  if (tuneScope.kind === "parts") { const t = scopeTune(false); if (t) Object.assign(v, t.set); }
+  return v;
+}
+function setDial(id, value) {
+  if (!tuneScope) S[id] = value;
+  else { const t = scopeTune(true); if (value === (dialBase()[id])) delete t.set[id]; else t.set[id] = value; if (!Object.keys(t.set).length) tunes.splice(tunes.indexOf(t), 1); }
+  syncDials();
+}
+// What a scoped dial falls back to when it isn't set: the global value (or the layer's, for shapes).
+function dialBase() {
+  const v = {}; for (const k of DIALS) v[k] = S[k] ?? (k === "grow" ? 0 : 50);
+  if (tuneScope && tuneScope.kind === "parts") { const lt = tunes.find(t => t.kind === "layer" && hexNear(t.hex, tuneScope.parts[0].hex)); if (lt) Object.assign(v, lt.set); }
+  return v;
+}
+function syncDials() {
+  const v = dialValues(), own = tuneScope ? (scopeTune(false) || { set: {} }).set : {};
+  for (const id of ["detail", "straight", "smooth", "corners"]) {
+    $("#" + id).value = v[id]; $("#" + id + "Out").textContent = v[id] + (id in own ? " · changed" : "");
+    $("#" + id).closest(".dial").classList.toggle("changed", id in own);
+  }
+  const g = v.grow || 0; $("#growOut").textContent = (g > 0 ? "+" : g < 0 ? "−" : "") + Math.abs(g) + " px" + ("grow" in own ? " · changed" : "");
+  $("#growVal").textContent = g === 0 ? "Same size" : g > 0 ? `Grow ${g} px` : `Shrink ${-g} px`;
+  $("#growLabel").closest(".dial").classList.toggle("changed", "grow" in own);
+  const bar = $("#scopeBar"); bar.hidden = !tuneScope; $("#tuneGroup").classList.toggle("scoped", !!tuneScope);
+  if (tuneScope) {
+    const n = tuneScope.kind === "parts" ? tuneScope.parts.length : 0;
+    $("#scopeName").textContent = tuneScope.kind === "layer" ? `${colorName(recolor[tuneScope.hex] || tuneScope.hex)} layer` : `${n} selected ${n === 1 ? "shape" : "shapes"}`;
+    $("#tuneReset").textContent = tuneScope.kind === "layer" ? "Match the rest" : "Match the layer";
+    $("#tuneTitle").textContent = "Fine-tune";
+  } else { $("#tuneReset").textContent = "Reset"; }
+}
+function setTuneScope(scope) {
+  tuneScope = scope; openTab("setup"); syncDials();
+  setTimeout(() => scrollPanelTo($("#tuneGroup")), 30);
+  if (scope) toast(`The dials now change only the ${$("#scopeName").textContent}. Choose Back to all when you're done.`);
+}
+function tuneSelection() {
+  if (!selection.length) return;
+  // The whole of one layer selected: tune the layer. Otherwise tune just these shapes.
+  const lis = new Set(selection.map(k => k.li));
+  if (lis.size === 1) {
+    const li = [...lis][0], live = result.layers[li].items.filter(it => !it.off).length;
+    if (live === selection.length && live > 1) { setTuneScope({ kind: "layer", hex: result.layers[li].hex }); return; }
+  }
+  setTuneScope({ kind: "parts", parts: selection.map(k => ({ hex: result.layers[k.li].hex, box: itemBox(result.layers[k.li].items[k.ii]).slice() })) });
+}
+function resetScopeTune() {
+  const t = scopeTune(false); if (!t) { toast("Nothing to reset here."); return; }
+  pushUndo(); tunes.splice(tunes.indexOf(t), 1); syncDials(); convert();
+  toast(tuneScope.kind === "layer" ? "This layer matches the rest again." : "These shapes match their layer again.");
+}
+$("#scopeBack").onclick = () => { tuneScope = null; syncDials(); };
+// Scrolls the side panel (never the window) so el sits just below the panel's pinned tabs.
+function scrollPanelTo(el, nearest) {
+  const insp = $(".inspector"), head = $(".insp-head").getBoundingClientRect().bottom, r = el.getBoundingClientRect(), ib = insp.getBoundingClientRect();
+  if (nearest && r.top >= head && r.bottom <= ib.bottom) return;
+  const dy = nearest && r.bottom > ib.bottom && r.height < ib.bottom - head ? r.bottom - ib.bottom + 8 : r.top - head - 8;
+  insp.scrollTo({ top: insp.scrollTop + dy, behavior: "smooth" });
 }
 
 /* ---------- AI cutout (Mac app, macOS 14 and later) ---------- */

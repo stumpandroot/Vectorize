@@ -188,6 +188,13 @@ h1,h2,h3,p{margin:0}
 .dial .ends{display:flex;justify-content:space-between;font-size:11.5px;font-weight:600;color:var(--muted);margin-top:-2px}
 .dial .help{margin-top:2px}
 .dial .stepper{margin-top:4px}
+.scope-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--sun-tint);color:var(--sun-ink);border-radius:14px;padding:8px 8px 8px 12px;font-size:13.5px}
+.scope-bar .link-btn{color:var(--sun-ink);text-decoration:underline}
+#tuneGroup.scoped .switch{display:none}
+#tuneGroup.scoped{box-shadow:inset 3px 0 0 var(--sun);padding-left:12px;margin-left:-12px}
+.dial.changed .top label,.dial.changed .top span{color:var(--sun-ink)}
+.dial.changed .top output{color:var(--sun-ink);font-weight:700}
+.pal-txt small b.tuned{color:var(--sun-ink);font-weight:700}
 input[type=range]{width:100%;accent-color:var(--sun);height:24px}
 .switch{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13.5px;font-weight:600;cursor:pointer}
 .switch input{position:absolute;opacity:0;width:1px;height:1px}
@@ -356,6 +363,7 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
             <button type="button" class="snap-act" data-sel="keep">Keep only</button>
             <button type="button" class="snap-act" data-sel="hide">Hide</button>
             <button type="button" class="snap-act danger" data-sel="delete">Delete</button>
+            <button type="button" class="snap-act" data-sel="tune">Fine-tune</button>
             <button type="button" class="snap-act" data-sel="export">Export selection</button>
             <button type="button" class="snap-act" data-sel="text" id="selText" hidden>Edit text</button>
           </div>
@@ -443,7 +451,8 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
         </div>
 
         <div class="group" id="tuneGroup">
-          <div class="row" style="justify-content:space-between"><span class="group-title">Fine-tune</span><button class="link-btn" id="tuneReset" type="button">Reset</button></div>
+          <div class="row" style="justify-content:space-between"><span class="group-title" id="tuneTitle">Fine-tune</span><button class="link-btn" id="tuneReset" type="button">Reset</button></div>
+          <div class="scope-bar" id="scopeBar" hidden><span>Only the <b id="scopeName">layer</b></span><button type="button" class="link-btn" id="scopeBack">Back to all</button></div>
           <div class="dial"><div class="top"><label for="detail">Small details</label><output id="detailOut">70</output></div>
             <input type="range" id="detail" min="0" max="100" value="70" aria-describedby="detailUse">
             <div class="ends" aria-hidden="true"><span>Remove specks</span><span>Keep tiny details</span></div>

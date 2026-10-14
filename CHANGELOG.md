@@ -2,6 +2,12 @@
 
 The app shows its version and build in the window title and the toolbar. Each GitHub build has a new build number; the version changes when features change.
 
+## 1.2.0
+
+- Fine-tune one shape or one layer: select shapes and click Fine-tune in the selection bar, or open a layer in the Layers tab and click Fine-tune this layer. The five dials then change only that selection, marked with "changed", and Back to all returns to the whole logo.
+- Tuned layers show "fine-tuned" in the Layers tab. Match the rest (or Match the layer, for shapes) removes a selection's own settings. Undo covers every change.
+- Jumping to a tab or a word scrolls only the side panel, never the window.
+
 ## 1.1.1
 
 - The window no longer scrolls or bounces as a whole: the canvas and the side panel scroll on their own, and the app fills the window edge to edge.
