@@ -172,6 +172,11 @@ def smoke_test(window, result):
         print(f"FAIL window smoke test: {e}", flush=True)
     finally:
         result.append(0 if ok else 1)
+        # Closing the window doesn't always end the process (background font or text work can keep it
+        # alive), so the test exits on its own a few seconds after closing.
+        import os
+        import threading
+        threading.Timer(5, lambda: os._exit(result[0])).start()
         window.destroy()
 
 
