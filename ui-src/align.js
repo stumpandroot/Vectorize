@@ -20,7 +20,8 @@ function unitsOf(keys) {
     const T = wordOf(k.li, k.ii), word = T && T.mode !== "original" && T.repl ? T : null;
     const ks = (word ? word.items.map(ii => ({ li: word.li, ii })) : [k]).filter(x => liveItem(x));
     ks.forEach(x => seen.add(x.li + ":" + x.ii));
-    if (ks.length) out.push({ keys: ks, word });
+    // A word's hidden or deleted letters move too, so the word keeps one offset.
+    if (ks.length) out.push({ keys: ks, word, all: word ? word.items.map(ii => ({ li: word.li, ii })) : ks });
   }
   return out;
 }
@@ -39,65 +40,83 @@ function allUnits() { const keys = []; for (const L of visibleLayers()) { const 
 
 /* ---------- Offsets ---------- */
 function setOffset(k, dx, dy) {
-  const L = result.layers[k.li], it = L.items[k.ii], b = itemBox(it), eps = 1e-3;
+  const L = result.layers[k.li], it = L.items[k.ii], b = itemBox(it), eps = 1e-3, tol = partTol();
   dx = Math.round(dx * 1000) / 1000; dy = Math.round(dy * 1000) / 1000;
-  moves = moves.filter(m => !(m.hex === L.hex && m.box.every((v, i) => Math.abs(v - b[i]) < 0.5)));
+  moves = moves.filter(m => findPart(m, tol) !== it);       // the same matching a retrace uses
   if (Math.abs(dx) > eps || Math.abs(dy) > eps) moves.push({ hex: L.hex, box: b.slice(), dx, dy });
   it.dx = Math.abs(dx) > eps ? dx : 0; it.dy = Math.abs(dy) > eps ? dy : 0;
 }
 // Moves whole units by (ddx, ddy) work pixels; a word's letters all take the first letter's offset.
 function moveUnits(units, ddx, ddy) {
-  for (const u of units) { const [x, y] = offOf(itemOf(u.keys[0])); for (const k of u.keys) setOffset(k, x + ddx, y + ddy); }
+  for (const u of units) { const [x, y] = offOf(itemOf(u.keys[0])); for (const k of u.all || u.keys) setOffset(k, x + ddx, y + ddy); }
 }
-function setUnitOffset(u, dx, dy) { for (const k of u.keys) setOffset(k, dx, dy); }
+function setUnitOffset(u, dx, dy) { for (const k of u.all || u.keys) setOffset(k, dx, dy); }
 
 /* ---------- Align to original ---------- */
-// Finds the shift (in work pixels, within 3 original pixels) that best lays the unit over its color in the
-// original. Each covered pixel scores +1 on its own color, 0 under a color stacked above it (it's meant to
-// hide there), and −1 anywhere else. Coarse grid, then single pixels, then a parabola for the last fraction.
+// Finds the shift (in work pixels, within about 3 original pixels) that best lays the unit over its color in
+// the original. The unit is drawn at each trial position, anti-aliased, so fractions of a pixel count. Each
+// pixel it covers scores +1 on its own color in the trace's color map (result.lab), 0 under a color stacked
+// above it (it's meant to hide there), and −1 anywhere else.
+// A direction the original doesn't pin down (a part hidden under another color, or a long level bar's
+// left-right position) is left alone: moving 1 px that way must cost at least 2.5% of the part's anti-aliased edge
+// (well-placed parts measure 7 to 12%; a part hidden under another color measures about 0).
 async function bestShift(u) {
-  const W = result.w, H = result.h, R = Math.max(2, Math.ceil(3 * workPerOrig()));
+  const W = result.w, H = result.h, R = Math.max(1, Math.round(3 * workPerOrig()));
   const b = unitBox(u), x0 = Math.floor(b[0]) - 2, y0 = Math.floor(b[1]) - 2, ww = Math.ceil(b[2]) + 2 - x0, wh = Math.ceil(b[3]) + 2 - y0;
   if (ww < 2 || wh < 2) return null;
   const only = new Set(u.keys.map(k => k.li + ":" + k.ii));
   const svg = buildSVG(false, { only, noDest: true }); if (!svg) return null;
   const im = await loadImage("data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.replace(/<svg[^>]*>/, `<svg xmlns="http://www.w3.org/2000/svg" width="${ww}" height="${wh}" viewBox="${x0} ${y0} ${ww} ${wh}">`)));
-  const c = document.createElement("canvas"); c.width = ww; c.height = wh; const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0, ww, wh);
-  const a = g.getImageData(0, 0, ww, wh).data;
-  let px = [], py = [], pv = [], total = 0;
-  for (let y = 0; y < wh; y++) for (let x = 0; x < ww; x++) { const v = a[(y * ww + x) * 4 + 3] / 255; if (v > 0.02) { px.push(x0 + x); py.push(y0 + y); pv.push(v); total += v; } }
-  if (!pv.length) return null;
-  if (pv.length > 60000) { const st = Math.ceil(pv.length / 60000); px = px.filter((_, i) => i % st === 0); py = py.filter((_, i) => i % st === 0); pv = pv.filter((_, i) => i % st === 0); }
+  // The trial canvas covers the unit's box plus the search range on every side.
+  const cw = ww + 2 * R, ch = wh + 2 * R, cx0 = x0 - R, cy0 = y0 - R;
+  const c = document.createElement("canvas"); c.width = cw; c.height = ch; const g = c.getContext("2d", { willReadFrequently: true });
   const L = result.layers[u.keys[0].li], label = L.label, order = orderedLayers(), upper = new Set(S.layering === "cutout" ? [] : order.slice(order.indexOf(L) + 1).map(x => x.label));
-  const lab = result.lab, wt = l => l === label ? 1 : upper.has(l) ? 0 : -1;
-  const score = (dx, dy) => { let s = 0; for (let i = 0; i < pv.length; i++) { const x = px[i] + dx, y = py[i] + dy; s += pv[i] * (x < 0 || y < 0 || x >= W || y >= H ? -1 : wt(lab[y * W + x])); } return s; };
-  const memo = new Map(), sc = (dx, dy) => { const k = dx + "," + dy; if (!memo.has(k)) memo.set(k, score(dx, dy)); return memo.get(k); };
-  let best = [0, 0], bs = sc(0, 0); const s0 = bs;
-  const step = Math.max(1, Math.floor(R / 3));
-  for (let dy = -R; dy <= R; dy += step) for (let dx = -R; dx <= R; dx += step) { const v = sc(dx, dy); if (v > bs) { bs = v; best = [dx, dy]; } }
-  for (let pass = 0; pass < 3; pass++) {
+  const wt = new Int8Array(cw * ch);
+  for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) { const X = cx0 + x, Y = cy0 + y; const l = X < 0 || Y < 0 || X >= W || Y >= H ? -2 : result.lab[Y * W + X]; wt[y * cw + x] = l === label ? 1 : upper.has(l) ? 0 : -1; }
+  const stride = Math.max(1, Math.round(Math.sqrt(cw * ch / 250000)));    // big parts: sample rows and columns evenly
+  let edge = 0, area = 0;
+  const memo = new Map();
+  const score = (dx, dy) => {
+    const key = dx.toFixed(3) + "," + dy.toFixed(3); if (memo.has(key)) return memo.get(key);
+    g.clearRect(0, 0, cw, ch); g.drawImage(im, R + dx, R + dy, ww, wh);
+    const a = g.getImageData(0, 0, cw, ch).data; let s = 0, e = 0, ar = 0;
+    for (let y = 0; y < ch; y += stride) for (let x = 0; x < cw; x += stride) { const i = y * cw + x, v = a[i * 4 + 3]; if (v) { s += v * wt[i]; ar += v; if (v < 255) e++; } }
+    if (!memo.size) { edge = e * stride; area = ar / 255; }
+    memo.set(key, s / 255); return s / 255;
+  };
+  const s0 = score(0, 0); if (!area) return null;
+  // Whole pixels: a coarse grid, then single steps.
+  let best = [0, 0], bs = s0; const step = Math.max(1, Math.floor(R / 3));
+  for (let dy = -R; dy <= R; dy += step) for (let dx = -R; dx <= R; dx += step) { const v = score(dx, dy); if (v > bs) { bs = v; best = [dx, dy]; } }
+  for (let pass = 0; pass < 4; pass++) {
     const [cx, cy] = best;
-    for (let dy = -step; dy <= step; dy++) for (let dx = -step; dx <= step; dx++) { if (Math.abs(cx + dx) > R || Math.abs(cy + dy) > R) continue; const v = sc(cx + dx, cy + dy); if (v > bs) { bs = v; best = [cx + dx, cy + dy]; } }
+    for (let dy = -step; dy <= step; dy++) for (let dx = -step; dx <= step; dx++) { if (Math.abs(cx + dx) > R || Math.abs(cy + dy) > R) continue; const v = score(cx + dx, cy + dy); if (v > bs) { bs = v; best = [cx + dx, cy + dy]; } }
     if (best[0] === cx && best[1] === cy) break;
   }
-  if (bs - s0 <= 0.003 * total) return [0, 0];              // already as good as it gets
-  const para = (m, z, p) => { const den = m - 2 * z + p; return den < 0 ? Math.max(-0.5, Math.min(0.5, (m - p) / (2 * den))) : 0; };
-  const [bx, by] = best;
-  return [bx + para(sc(bx - 1, by), bs, sc(bx + 1, by)), by + para(sc(bx, by - 1), bs, sc(bx, by + 1))];
+  // Fractions: one axis at a time, in tenths and then hundredths of a pixel.
+  const refine = axis => { for (const st of [0.1, 0.02]) { const c0 = best[axis]; for (let k = -6; k <= 6; k++) { const t = best.slice(); t[axis] = c0 + k * st; if (Math.abs(t[axis]) > R) continue; const v = score(t[0], t[1]); if (v > bs) { bs = v; best = t; } } } };
+  refine(0); refine(1); refine(0);
+  // Leave alone any direction the original doesn't pin down.
+  const need = 0.025 * Math.max(edge, 1);
+  const sensX = bs - Math.max(score(best[0] - 1, best[1]), score(best[0] + 1, best[1])), sensY = bs - Math.max(score(best[0], best[1] - 1), score(best[0], best[1] + 1));
+  return [sensX >= need ? best[0] : 0, sensY >= need ? best[1] : 0];
 }
 async function alignToOriginal() {
   if (!result || alignBusy) return;
   const units = selection.length ? unitsOf(selection) : allUnits(); if (!units.length) return;
   alignBusy = true; $("#alignOrig").disabled = true; pushUndo();
+  const res = result, minMove = 0.04 * workPerOrig();          // smaller than 0.04 original px isn't a move
   let moved = 0;
   try {
     for (let i = 0; i < units.length; i++) {
+      if (result !== res) break;                                 // retraced meanwhile: these parts are gone
       if (units.length > 8) setStatus("working", `Aligning ${i + 1} of ${units.length}`);
-      const d = await bestShift(units[i]);
-      if (d && (Math.abs(d[0]) > 0.02 || Math.abs(d[1]) > 0.02)) { moveUnits([units[i]], d[0], d[1]); moved++; }
+      const d = await bestShift(units[i]); if (!d || result !== res) continue;
+      if (Math.hypot(d[0], d[1]) >= minMove) { moveUnits([units[i]], d[0], d[1]); moved++; }
     }
-  } finally { alignBusy = false; $("#alignOrig").disabled = false; }
-  setStatus("done", "Aligned"); render();
+  } finally { alignBusy = false; $("#alignOrig").disabled = false; setStatus("done", "Aligned"); }
+  if (!moved) undoStack.pop();                                    // nothing changed: no undo step
+  render();
   const n = units.length;
   toast(moved ? `Moved ${moved} of ${n} ${n === 1 ? "part" : "parts"} to match the original. Press ⌘Z to undo.` : `${n === 1 ? "That part already matches" : "Every part already matches"} the original.`);
 }
@@ -163,9 +182,9 @@ $("#stage").addEventListener("pointerdown", e => {
   e.stopPropagation(); e.preventDefault();
   const has = k => selection.some(s => s.li === k.li && s.ii === k.ii);
   if (!keys.every(has)) { setSelection(e.shiftKey ? selection.concat(keys.filter(k => !has(k))) : keys); drawSelection(); renderPalette(); }
-  else if (e.shiftKey) { setSelection(selection.filter(s => !keys.some(k => k.li === s.li && k.ii === s.ii))); drawSelection(); renderPalette(); return; }
+  const toggle = e.shiftKey && keys.every(has);                   // Shift-click on a selected part deselects it, unless you drag
   const units = unitsOf(selection), ex = new Set(units.flatMap(u => u.keys.map(k => k.li + ":" + k.ii)));
-  dragAl = { id: e.pointerId, x: e.clientX, y: e.clientY, units, box: unionBox(units.map(unitBox)), targets: snapTargets(ex), d: [0, 0], moved: false };
+  dragAl = { id: e.pointerId, x: e.clientX, y: e.clientY, units, box: unionBox(units.map(unitBox)), targets: snapTargets(ex), d: [0, 0], moved: false, toggle, keys };
   try { $("#stage").setPointerCapture(e.pointerId); } catch { /* synthetic events */ }
 }, true);
 $("#stage").addEventListener("pointermove", e => {
@@ -181,21 +200,27 @@ $("#stage").addEventListener("pointermove", e => {
     if (sx) { dx += sx.d; lines.push(["x", sx.at]); }
     if (sy) { dy += sy.d; lines.push(["y", sy.at]); }
   }
-  if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }   // Shift keeps the move level or upright
+  if (e.shiftKey) {                                            // Shift keeps the move level or upright
+    const keepX = Math.abs(dx) > Math.abs(dy); if (keepX) dy = 0; else dx = 0;
+    for (let i = lines.length - 1; i >= 0; i--) if (lines[i][0] === (keepX ? "y" : "x")) lines.splice(i, 1);
+  }
   dragAl.d = [dx, dy];
   drawSnapLines(lines);
   const svg = $("#vec svg"), t = `translate(${dx} ${dy})`;
+  // Keep any rotation a shape already has; the move goes in front of it.
+  const place = el => { if (!el) return; if (el.dataset.tf0 == null) el.dataset.tf0 = el.getAttribute("transform") || ""; el.setAttribute("transform", (t + " " + el.dataset.tf0).trim()); };
   for (const u of dragAl.units) {
-    for (const kk of u.keys) { const el = svg.querySelector(`[data-k="${kk.li}:${kk.ii}"]`); if (el) el.setAttribute("transform", t); }
-    if (u.word) { const el = svg.querySelector(`[data-t="${u.word.id}"]`); if (el) el.setAttribute("transform", t); }
+    for (const kk of u.keys) place(svg.querySelector(`[data-k="${kk.li}:${kk.ii}"]`));
+    if (u.word) place(svg.querySelector(`[data-t="${u.word.id}"]`));
   }
-  const hl = svg.querySelector(".sel"); if (hl) hl.setAttribute("transform", t);
+  place(svg.querySelector(".sel"));
   showReadout(dragAl.units, dx, dy);
 });
 const endAlignDrag = e => {
   if (!dragAl || e.pointerId !== dragAl.id) return;
   const d = dragAl; dragAl = null; drawSnapLines([]);
   if (d.moved && e.type !== "pointercancel" && (d.d[0] || d.d[1])) { pushUndo(); moveUnits(d.units, d.d[0], d.d[1]); }
+  else if (!d.moved && d.toggle) { setSelection(selection.filter(s => !d.keys.some(k => k.li === s.li && k.ii === s.ii))); renderPalette(); }
   render();
 };
 $("#stage").addEventListener("pointerup", endAlignDrag);
@@ -203,7 +228,7 @@ $("#stage").addEventListener("pointercancel", endAlignDrag);
 
 document.addEventListener("keydown", e => {
   if (view !== "align" || !result || !selection.length || typingIn(e.target) || e.metaKey || e.ctrlKey) return;
-  if (e.target.closest && e.target.closest(".inspector, [role=slider], select, [role=tab]")) return;
+  if (e.target.closest && e.target.closest(".inspector, .alignbar input, input, [role=slider], select, [role=tab]")) return;
   const step = e.shiftKey ? 1 : 0.1, m = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
   if (!m) return;
   e.preventDefault(); nudge(...m);
@@ -229,7 +254,7 @@ function syncAlignBar() {
   $("#resetPos").disabled = !moves.length; $("#clearGuides").hidden = !guides.length;
   showReadout(units);
 }
-document.querySelectorAll("[data-amode]").forEach(b => b.addEventListener("click", () => { alignMode = b.dataset.amode; applyView(); }));
+document.querySelectorAll("[data-amode]").forEach(b => b.addEventListener("click", () => { alignMode = b.dataset.amode; applyView(); scheduleDiff(0); }));
 $("#vecOpacity").addEventListener("input", e => { vecOpacity = +e.target.value / 100; $("#stage").style.setProperty("--vec-op", vecOpacity); $("#vecOpacityOut").textContent = e.target.value + "%"; });
 $("#alignOrig").onclick = alignToOriginal;
 $("#resetPos").onclick = resetPositions;
@@ -237,28 +262,47 @@ $("#clearGuides").onclick = () => { if (!guides.length) return; pushUndo(); guid
 document.querySelectorAll("[data-align]").forEach(b => b.addEventListener("click", () => alignUnits(b.dataset.align)));
 
 /* ---------- Difference overlay ---------- */
-// Red where the vector and the original disagree by more than a pixel's worth of anti-aliasing.
+// Compares colors, not pixels: the original's colors as traced (result.lab) against the color the vector
+// draws at each pixel. A mismatch only shows when it's wider than about half an original pixel, so the
+// anti-aliased rim along every edge doesn't light up.
+function scheduleDiff(ms = 120) { clearTimeout(diffTimer); if (view === "align" && alignMode === "diff") diffTimer = setTimeout(drawDiff, ms); }
 async function drawDiff() {
   const c = $("#diffCanvas"); if (view !== "align" || alignMode !== "diff" || !result) return;
   const seq = ++diffSeq, W = result.w, H = result.h, svg = buildSVG(false, { noDest: true }); if (!svg) return;
   const im = await loadImage("data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.replace(/<svg[^>]*>/, `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`)));
-  if (seq !== diffSeq) return;
-  const bgp = result.palette.find(p => p.bg), bg = bgp ? fromHex(bgp.hex) : [255, 255, 255];
+  if (seq !== diffSeq || !result || result.w !== W) return;
   const t = document.createElement("canvas"); t.width = W; t.height = H; const g = t.getContext("2d", { willReadFrequently: true });
-  g.fillStyle = `rgb(${bg.join(",")})`; g.fillRect(0, 0, W, H); g.drawImage(im, 0, 0, W, H);
-  const v = g.getImageData(0, 0, W, H).data, o = sourcePixels().data;
-  const op = new Uint8ClampedArray(W * H * 3);   // the original over the same background
-  for (let i = 0, j = 0; i < W * H; i++, j += 4) { const a = o[j + 3] / 255; for (let ch = 0; ch < 3; ch++) op[i * 3 + ch] = o[j + ch] * a + bg[ch] * (1 - a); }
-  // Colors closer than this (RGB distance) count as the same; logo colors usually sit much farther apart.
-  const out = new ImageData(W, H), d = out.data, TH2 = 40 * 40;
-  const close = (i, j) => (op[i * 3] - v[j * 4]) ** 2 + (op[i * 3 + 1] - v[j * 4 + 1]) ** 2 + (op[i * 3 + 2] - v[j * 4 + 2]) ** 2 <= TH2;
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const i = y * W + x; let ok = close(i, i);
-    // A pixel only counts as wrong when no vector pixel next to it matches either.
-    for (let yy = Math.max(0, y - 1); !ok && yy <= Math.min(H - 1, y + 1); yy++) for (let xx = Math.max(0, x - 1); !ok && xx <= Math.min(W - 1, x + 1); xx++) ok = close(i, yy * W + xx);
-    const p = i * 4;
-    if (ok) { const l = 0.2126 * op[i * 3] + 0.7152 * op[i * 3 + 1] + 0.0722 * op[i * 3 + 2]; const gv = 200 + l * 0.2; d[p] = d[p + 1] = d[p + 2] = gv; d[p + 3] = 255; }
-    else { d[p] = 226; d[p + 1] = 32; d[p + 2] = 60; d[p + 3] = 255; }
+  g.drawImage(im, 0, 0, W, H);
+  const v = g.getImageData(0, 0, W, H).data, o = sourcePixels().data, lab = result.lab;
+  // The colors the vector draws, each standing for its layer's color in the trace.
+  const shown = visibleLayers().map(L => ({ label: L.label, rgb: fromHex(recolor[L.hex] || L.hex) }));
+  const vlab = new Int16Array(W * H);
+  for (let i = 0, j = 0; i < W * H; i++, j += 4) {
+    if (v[j + 3] < 128) { vlab[i] = -1; continue; }
+    let best = -1, bd = Infinity; for (const sL of shown) { const d = (v[j] - sL.rgb[0]) ** 2 + (v[j + 1] - sL.rgb[1]) ** 2 + (v[j + 2] - sL.rgb[2]) ** 2; if (d < bd) { bd = d; best = sL.label; } }
+    vlab[i] = best;
+  }
+  const hiddenLabels = new Set(result.layers.filter(L => !visibleLayers().includes(L)).map(L => L.label));
+  let bad = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) { const ol = hiddenLabels.has(lab[i]) ? -1 : lab[i]; bad[i] = ol !== vlab[i] ? 1 : 0; }
+  // Keep only mismatches at least half an original pixel wide: a pixel stays red when it sits in a fully
+  // mismatched m × m block, where m work pixels is just over half an original pixel.
+  const m = Math.max(1, Math.ceil(0.5 * workPerOrig() + 1e-9));
+  if (m > 1) {
+    const I = new Int32Array((W + 1) * (H + 1));
+    for (let y = 0; y < H; y++) { let row = 0; for (let x = 0; x < W; x++) { row += bad[y * W + x]; I[(y + 1) * (W + 1) + x + 1] = I[y * (W + 1) + x + 1] + row; } }
+    const keep = new Uint8Array(W * H);
+    for (let y = 0; y + m <= H; y++) for (let x = 0; x + m <= W; x++) {
+      if (I[(y + m) * (W + 1) + x + m] - I[y * (W + 1) + x + m] - I[(y + m) * (W + 1) + x] + I[y * (W + 1) + x] !== m * m) continue;
+      for (let dy = 0; dy < m; dy++) for (let dx = 0; dx < m; dx++) keep[(y + dy) * W + x + dx] = 1;
+    }
+    bad = keep;
+  }
+  const out = new ImageData(W, H), d = out.data;
+  for (let i = 0, j = 0; i < W * H; i++, j += 4) {
+    if (bad[i]) { d[j] = 226; d[j + 1] = 32; d[j + 2] = 60; d[j + 3] = 255; continue; }
+    const a = o[j + 3] / 255, l = a * (0.2126 * o[j] + 0.7152 * o[j + 1] + 0.0722 * o[j + 2]) + (1 - a) * 255, gv = 200 + l * 0.2;
+    d[j] = d[j + 1] = d[j + 2] = gv; d[j + 3] = 255;
   }
   c.width = W; c.height = H; c.getContext("2d").putImageData(out, 0, 0);
 }
@@ -310,21 +354,29 @@ function startGuide(e, axis, idx) {
   e.preventDefault(); e.stopPropagation();
   if (idx == null) { guides.push({ axis, v: guideValue(e, axis) }); idx = guides.length - 1; guideDrag = { idx, isNew: true, before: null }; }
   else guideDrag = { idx, isNew: false, before: { ...guides[idx] } };
-  guideDrag.id = e.pointerId; drawGuides();
+  guideDrag.id = e.pointerId; guideDrag.x = e.clientX; guideDrag.y = e.clientY; guideDrag.moved = false; drawGuides();
 }
 $("#rulerX").addEventListener("pointerdown", e => { if (result) startGuide(e, "y"); });   // the top ruler makes level guides
 $("#rulerY").addEventListener("pointerdown", e => { if (result) startGuide(e, "x"); });
 $("#guides").addEventListener("pointerdown", e => { const l = e.target.closest(".guide-hit"); if (l) startGuide(e, guides[+l.dataset.guide].axis, +l.dataset.guide); });
-$("#guides").addEventListener("dblclick", e => { const l = e.target.closest(".guide-hit"); if (!l) return; pushUndo(); guides.splice(+l.dataset.guide, 1); drawGuides(); syncAlignBar(); });
+var lastGuideClick = null;   // { idx, t }: two clicks on a guide within 400 ms remove it
 window.addEventListener("pointermove", e => {
   if (view === "align" && result && !guideDrag) drawRulers([e.clientX, e.clientY]);
   if (!guideDrag || e.pointerId !== guideDrag.id) return;
+  if (!guideDrag.moved && Math.hypot(e.clientX - guideDrag.x, e.clientY - guideDrag.y) < 3) return;
+  guideDrag.moved = true;
   const gd = guides[guideDrag.idx]; gd.v = Math.round(guideValue(e, gd.axis) * 100) / 100; drawGuides(); drawRulers([e.clientX, e.clientY]);
   $("#alignNote").textContent = `Guide at ${fmtPx(gd.v / workPerOrig())} px${overRuler(e) ? ". Let go here to remove it." : ""}`;
 });
 window.addEventListener("pointerup", e => {
   if (!guideDrag || e.pointerId !== guideDrag.id) return;
   const g = guideDrag; guideDrag = null; const now = guides[g.idx];
+  if (!g.isNew && !g.moved) {                                    // a click, not a drag
+    const t = performance.now(), dbl = lastGuideClick && lastGuideClick.idx === g.idx && t - lastGuideClick.t < 400;
+    lastGuideClick = dbl ? null : { idx: g.idx, t };
+    if (dbl) { pushUndo(); guides.splice(g.idx, 1); }
+    drawGuides(); syncAlignBar(); return;
+  }
   const remove = overRuler(e);
   // Record the step for undo as it was before the drag.
   if (g.isNew) { guides.splice(g.idx, 1); if (!remove) { pushUndo(); guides.push(now); } }
@@ -337,7 +389,7 @@ function afterAlignRender() {
   if (!alignReady) return;
   if (view !== "align") return;
   drawGuides(); syncAlignBar(); drawRulers();
-  clearTimeout(diffTimer); if (alignMode === "diff") diffTimer = setTimeout(drawDiff, 120);
+  scheduleDiff();
 }
 function applyAlignView() {
   if (!alignReady) return;
@@ -349,6 +401,6 @@ function applyAlignView() {
   drawGuides(); syncAlignBar();
   if (on !== was && job) layoutSheet();          // the bar takes room from the canvas, so fit the image again
   drawRulers();
-  if (on && alignMode === "diff") drawDiff();
+  scheduleDiff(on !== was ? 0 : 120);
 }
 alignReady = true;

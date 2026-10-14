@@ -7,9 +7,9 @@ The app shows its version and build in the window title and the toolbar. Each Gi
 - New Align view (View > Align, or the Align tab above the canvas) for lining parts up with the original exactly.
 - Onion skin shows the original under the vector, with a slider for how strongly the vector shows. Difference shows the original in gray and marks in red where the vector is off by more than about half a pixel.
 - Drag parts to move them, or nudge them with the arrow keys: 0.1 px, or 1 px with Shift. A letter in a word set in a font moves with its whole word.
-- Align to original moves the selection, or every part, to where it best matches the original, within 3 px.
+- Align to original moves the selection, or every part, to where it best matches the original, to within about a tenth of a pixel, looking up to about 3 px away. A part whose position the original doesn't show, such as a color hidden under another, stays put.
 - Rulers along the top and left edges, in the original image's pixels. Drag from a ruler to add a guide. Drag a guide back onto a ruler, or double-click it, to remove it.
-- While you drag, parts snap to guides, to the edges and centers of other parts, and to the middle of the image, and a pink line shows what they snapped to. Hold Option to drag without snapping, or Shift to keep the move level or upright.
+- While you drag, parts snap to guides, to the edges and centers of other parts, and to the middle of the image, and a pink line shows what they snapped to. Hold Option to drag without snapping, or Shift to keep the move level or upright. Shift-click a selected part to deselect it.
 - Align buttons line up left edges, centers, right edges, tops, middles, or bottoms across selected parts. Reset positions puts parts back where they were traced.
 - Moves stay through retraces, undo, and every export.
 

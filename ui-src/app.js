@@ -712,8 +712,8 @@ function layerBody(L, li, keyed, part = "all", box = null, only = null) {
   });
   if (part !== "art") for (const T of words) {
     const font = T.mode === "font" && T.pick ? ` data-font="${esc(T.pick.label || T.pick.fam)} ${T.pick.w}"` : "";
-    // A word moves with its first letter's offset (letters of a word always move together).
-    const [wx, wy] = offOf(L.items[T.items[0]] || {});
+    // A word moves with its first remaining letter's offset (letters of a word always move together).
+    const [wx, wy] = offOf(L.items[T.items.find(ii => !L.items[ii].off) ?? T.items[0]] || {});
     for (const it of T.repl) { const b = bboxOf(it.outer.q); grow([b[0] + wx, b[1] + wy, b[2] + wx, b[3] + wy]); }
     out.push(`<g data-text="${esc(T.text || "")}"${font}>` + `<path${keyed ? ` data-t="${T.id}"` : ""} d="${translateD(T.repl.map(it => [it.outer, ...it.holes].map(r => VZ.outlineD(r.outline)).join("")).join(""), wx, wy)}"/>` + `</g>`);
   }

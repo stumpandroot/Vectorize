@@ -126,7 +126,7 @@ Choose **Align** above the canvas (or **View > Align**).
 
 1. Pick **Onion skin** to see the original under the vector, or **Difference** to see in red where the vector is off by more than about half a pixel.
 2. Select parts and drag them, or nudge them with the arrow keys: 0.1 px per press, or 1 px with Shift. Clicking a letter in a word that's set in a font selects the whole word.
-3. Click **Align selection to original** (or **Align all to original** with nothing selected) to move parts to where they best match the original, within 3 px.
+3. Click **Align selection to original** (or **Align all to original** with nothing selected) to move parts to where they best match the original, to within about a tenth of a pixel, looking up to about 3 px away. A part whose position the original doesn't show, such as a color hidden under another, stays put.
 
 Drag from the top or left ruler to add a guide, and drag it back onto the ruler to remove it. While you drag a part, it snaps to guides, to other parts' edges and centers, and to the middle of the image; hold Option to turn snapping off. With two or more parts selected, the align buttons line up their edges or centers. Moves stay through retraces and undo, and go into every export.
 

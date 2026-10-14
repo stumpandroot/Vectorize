@@ -137,6 +137,57 @@ async def main():
         await pg.click("#v-vector"); await pg.wait_for_timeout(200)
         check("leaving Align hides its tools", await pg.evaluate("$('#alignBar').hidden && $('#rulerX').hidden && $('#guides').hasAttribute('hidden')"))
 
+        # ---- Findings from review
+        await pg.click("#v-align"); await pg.evaluate("moves = []; guides = []; applyObjEdits(); render()")
+        # Sub-pixel: a letter nudged 0.3 px comes back to where it fits best, whatever its start.
+        url2 = "data:image/png;base64," + base64.b64encode((IMAGES / "sans-wordmark.png").read_bytes()).decode()
+        await pg.evaluate("async u => { const d = convertDone(); await openImage(u, 'w.png', ''); await d; }", url2)
+        await pg.evaluate("setView('align')")
+        fits = await pg.evaluate("""(async () => { const out = []; for (const sh of [0, 0.3, -0.25]) { moves = []; applyObjEdits(); const u = allUnits()[2], k = workPerOrig();
+            moveUnits([u], sh * k, sh * k); const d = await bestShift(u), it = itemOf(u.keys[0]); out.push([(it.dx + d[0]) / k, (it.dy + d[1]) / k]); } return out; })()""")
+        spread = max(abs(a[i] - fits[0][i]) for a in fits for i in (0, 1))
+        check("sub-pixel shifts come back to the same fit", spread < 0.1, [[round(v, 3) for v in f] for f in fits])
+        await pg.evaluate("moves = []; applyObjEdits(); render()")
+        # A part hidden under another color is left alone.
+        await pg.evaluate("async u => { const d = convertDone(); await openImage(u, 'badge.png', ''); await d; }", url)
+        await pg.evaluate("setView('align')")
+        hid = await pg.evaluate("(async () => { const u = allUnits().find(u => colorName(result.layers[u.keys[0].li].hex) === 'Yellow'); moveUnits([u], 1, 1); return await bestShift(u); })()")
+        check("a hidden part isn't moved", hid == [0, 0], hid)
+        await pg.evaluate("moves = []; applyObjEdits(); render()")
+        # Difference: drawn once per change, and a 0.8 px move shows more red than none.
+        calls = await pg.evaluate("""(async () => { alignMode = 'diff'; applyView(); await new Promise(r => setTimeout(r, 300)); let n = 0; const o = drawDiff; window.drawDiff = async function () { n++; return o(); };
+            render(); await new Promise(r => setTimeout(r, 500)); window.drawDiff = o; return n; })()""")
+        check("difference is drawn once per change", calls == 1, calls)
+        RED = "(() => { const c = $('#diffCanvas'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] === 226 && d[i + 1] === 32) n++; return n; })()"
+        r0 = await pg.evaluate(RED)
+        await pg.evaluate("(() => { const u = allUnits().find(u => colorName(result.layers[u.keys[0].li].hex) === 'Coral'); moveUnits([u], 0.8 * workPerOrig(), 0); render(); })()"); await pg.wait_for_timeout(700)
+        r1 = await pg.evaluate(RED)
+        check("difference shows a 0.8 px move", r1 > r0 + 100, f"{r0} -> {r1}")
+        await pg.evaluate("alignMode = 'onion'; moves = []; applyObjEdits(); applyView(); render()")
+        # Guides: a click adds no undo step; a double click removes the guide.
+        await pg.evaluate("guides = [{ axis: 'x', v: 200 }]; drawGuides()")
+        gx = await pg.evaluate("(l => { const r = l.getBoundingClientRect(); return [r.left + r.width / 2, $('#sheet').getBoundingClientRect().top + 60]; })($('#guides .guide-hit'))")
+        n0 = await pg.evaluate("undoStack.length")
+        await pg.mouse.click(*gx); await pg.wait_for_timeout(500)
+        check("clicking a guide adds no undo step", await pg.evaluate("undoStack.length") == n0)
+        await pg.mouse.dblclick(*gx); await pg.wait_for_timeout(200)
+        check("double-clicking a guide removes it", await pg.evaluate("guides.length") == 0)
+        # Shift-drag on a selected part moves it level instead of deselecting it.
+        coral = await pg.evaluate("(() => { const li = result.layers.findIndex(L => colorName(L.hex) === 'Coral'); setSelection([{ li, ii: 0 }]); drawSelection(); return [li, 0]; })()")
+        x, y = await pg.evaluate(CENTER, coral)
+        await pg.keyboard.down("Shift"); await pg.mouse.move(x, y); await pg.mouse.down(); await pg.mouse.move(x + 20, y + 4, steps=4); await pg.mouse.up(); await pg.keyboard.up("Shift")
+        o = await pg.evaluate(OFF, coral)
+        check("Shift-drag moves a selected part level", o[0] > 1 and o[1] == 0 and await pg.evaluate("selection.length") == 1, o)
+        # A set word keeps moving after its first letter is deleted.
+        res = await pg.evaluate("""(() => { S.textMode = 'auto'; setupText(); const T = (result.texts || []).find(T => !T.removed && T.items.length > 2); const L = result.layers[T.li];
+            T.repl = T.items.map(ii => L.items[ii]).map(it => ({ outer: it.outer, holes: it.holes })); T.mode = 'font';
+            setItemOff(T.li, T.items[0], 'delete'); render(); const before = document.querySelector(`#vec [data-t="${T.id}"]`).getAttribute('d');
+            setSelection([{ li: T.li, ii: T.items[1] }]); nudge(5, 0); const after = document.querySelector(`#vec [data-t="${T.id}"]`).getAttribute('d'); return before !== after; })()""")
+        check("a word moves after its first letter is deleted", res)
+        # Reset positions clears a move even when its stored box has drifted.
+        left = await pg.evaluate("(() => { moves = []; applyObjEdits(); const u = allUnits()[1]; moveUnits([u], 4, 0); moves[0].box = moves[0].box.map(v => v + 1); applyObjEdits(); setSelection([]); resetPositions(); applyObjEdits(); return [moves.length, itemOf(u.keys[0]).dx]; })()")
+        check("Reset positions clears drifted moves", left == [0, 0], left)
+
         check("no page errors", not errs, errs)
         await b.close()
     print(f"{sum(OK)}/{len(OK)} passed")

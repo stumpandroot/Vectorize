@@ -45,6 +45,7 @@ function afterTrace() {
   hidden = mapSet(hidden); deletedLayers = mapSet(deletedLayers); expanded = mapSet(expanded);
   if (drawOrder) drawOrder = [...new Set(drawOrder.map(near).filter(Boolean))];
   for (const e of objEdits) e.hex = near(e.hex) || e.hex;
+  for (const m of moves) m.hex = near(m.hex) || m.hex;
   for (const t of tunes) { if (t.kind === "layer") t.hex = near(t.hex) || t.hex; else for (const pt of t.parts) pt.hex = near(pt.hex) || pt.hex; }
   if (tuneScope && tuneScope.kind === "layer") tuneScope.hex = near(tuneScope.hex) || tuneScope.hex;
   syncDials();
@@ -94,19 +95,21 @@ async function matchWords(res, j, stale = () => false) {
   return swapped;
 }
 // Finds the part an edit was made to, by its traced box, after a retrace.
-function findPart(e, tol) {
-  let best = null, bd = Infinity;
+function findPart(e, tol, withLayer = false) {
+  let best = null, bL = null, bd = Infinity;
   for (const L of result.layers) for (const it of L.items) {
     const b = itemBox(it); let d = 0; for (let i = 0; i < 4; i++) d = Math.max(d, Math.abs(b[i] - e.box[i]));
-    if (d < tol) { const dd = d + (L.hex === e.hex ? 0 : tol); if (dd < bd) { bd = dd; best = it; } }
+    if (d < tol) { const dd = d + (L.hex === e.hex ? 0 : tol); if (dd < bd) { bd = dd; best = it; bL = L; } }
   }
-  return best;
+  return withLayer ? [best, bL] : best;
 }
+const partTol = () => 0.02 * Math.max(result.w, result.h);
 function applyObjEdits() {
   if (!result) return;
   const tol = 0.02 * Math.max(result.w, result.h);
   for (const L of result.layers) for (const it of L.items) { it.off = null; it.dx = it.dy = 0; }
-  for (const m of moves) { const it = findPart(m, tol); if (it) { it.dx = m.dx; it.dy = m.dy; } }
+  // Each move re-anchors to the part it matched, so its box and color never drift from the trace.
+  for (const m of moves) { const [it, L] = findPart(m, tol, true); if (it) { it.dx = m.dx; it.dy = m.dy; m.box = itemBox(it).slice(); m.hex = L.hex; } }
   for (const e of objEdits) {
     let best = null, bd = Infinity;
     for (const L of result.layers) for (const it of L.items) {
@@ -594,7 +597,7 @@ async function startBatch(items) {
 function stashCurrent() {
   if (!batch || batch.cur < 0 || !result) return;
   const it = batch.items[batch.cur]; it.state = editState(); it.svgOut = buildSVG(false, { part: partMode }); it.sKey = settingsKey();
-  const st = it.state, edited = Object.keys(st.recolor).length || st.hidden.length || st.objEdits.length || st.manualSnaps.length || st.textMemory.length || st.drawOrder || st.deletedLayers.length || st.partMode !== "all";
+  const st = it.state, edited = Object.keys(st.recolor).length || st.hidden.length || st.objEdits.length || st.manualSnaps.length || st.textMemory.length || st.drawOrder || st.deletedLayers.length || st.partMode !== "all" || (st.moves || []).length;
   if (it.status !== "Exported") it.status = edited ? "Edited" : "Viewed";
 }
 async function showBatchItem(i) {
