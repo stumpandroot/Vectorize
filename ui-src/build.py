@@ -29,11 +29,10 @@ def build():
     for name, src in (("app.js + editor.js + align.js", js), ("fit.js", fit)):
         assert "</script" not in src, f"{name} contains </script"
     js = js.replace("%%BUILD%%", os.environ.get("VZ_BUILD", "dev"))
-    for key in ("%%FIT%%", "%%MARK%%", "%%PIX%%", "%%JS%%"):
+    for key in ("%%FIT%%", "%%MARK%%", "%%JS%%"):
         assert t.count(key) == 1, key
     # Replace the JS last so nothing inside it is mistaken for a placeholder.
-    return (t.replace("%%MARK%%", svg_inline("vectorize-mark.svg"))
-             .replace("%%PIX%%", svg_inline("pix_working.svg"))
+    return (t.replace("%%MARK%%", svg_inline("app-icon.svg"))
              .replace("%%FIT%%", fit)
              .replace("%%JS%%", js))
 

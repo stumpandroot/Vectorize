@@ -17,6 +17,18 @@ def macos_version() -> tuple[int, ...]:
     return tuple(int(p) for p in v.split(".") if p.isdigit()) if v else ()
 
 
+def accessibility_display() -> dict:
+    """The Mac's display accessibility settings the interface follows: Reduce Transparency and
+    Increase Contrast. WebKit doesn't report Reduce Transparency to web pages, so the app passes it in."""
+    try:
+        from AppKit import NSWorkspace
+        ws = NSWorkspace.sharedWorkspace()
+        return {"reduce_transparency": bool(ws.accessibilityDisplayShouldReduceTransparency()),
+                "increase_contrast": bool(ws.accessibilityDisplayShouldIncreaseContrast())}
+    except Exception:
+        return {"reduce_transparency": False, "increase_contrast": False}
+
+
 def can_remove_background() -> bool:
     # Subject lifting (VNGenerateForegroundInstanceMaskRequest) arrived in macOS 14 Sonoma.
     return macos_version() >= (14,)

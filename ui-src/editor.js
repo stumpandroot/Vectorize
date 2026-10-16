@@ -488,8 +488,28 @@ async function doExport() {
   if (!result || !visibleLayers().length || !gate()) return;
   if (S.output === "sticker") await buildSticker();
   const fmt = fmtNow(), svg = buildSVG(false, { part: partMode });
-  await saveItem(await makeItem(svg, stemOf(job.name) + (partMode === "art" ? " icon" : partMode === "text" ? " words" : ""), fmt));
+  morphExport("Exporting…");
+  const saved = await saveItem(await makeItem(svg, stemOf(job.name) + (partMode === "art" ? " icon" : partMode === "text" ? " words" : ""), fmt));
+  morphExport(saved ? "Saved" : null);
+  if (saved) celebrateFirstExport();
   if (batch && batch.cur >= 0) { batch.items[batch.cur].status = "Exported"; renderBatch(); }
+}
+// Text morph for state: Export → Exporting… → Saved, then back.
+let morphT = 0;
+function morphExport(text) {
+  clearTimeout(morphT); const el = $("#exportLabel");
+  if (text) { el.textContent = text; if (text === "Saved") morphT = setTimeout(() => syncEditorControls(), 1400); }
+  else syncEditorControls();
+}
+// The app's one celebrate moment: the first export ever. One ring leaves the Export button.
+function celebrateFirstExport() {
+  let done = false;
+  try { done = NATIVE ? !!(APP && APP.settings && APP.settings.celebrated) : localStorage.getItem("vz-celebrated") === "1"; } catch { done = true; }
+  if (done) return;
+  try { if (NATIVE) { NATIVE.remember("celebrated", true); if (APP && APP.settings) APP.settings.celebrated = true; } else localStorage.setItem("vz-celebrated", "1"); } catch { /* storage off */ }
+  const sp = document.querySelector(".export-split"); sp.classList.remove("celebrate"); void sp.offsetWidth; sp.classList.add("celebrate");
+  setTimeout(() => sp.classList.remove("celebrate"), 1000);
+  toast("First export saved.");
 }
 async function exportSelection() {
   if (!result) return;
@@ -613,7 +633,7 @@ function leaveBatch() { batch = null; renderBatch(); }
 function renderBatch() {
   $("#batch").hidden = !batch; if (!batch) return;
   $("#batchCount").textContent = `${batch.items.length} images`;
-  $("#batchList").innerHTML = batch.items.map((it, i) => `<button type="button" class="batch-item" data-bi="${i}" aria-current="${i === batch.cur}" title="${esc(it.name)}"><img src="${it.src}" alt=""><span><b>${esc(it.name)}</b><small>${i === batch.cur ? "Open now" : esc(it.status)}</small></span></button>`).join("");
+  $("#batchList").innerHTML = batch.items.map((it, i) => `<button type="button" class="batch-item" data-card="2" data-bi="${i}" aria-current="${i === batch.cur}" title="${esc(it.name)}"><img src="${it.src}" alt=""><span><b>${esc(it.name)}</b><small>${i === batch.cur ? "Open now" : esc(it.status)}</small></span></button>`).join("");
 }
 $("#batchList").addEventListener("click", e => { const b = e.target.closest("[data-bi]"); if (b) showBatchItem(+b.dataset.bi); });
 $("#batchClose").onclick = () => { leaveBatch(); toast("Closed the batch. The open image stays."); };
@@ -1183,12 +1203,59 @@ document.addEventListener("keydown", e => {
 });
 document.addEventListener("keyup", e => { if (e.key === " " && spaceDown) { spaceDown = false; $("#stage").classList.toggle("hand", tool === "hand"); } });
 
+/* ---------- Card motion (family 2.1): tilt toward the pointer, edge light, sheen, lift, press ---------- */
+// Applies to [data-card] elements on pointer devices. data-card holds the most tilt in degrees: 4 for
+// feature cards (preset tiles), 2 for rows (batch items), and wide rows tilt less. Reduce Motion keeps
+// the light, sheen, and shadow and drops tilt, lift, and scale (CSS handles that).
+(() => {
+  const fine = matchMedia("(hover: hover) and (pointer: fine)"), still = matchMedia("(prefers-reduced-motion: reduce)");
+  let hot = null, pressed = false;
+  const set = (el, k, v) => el.style.setProperty(k, v);
+  function aim(el, e) {
+    const r = el.getBoundingClientRect(); if (!r.width || !r.height) return;
+    const px = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), py = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+    const base = (+el.dataset.card || 2) + (pressed ? 1 : 0), row = (+el.dataset.card || 2) <= 2;
+    const wide = row ? Math.min(1, 2.5 * r.height / r.width) : 1;
+    set(el, "--mx", (px * 100).toFixed(1) + "%"); set(el, "--my", (py * 100).toFixed(1) + "%");
+    set(el, "--sx", ((0.5 - px) * 12).toFixed(1) + "px");
+    if (still.matches) return;
+    set(el, "--persp", Math.round(Math.max(r.width, r.height) / 0.55 * 1.6) + "px");
+    set(el, "--ry", ((px - 0.5) * 2 * base * wide).toFixed(2) + "deg");     // the side under the pointer dips away
+    set(el, "--rx", ((0.5 - py) * 2 * base).toFixed(2) + "deg");
+    set(el, "--lift", pressed ? "0px" : row ? "-1.5px" : "-2px");
+  }
+  function rest(el) {
+    el.classList.remove("hot", "pressing");
+    for (const k of ["--rx", "--ry", "--lift", "--press", "--sx"]) el.style.removeProperty(k);
+  }
+  function rim(el) { if (!el.querySelector(":scope > .card-rim")) { const r = document.createElement("span"); r.className = "card-rim"; r.setAttribute("aria-hidden", "true"); el.appendChild(r); } }
+  document.addEventListener("pointermove", e => {
+    if (!fine.matches || e.pointerType === "touch") return;
+    const el = e.target.closest && e.target.closest("[data-card]");
+    if (el !== hot) { if (hot) rest(hot); hot = el; pressed = false; if (el) { rim(el); el.classList.add("hot"); } }
+    if (el) aim(el, e);
+  }, { passive: true });
+  document.addEventListener("pointerleave", () => { if (hot) rest(hot); hot = null; });
+  document.addEventListener("pointerdown", e => {
+    const el = e.target.closest && e.target.closest("[data-card]"); if (!el) return;
+    pressed = true; el.classList.add("pressing"); if (!still.matches) set(el, "--press", ".98"); aim(el, e);
+  });
+  const up = e => {
+    if (!hot) return; pressed = false; hot.classList.remove("pressing"); hot.style.removeProperty("--press");
+    if (e && e.clientX != null && fine.matches) aim(hot, e);
+  };
+  document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
+})();
+
 /* ---------- The Mac app ---------- */
 async function initNative() {
   if (NATIVE || !(window.pywebview && window.pywebview.api && window.pywebview.api.app_info)) return;
   NATIVE = window.pywebview.api;
   try { APP = await NATIVE.app_info(); } catch (e) { APP = { cutout: false, settings: {} }; }
   document.documentElement.classList.add("native");
+  const disp = APP.display || {};
+  document.documentElement.classList.toggle("rt", !!disp.reduce_transparency);
+  document.documentElement.classList.toggle("contrast", !!disp.increase_contrast);
   document.title = "Vectorize";
   const ver = `v${APP.version || ""} · build ${APP.build || "dev"}`;
   $("#badge").textContent = ver; $("#badge").classList.add("ver"); $("#badge").title = `Vectorize ${APP.version} (build ${APP.build}). Interface build ${UI_BUILD}.`;

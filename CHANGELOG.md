@@ -2,6 +2,18 @@
 
 The app shows its version and build in the window title and the toolbar. Each GitHub build has a new build number; the version changes when features change.
 
+## 1.5.0
+
+- New look from the Stump & Root app family design system (version 2.1): warm paper and ink neutrals, a near-black green dark mode, and butter as Vectorize's one accent. See DESIGN.md.
+- The toolbar, the inspector, and the zoom controls are glass. The zoom controls float over the canvas, bottom right. The canvas, fields, and sliders are inset wells, and Export is a raised button.
+- Selected segments and buttons are ink. A selected preset or destination also shows an outline and a check, so selection never depends on color.
+- Preset tiles and batch images respond to the pointer: they tilt slightly toward it, catch a thin edge light, and lift. Clicks press down and spring back without bounce.
+- Section headers in the inspector are numbered, with a mono overline.
+- Text uses the Mac's system fonts (SF Pro and SF Mono), so the app no longer loads web fonts.
+- Export's label changes to "Exporting…" and then "Saved." Your first export ever gets one small ring of celebration.
+- Signal rings replace the mascot while an image converts. The mascot lives on in the new app icon: one ink glyph on butter, with ink and paper variants.
+- The app follows Reduce Motion (no tilt or lift), Reduce Transparency (glass turns opaque), and Increase Contrast (stronger edges, secondary text in ink).
+
 ## 1.4.0
 
 - New Align view (View > Align, or the Align tab above the canvas) for lining parts up with the original exactly.

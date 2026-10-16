@@ -15,6 +15,12 @@ Vectorize turns PNG and JPEG logos into clean SVG, PDF, and EPS files. This repo
 
 The interface detects the Mac app at run time. In the app it adds AI background cutout, PDF and EPS export, native save dialogs, the full list of installed fonts, opening Versa directly, and the license check. In a browser it runs as the web preview.
 
+## Design
+
+Vectorize follows the Stump & Root app family design system (`docs/family-design-system.md`), with its own brand layer in `DESIGN.md`: butter as the accent, glass on the toolbar, inspector, and zoom controls, and the departures from the family doc with their reasons. Read both before you change how the interface looks. `tests/ui/test_design.py` checks contrast and the accessibility modes.
+
+To redraw the app icon, run `python3 packaging/icon/make_icon.py`. It writes the butter, ink, and paper variants, the two layers for Icon Composer (`packaging/icon/layer-background.svg` and `layer-glyph.svg`), the toolbar mark, and `packaging/AppIcon.icns`.
+
 ## Run it from source
 
 You need a Mac with Python 3.12.
@@ -154,6 +160,7 @@ To regenerate the test logos, download the fonts listed in `bench/make_testset.p
   python3 tests/ui/test_tune.py
   python3 tests/ui/test_presets.py
   python3 tests/ui/test_align.py
+  python3 tests/ui/test_design.py
   ```
 
 - A built app checks itself: `dist/Vectorize.app/Contents/MacOS/Vectorize --self-test` checks the bundled parts, and `--smoke-test` opens the window, converts the sample logo, and closes.
