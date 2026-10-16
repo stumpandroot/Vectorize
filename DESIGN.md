@@ -50,7 +50,19 @@ The tokens live in `ui-src/template.html`, in the `:root` block marked "Family t
 | `--ok-text` (sage text-safe) | `#4F6440` | `#B9CDA3` |
 | `--danger` (system red, accessible variant) | `#D70015` | `#FF6961` |
 
-Radii: `--r-sm` 9, `--r-md` 13, `--r-lg` 17, `--r-xl` 23. Motion: `--m-press` 100 ms, `--m-touch` 150 ms, `--m-snappy` 200 ms, `--m-calm` and `--m-card` 300 ms. No bounce anywhere.
+The family doc names washes, a track fill, and hover and press states without giving values. Vectorize derives them as follows, and `test_design.py` checks their contrast:
+
+| Derived token | Light | Dark | How |
+|---|---|---|---|
+| `--accent-wash` | `#FCECCC` | `#484A32` | Butter at 32% (dark: 22%) over `card` |
+| `--warn-wash` | `#FDE3D9` | `#463D30` | Persimmon at about 20% (dark: 18%) over `card` |
+| `--ok-wash` | `#E9EFE0` | `#394A3A` | Sage at about 22% over `card` |
+| `--track` / `--track-strong` | ink at 6.5% / 16% | paper at 7% / 20% | Segmented tracks and switch tracks |
+| `--interactive-hover` / `--interactive-press` | `#33463C` / `#1B2621` | `#F5F0E6` / `#D4CDC0` | Ink lightened for hover; darkened about 10% for press |
+
+Radii: `--r-sm` 9 (buttons, fields, chips), `--r-md` 13 (rows, sheets), `--r-lg` 17 (feature cards, the canvas well, panels), `--r-xl` 23. Two more follow from the spec rather than adding new sizes: segments sit in an 11 pt track with 3 pt padding, so they're 8 pt (concentric: 11 − 3), and small inline badges (counts, the status chip, the version tag, canvas labels) use 6 pt.
+
+Motion: `--m-press` 100 ms, `--m-touch` 150 ms, `--m-snappy` 200 ms, `--m-calm` and `--m-card` 300 ms, with `--ease-card` for keyframe animations. No bounce anywhere. Under Reduce Motion, transitions keep their duration but only fade color, opacity, and shadow.
 
 ## Departures from the family doc, and why
 
@@ -61,6 +73,8 @@ Radii: `--r-sm` 9, `--r-md` 13, `--r-lg` 17, `--r-xl` 23. Motion: `--m-press` 10
 | Glass is CSS (`backdrop-filter`) with a paper tint, not system Liquid Glass | The app's interface is a web view. The tint is strong enough (82%+) that text on it stays legible, and it falls back to opaque `bar` under Reduce Transparency |
 | No grain | Grain is for illustrated level-0 surfaces; Vectorize has none |
 | The Export menu is an opaque popover (`card` with `shadow.high`), not glass | It holds paragraphs of text over the artwork; the family doc keeps glass out from behind text |
+| The inspector is glass even though it holds help text | The Vectorized profile lists the inspector as glass. It sits beside the canvas, never over it, so only plain paper is behind it, and its 84% tint keeps text at 11:1 or better |
+| Reduce Transparency and Increase Contrast are read when the app opens | WebKit doesn't report Reduce Transparency to web pages, so the app passes both settings in at launch. Changing them while the app is open takes effect the next time it opens |
 
 ## Checks
 

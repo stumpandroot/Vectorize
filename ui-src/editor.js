@@ -1235,7 +1235,10 @@ document.addEventListener("keyup", e => { if (e.key === " " && spaceDown) { spac
     if (el !== hot) { if (hot) rest(hot); hot = el; pressed = false; if (el) { rim(el); el.classList.add("hot"); } }
     if (el) aim(el, e);
   }, { passive: true });
-  document.addEventListener("pointerleave", () => { if (hot) rest(hot); hot = null; });
+  // The pointer leaving the window from a card: settle it.
+  const leave = () => { if (hot) rest(hot); hot = null; };
+  document.documentElement.addEventListener("pointerleave", leave); window.addEventListener("blur", leave);
+  document.addEventListener("mouseout", e => { if (!e.relatedTarget) leave(); });
   document.addEventListener("pointerdown", e => {
     const el = e.target.closest && e.target.closest("[data-card]"); if (!el) return;
     pressed = true; el.classList.add("pressing"); if (!still.matches) set(el, "--press", ".98"); aim(el, e);

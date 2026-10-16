@@ -21,7 +21,7 @@
   --m-press:100ms ease-out; --m-touch:150ms ease-out; --m-snappy:200ms ease-out; --m-calm:300ms ease-out; --m-card:300ms cubic-bezier(.2,.8,.2,1);
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro",system-ui,"Helvetica Neue",sans-serif;
   --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
-  --ease:cubic-bezier(.2,.8,.2,1); --spring:cubic-bezier(.2,.8,.2,1);   /* no bounce in a pro tool */
+  --ease:cubic-bezier(.2,.8,.2,1); --ease-card:cubic-bezier(.2,.8,.2,1); --spring:cubic-bezier(.2,.8,.2,1);   /* no bounce in a pro tool */
   /* Legacy names, kept so older rules keep working. New rules use the family names above. */
   --bg:var(--paper); --surface:var(--card); --panel:var(--paper); --stage:var(--bar); --line:var(--hairline);
   --muted:var(--text2); --ink-btn:var(--interactive); --ink-btn-fg:var(--on-interactive); --ink-btn-hover:var(--interactive-hover);
@@ -141,8 +141,8 @@ h1,h2,h3,p{margin:0}
 .busy svg{width:120px;height:auto;animation:bob 1.2s var(--ease) infinite alternate}
 .busy span{font-size:13px;font-weight:400;color:var(--muted)}
 @keyframes bob{to{transform:translateY(-8px) rotate(-3deg)}}
-.pick-hint{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:3;background:#26352E;color:#fff;border-radius:999px;padding:8px 8px 8px 16px;font-size:14px;font-weight:600;display:flex;gap:10px;align-items:center;white-space:nowrap}
-.pick-hint button{background:#ffffff24;color:#fff;border-radius:999px;padding:5px 12px;font-size:13px;font-weight:700}
+.pick-hint{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:3;background:#26352E;color:#FFFDF9;border-radius:999px;padding:8px 8px 8px 16px;font-size:14px;font-weight:600;display:flex;gap:10px;align-items:center;white-space:nowrap}
+.pick-hint button{background:rgba(255,253,249,.14);color:#FFFDF9;border-radius:999px;padding:5px 12px;font-size:13px;font-weight:700}
 .snapbar{position:absolute;left:12px;right:12px;bottom:12px;z-index:3;background:var(--surface);border-radius:22px;box-shadow:0 12px 32px #26352E33,0 0 0 1px var(--line);padding:10px 10px 10px 14px;display:flex;flex-direction:column;gap:8px}
 .snap-head{display:flex;align-items:center;gap:8px;font-size:13px;min-width:0}
 .snap-head b{font-size:14px;white-space:nowrap}
@@ -185,7 +185,7 @@ h1,h2,h3,p{margin:0}
 .menu button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:8px 10px 8px 32px;border-radius:12px;font-size:14px;font-weight:600;position:relative}
 .menu button small{font-size:12px;font-weight:400;color:var(--muted)}
 .menu button:hover:not(:disabled),.menu button:focus-visible{background:var(--mist-tint)}
-.menu button:disabled{opacity:.5;cursor:default}
+.menu button:disabled{opacity:.72;cursor:default}
 .menu button[aria-checked="true"]::before{content:"✓";position:absolute;left:12px;top:8px;color:var(--lime-ink);font-weight:700}
 .menu hr{border:0;border-top:1px solid var(--line);margin:4px 6px}
 .batch{display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:18px;padding:8px;box-shadow:inset 0 0 0 1px var(--line);min-width:0}
@@ -297,7 +297,7 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
 .row.wrap{flex-wrap:wrap;gap:2px 10px}
 .link-btn.danger{color:var(--coral-ink)}
 .obj-list{display:flex;flex-direction:column;gap:2px;max-height:260px;overflow:auto}
-.obj-row{display:flex;align-items:center;gap:6px;padding:2px 2px 2px 10px;border-radius:10px;font-size:13px;cursor:pointer}
+.obj-row{display:flex;align-items:center;gap:6px;padding:2px 2px 2px 10px;border-radius:var(--r-sm);font-size:13px;cursor:pointer}
 .obj-row span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .obj-row:hover{background:var(--mist-tint)}
 .obj-row.on{background:var(--sun-tint)}
@@ -342,7 +342,7 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
 .dest-in{display:inline-flex;align-items:center;gap:6px}
 .dest-in input[type=number]{width:72px;height:32px;border-radius:10px;border:0;box-shadow:inset 0 0 0 1px var(--line);background:var(--surface);color:var(--ink);font:600 13px var(--font);padding:0 8px;text-align:right}
 .dest-in select{height:32px;border-radius:10px;border:0;box-shadow:inset 0 0 0 1px var(--line);background:var(--surface);color:var(--ink);font:600 13px var(--font);padding:0 6px}
-.dest-in input[type=color]{width:44px;height:32px;border:0;border-radius:10px;padding:2px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--line)}
+.dest-in input[type=color]{width:44px;height:32px;border:0;border-radius:var(--r-sm);padding:2px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--line)}
 .dest-in .unit{min-width:22px;color:var(--muted)}
 .checks{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
 .check{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;line-height:1.4;color:var(--ink)}
@@ -380,7 +380,7 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
   .toolbar{padding-inline:16px} .canvas-col{padding:14px 16px 16px}
   .tools{display:none}
 }
-@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
 
 /* ==========================================================================
    Family system 2.1: materials, components, and motion (overrides the rules above)
@@ -390,8 +390,11 @@ body{background:var(--paper);font:400 14px/1.45 var(--font);letter-spacing:-.003
 h1,h2,h3{letter-spacing:-.012em}
 
 /* Press depth: 0.98 in 100 ms, back over 300 ms. No bounce. */
-.inner{transition:transform var(--m-card)}
-.is-pressed>.inner{transform:scale(.98);transition:transform var(--m-press)}
+.inner{transition:none}
+.is-pressed>.inner{transform:none}
+.btn,.seg button,.tools button,.out-chip,.stepper button,.snap-act,.snap-chip,.tog-btn,.zoombar button{transition:transform var(--m-card),filter var(--m-card),background var(--m-touch),box-shadow var(--m-touch)}
+.btn.is-pressed,.seg button.is-pressed,.tools button.is-pressed,.out-chip:active,.stepper button:active,.snap-act:active,.snap-chip:active,.tog-btn:active,.zoombar button:active{transform:scale(.98);filter:brightness(.9);transition:transform var(--m-press),filter var(--m-press)}
+.btn-soft.is-pressed,.btn-sun.is-pressed,.out-chip:active{box-shadow:inset 0 0 0 1px var(--outline-strong)}
 .vb-release>.inner{animation:none}
 
 /* Level 2 glass: toolbar */
@@ -406,11 +409,11 @@ h1,h2,h3{letter-spacing:-.012em}
 .btn-sm{min-height:30px;padding:0 12px;font-size:12.5px}
 .btn-dark{background:var(--interactive);color:var(--on-interactive);box-shadow:var(--raise-light),var(--shadow-low)}
 .btn-dark:hover:not(:disabled){background:var(--interactive-hover)}
-.btn-dark.is-pressed{background:var(--interactive-press);box-shadow:var(--raise-light)}
+.btn-dark.is-pressed{background:var(--interactive-press);filter:none;box-shadow:var(--raise-light)}
 .btn-soft{background:var(--card);color:var(--ink);box-shadow:inset 0 0 0 1px var(--hairline),var(--shadow-low)}
 .btn-soft:hover:not(:disabled){background:var(--card);box-shadow:inset 0 0 0 1px var(--outline-strong),var(--shadow-low)}
-.btn-sun{background:var(--interactive);color:var(--on-interactive);box-shadow:var(--raise-light),var(--shadow-low)}
-.btn-sun:hover:not(:disabled){background:var(--interactive-hover)}
+.btn-sun{background:var(--card);color:var(--ink);box-shadow:inset 0 0 0 1px var(--hairline),var(--shadow-low)}
+.btn-sun:hover:not(:disabled){box-shadow:inset 0 0 0 1px var(--outline-strong),var(--shadow-low)}
 .export-split #exportBtn{border-radius:var(--r-sm) 0 0 var(--r-sm)}
 .export-split .caret{border-radius:0 var(--r-sm) var(--r-sm) 0;border-left:1px solid color-mix(in srgb,var(--on-interactive) 22%,transparent)}
 .link-btn{color:var(--ink);font-weight:600;text-decoration:underline;text-decoration-color:var(--outline-strong);text-underline-offset:3px;border-radius:6px}
@@ -448,7 +451,7 @@ h1,h2,h3{letter-spacing:-.012em}
 
 /* Feature cards: the preset tiles. Selected = butter wash, ink outline, and a check (never color alone). */
 .presets{gap:6px}
-.preset{position:relative;border-radius:var(--r-md);background:var(--card);box-shadow:inset 0 0 0 1px var(--hairline),var(--shadow-low);color:var(--text2);font-size:12px;font-weight:600;padding:12px 4px 10px}
+.preset{position:relative;border-radius:var(--r-lg);background:var(--card);box-shadow:inset 0 0 0 1px var(--hairline),var(--shadow-low);color:var(--text2);font-size:12px;font-weight:600;padding:12px 4px 10px}
 .preset .tile{background:var(--track);border-radius:8px}
 .preset .tile svg{fill:var(--ink)}
 .preset[aria-pressed="true"]{background:var(--accent-wash);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink),var(--shadow-low)}
@@ -474,13 +477,14 @@ h1,h2,h3{letter-spacing:-.012em}
 [data-card].pressing{transition:transform var(--m-press)}
 
 /* Level 0 wells: fields, steppers, and slider tracks are pressed into the paper. */
+#brandHex{width:96px;height:32px;border:0;padding:0 8px;color:var(--ink);font:600 13px var(--mono)}
 .text-field input,.own-row input,.dest-in input[type=number],.dest-in select,.dest-in input[type=text],#brandHex,.pal-txt input:focus{background:var(--reader);border-radius:var(--r-sm);box-shadow:var(--well-shadow),inset 0 0 0 1px var(--hairline)}
 .text-field input:focus,.own-row input:focus,.dest-in input:focus,.dest-in select:focus,#brandHex:focus{outline:2px solid var(--ink);outline-offset:1px;box-shadow:var(--well-shadow),inset 0 0 0 1px var(--outline-strong)}
 .stepper{background:var(--reader);border-radius:var(--r-md);box-shadow:var(--well-shadow),inset 0 0 0 1px var(--hairline);height:38px}
 .stepper button{width:32px;height:32px;border-radius:8px;background:var(--card);box-shadow:inset 0 0 0 1px var(--hairline),var(--shadow-low)}
 input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;height:22px;cursor:pointer}
-input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:var(--reader);box-shadow:inset 0 1px 1px rgba(38,53,46,.16),inset 0 0 0 1px var(--hairline)}
-input[type=range]::-moz-range-track{height:6px;border-radius:3px;background:var(--reader);box-shadow:inset 0 1px 1px rgba(38,53,46,.16),inset 0 0 0 1px var(--hairline)}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:var(--reader);box-shadow:var(--well-shadow),inset 0 0 0 1px var(--hairline)}
+input[type=range]::-moz-range-track{height:6px;border-radius:3px;background:var(--reader);box-shadow:var(--well-shadow),inset 0 0 0 1px var(--hairline)}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;margin-top:-6px;border-radius:50%;background:var(--card);box-shadow:var(--raise-light),0 0 0 1px var(--outline-strong),0 1px 3px rgba(38,53,46,.25);transition:transform var(--m-press)}
 input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;border:0;background:var(--card);box-shadow:0 0 0 1px var(--outline-strong),0 1px 3px rgba(38,53,46,.25)}
 input[type=range]:active::-webkit-slider-thumb{transform:scale(.94)}
@@ -497,7 +501,7 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 2px var(-
 
 /* Canvas: an inset well holding the artboard. */
 .canvas-col{padding:12px 16px 16px;gap:10px}
-.stage{border-radius:var(--r-lg);background:var(--bar);box-shadow:inset 0 1px 0 rgba(38,53,46,.08),inset 0 0 0 1px var(--hairline)}
+.stage{border-radius:var(--r-lg);background:var(--bar);box-shadow:var(--well-shadow),inset 0 0 0 1px var(--hairline)}
 .stage.dragging{box-shadow:inset 0 0 0 2px var(--ink)}
 .sheet{background-color:var(--artboard);box-shadow:0 1px 2px rgba(38,53,46,.12),0 6px 18px var(--shadow-color)}
 .sheet.clear{background-color:var(--artboard);background-image:conic-gradient(var(--artboard-check) 25%,transparent 0 50%,var(--artboard-check) 0 75%,transparent 0)}
@@ -509,7 +513,7 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 2px var(-
 .status{font:500 11.5px var(--mono);border-radius:6px;background:var(--track);color:var(--text2)}
 .status[data-s="done"]{background:var(--ok-wash);color:var(--ok-text)}
 .status[data-s="working"]{background:var(--accent-wash);color:var(--accent-text)}
-.status[data-s="error"]{background:color-mix(in srgb,var(--danger) 14%,var(--card));color:var(--danger)}
+.status[data-s="error"]{background:var(--card);color:var(--danger);box-shadow:inset 0 0 0 1px var(--danger)}
 .canvas-foot{font-size:12px;color:var(--text3)}
 .canvas-foot .stats{font-family:var(--mono);font-size:11.5px}
 .aside{font:400 12px var(--font);color:var(--text3);margin-left:auto}
@@ -533,7 +537,7 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 2px var(-
 /* Busy: signal rings (still under Reduce Motion). */
 .busy{background:color-mix(in srgb,var(--bar) 72%,transparent)}
 .busy .rings{position:relative;width:64px;height:64px}
-.busy .rings i{position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--ink);opacity:0;animation:ring 1.6s var(--m-card) infinite}
+.busy .rings i{position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--ink);opacity:0;animation:ring 1.6s var(--ease-card) infinite}
 .busy .rings i:nth-child(2){animation-delay:.53s}.busy .rings i:nth-child(3){animation-delay:1.06s}
 .busy .rings b{position:absolute;inset:26px;border-radius:50%;background:var(--ink)}
 @keyframes ring{0%{transform:scale(.35);opacity:.7}100%{transform:scale(1);opacity:0}}
@@ -549,7 +553,9 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 2px var(-
 #pane-setup,#pane-shapes,#pane-text,#pane-layers{counter-reset:sec}
 .group-title{display:flex;align-items:center;gap:7px;font-size:10.5px;font-weight:600;letter-spacing:1.1px;text-transform:uppercase;color:var(--text2);counter-increment:sec}
 .group-title::before{content:"";width:6px;height:6px;background:var(--ink);transform:rotate(45deg);flex:none}
-.group-title::after{content:counter(sec,decimal-leading-zero);order:3;margin-left:auto;padding-left:6px;color:var(--text3);font-weight:500}
+.group-title::after{content:counter(sec,decimal-leading-zero);color:var(--text3);font-weight:500}
+.group-title .gt-rule{flex:1;min-width:12px;height:2px;margin:0 2px;background:radial-gradient(circle,var(--outline-strong) .9px,transparent 1.1px) left center/5px 2px repeat-x}
+.row > .group-title{flex:1;margin-right:10px}
 .group-title + *{margin-top:0}
 .group > label{font-size:12.5px;font-weight:600}
 .help{font-size:12.5px;color:var(--text2)}
@@ -572,14 +578,14 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 2px var(-
 .toast.show{transform:translate(-50%,0)}
 :root[data-theme="dark"] .toast{background:#E9E3D6;color:#18241F}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .toast{background:#E9E3D6;color:#18241F} }
-.stale{background:var(--danger);border-radius:var(--r-md)}
+.stale{background:var(--card);color:var(--danger);border-radius:var(--r-md);box-shadow:inset 0 0 0 1.5px var(--danger),var(--shadow-high)}
 .modal{background:rgba(24,36,31,.45)}
 .modal-card h3{font-weight:650}
-.ruler,.ruler.c{background:var(--bar)}
+.ruler,.ruler.c{background:var(--card)}
 .ab-icons button,.alignbar .seg.mini button{border-radius:8px}
 
 /* The one celebrate moment: the first export. */
-.export-split.celebrate::after{content:"";position:absolute;inset:-2px;border-radius:12px;border:1.5px solid var(--accent);pointer-events:none;animation:celebrate .9s var(--m-card) both}
+.export-split.celebrate::after{content:"";position:absolute;inset:-2px;border-radius:12px;border:1.5px solid var(--accent);pointer-events:none;animation:celebrate .3s var(--ease-card) both}
 @keyframes celebrate{0%{transform:scale(1);opacity:1}100%{transform:scale(1.35,1.9);opacity:0}}
 #exportLabel{transition:opacity var(--m-snappy)}
 
@@ -592,11 +598,12 @@ html.rt .insp-head{background:var(--bar)}
 html.contrast .toolbar,html.contrast .inspector,html.contrast .float-zoom,html.contrast .menu{box-shadow:inset 0 0 0 1px var(--outline-strong)}
 /* Reduce Motion: movement becomes a fade; cards keep their light and shadow but don't tilt, lift, or scale. */
 @media (prefers-reduced-motion: reduce){
-  *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-property:opacity,background,background-color,box-shadow,color!important}
+  *,*::before,*::after{transition-property:opacity,background,background-color,box-shadow,color,filter!important}
   [data-card]{transform:none!important}
   .is-pressed>.inner{transform:none}
   .busy .rings i{animation:none;opacity:.35;transform:scale(.7)} .busy .rings i:nth-child(2){transform:scale(.85)} .busy .rings i:nth-child(3){transform:scale(1)}
-  .export-split.celebrate::after{animation:none;opacity:0}
+  .export-split.celebrate::after{animation:celebrate-fade .3s ease-out both}
+  @keyframes celebrate-fade{0%{opacity:1}100%{opacity:0}}
 }
 @media (max-width:860px){ .inspector{margin:0 8px 8px} }
 </style>
@@ -727,7 +734,7 @@ html.contrast .toolbar,html.contrast .inspector,html.contrast .float-zoom,html.c
 
       <div id="pane-setup" class="group" style="gap:18px">
         <div class="group">
-          <span class="group-title">What is it?</span>
+          <span class="group-title"><span class="gt">What is it?</span><i class="gt-rule" aria-hidden="true"></i></span>
           <div class="presets" role="group" aria-label="Presets">
             <button class="preset" data-card="4" data-preset="onecolor" aria-pressed="false" data-press><span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zm0 2v14a7 7 0 0 0 0-14z"/></svg></span>One color</button>
             <button class="preset" data-card="4" data-preset="logo" aria-pressed="true" data-press><span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 8.8l6.1-.7z"/></svg></span>Logo</button>
@@ -743,7 +750,7 @@ html.contrast .toolbar,html.contrast .inspector,html.contrast .float-zoom,html.c
         </div>
 
         <div class="group">
-          <span class="group-title">Made for</span>
+          <span class="group-title"><span class="gt">Made for</span><i class="gt-rule" aria-hidden="true"></i></span>
           <div class="outputs" role="group" aria-label="Made for">
             <button class="out-chip" data-output="screen" aria-pressed="false">Screen print</button>
             <button class="out-chip" data-output="vinyl" aria-pressed="false">Vinyl and HTV</button>
@@ -765,7 +772,7 @@ html.contrast .toolbar,html.contrast .inspector,html.contrast .float-zoom,html.c
         </div>
 
         <div class="group">
-          <span class="group-title">Colors</span>
+          <span class="group-title"><span class="gt">Colors</span><i class="gt-rule" aria-hidden="true"></i></span>
           <div class="seg full" role="group" aria-label="Color mode">
             <button id="cm-auto" data-cmode="auto" aria-pressed="true" data-press><span class="inner">Auto</span></button>
             <button id="cm-number" data-cmode="number" aria-pressed="false" data-press><span class="inner">Number</span></button>
@@ -779,7 +786,7 @@ html.contrast .toolbar,html.contrast .inspector,html.contrast .float-zoom,html.c
         </div>
 
         <div class="group">
-          <span class="group-title">Background</span>
+          <span class="group-title"><span class="gt">Background</span><i class="gt-rule" aria-hidden="true"></i></span>
           <div class="seg full" role="group" aria-label="Background">
             <button id="bg-keep" data-bg="keep" aria-pressed="false" data-press><span class="inner">Keep</span></button>
             <button id="bg-remove" data-bg="remove" aria-pressed="true" data-press><span class="inner">Remove</span></button>
@@ -789,7 +796,7 @@ html.contrast .toolbar,html.contrast .inspector,html.contrast .float-zoom,html.c
         </div>
 
         <div class="group">
-          <span class="group-title">Layers</span>
+          <span class="group-title"><span class="gt">Layers</span><i class="gt-rule" aria-hidden="true"></i></span>
           <div class="seg full" role="group" aria-label="Layering">
             <button id="lay-stacked" data-layering="stacked" aria-pressed="true" data-press><span class="inner">Stacked</span></button>
             <button id="lay-cutout" data-layering="cutout" aria-pressed="false" data-press><span class="inner">Cut out</span></button>
@@ -798,7 +805,7 @@ html.contrast .toolbar,html.contrast .inspector,html.contrast .float-zoom,html.c
         </div>
 
         <div class="group" id="tuneGroup">
-          <div class="row" style="justify-content:space-between"><span class="group-title" id="tuneTitle">Fine-tune</span><button class="link-btn" id="tuneReset" type="button">Reset</button></div>
+          <div class="row" style="justify-content:space-between"><span class="group-title"><span class="gt" id="tuneTitle">Fine-tune</span><i class="gt-rule" aria-hidden="true"></i></span><button class="link-btn" id="tuneReset" type="button">Reset</button></div>
           <div class="scope-bar" id="scopeBar" hidden><span>Only the <b id="scopeName">layer</b></span><button type="button" class="link-btn" id="scopeBack">Back to all</button></div>
           <div class="dial"><div class="top"><label for="detail">Small details</label><output id="detailOut">70</output></div>
             <input type="range" id="detail" min="0" max="100" value="70" aria-describedby="detailUse">
@@ -827,7 +834,7 @@ html.contrast .toolbar,html.contrast .inspector,html.contrast .float-zoom,html.c
         </div>
 
         <div class="group">
-          <span class="group-title">Shape matching</span>
+          <span class="group-title"><span class="gt">Shape matching</span><i class="gt-rule" aria-hidden="true"></i></span>
           <div class="seg full" role="group" aria-label="Shape matching">
             <button id="sm-auto" data-smode="auto" aria-pressed="true" data-press><span class="inner">Auto</span></button>
             <button id="sm-off" data-smode="off" aria-pressed="false" data-press><span class="inner">Off</span></button>
@@ -836,7 +843,7 @@ html.contrast .toolbar,html.contrast .inspector,html.contrast .float-zoom,html.c
         </div>
 
         <div class="group">
-          <span class="group-title">Text</span>
+          <span class="group-title"><span class="gt">Text</span><i class="gt-rule" aria-hidden="true"></i></span>
           <div class="seg full" role="group" aria-label="Text detection">
             <button id="xm-auto" data-xmode="auto" aria-pressed="true" data-press><span class="inner">Find words</span></button>
             <button id="xm-off" data-xmode="off" aria-pressed="false" data-press><span class="inner">Off</span></button>
@@ -860,7 +867,7 @@ html.contrast .toolbar,html.contrast .inspector,html.contrast .float-zoom,html.c
 
       <div id="pane-layers" class="group" hidden style="gap:18px">
         <div class="group" id="partsGroup" hidden>
-          <span class="group-title">Show</span>
+          <span class="group-title"><span class="gt">Show</span><i class="gt-rule" aria-hidden="true"></i></span>
           <div class="seg full" role="group" aria-label="Parts to show">
             <button data-part="all" aria-pressed="true" data-press><span class="inner">Everything</span></button>
             <button data-part="art" aria-pressed="false" data-press><span class="inner">Icon</span></button>
@@ -869,16 +876,16 @@ html.contrast .toolbar,html.contrast .inspector,html.contrast .float-zoom,html.c
           <p class="help">Export saves what's shown, so you can save the icon or the words on their own.</p>
         </div>
         <div class="group">
-          <div class="row" style="justify-content:space-between"><span class="group-title">Layers, top to bottom</span><button class="link-btn" id="resetColors">Reset colors</button></div>
+          <div class="row" style="justify-content:space-between"><span class="group-title"><span class="gt">Layers, top to bottom</span><i class="gt-rule" aria-hidden="true"></i></span><button class="link-btn" id="resetColors">Reset colors</button></div>
           <p class="help">Each color is a layer. Drag the dots to reorder, click a swatch to recolor, and open a layer to hide or delete its parts.</p>
           <div class="pal-list" id="palette"></div>
         </div>
         <div class="group">
-          <span class="group-title">Brand colors</span>
+          <span class="group-title"><span class="gt">Brand colors</span><i class="gt-rule" aria-hidden="true"></i></span>
           <p class="help">Locked colors replace the closest colors in the trace with these exact values, and they hold when you change other settings.</p>
           <div class="lock-list" id="lockList"></div>
           <div class="row" style="flex-wrap:wrap;gap:8px"><button class="btn btn-soft btn-sm" id="pickLock" data-press><span class="inner">Pick from image</span></button>
-            <span class="dest-in"><input id="brandHex" type="text" placeholder="#26352E" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Brand color code" style="width:92px;height:32px;border-radius:10px;border:0;box-shadow:inset 0 0 0 1px var(--line);background:var(--surface);color:var(--ink);font:600 13px var(--mono);padding:0 8px"><button class="btn btn-soft btn-sm" id="addBrandHex" data-press><span class="inner">Add</span></button></span></div>
+            <span class="dest-in"><input id="brandHex" type="text" placeholder="#26352E" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Brand color code"><button class="btn btn-soft btn-sm" id="addBrandHex" data-press><span class="inner">Add</span></button></span></div>
         </div>
       </div>
     </aside>
@@ -3184,7 +3191,7 @@ Made with Vectorize.
 /* ---------- Status, toast, press spring ---------- */
 function setStatus(s, t) { const el = $("#status"); el.dataset.s = s; el.textContent = t; }
 let toastT = 0;
-function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2600); }
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 4500); }   // family toast: 4.5 s
 document.addEventListener("pointerdown", e => { const b = e.target.closest("[data-press]"); if (!b || b.disabled) return; b.classList.remove("vb-release"); b.classList.add("is-pressed"); });
 document.addEventListener("pointerup", () => document.querySelectorAll(".is-pressed").forEach(b => { b.classList.remove("is-pressed"); void b.offsetWidth; b.classList.add("vb-release"); }));
 
@@ -4442,7 +4449,10 @@ document.addEventListener("keyup", e => { if (e.key === " " && spaceDown) { spac
     if (el !== hot) { if (hot) rest(hot); hot = el; pressed = false; if (el) { rim(el); el.classList.add("hot"); } }
     if (el) aim(el, e);
   }, { passive: true });
-  document.addEventListener("pointerleave", () => { if (hot) rest(hot); hot = null; });
+  // The pointer leaving the window from a card: settle it.
+  const leave = () => { if (hot) rest(hot); hot = null; };
+  document.documentElement.addEventListener("pointerleave", leave); window.addEventListener("blur", leave);
+  document.addEventListener("mouseout", e => { if (!e.relatedTarget) leave(); });
   document.addEventListener("pointerdown", e => {
     const el = e.target.closest && e.target.closest("[data-card]"); if (!el) return;
     pressed = true; el.classList.add("pressing"); if (!still.matches) set(el, "--press", ".98"); aim(el, e);

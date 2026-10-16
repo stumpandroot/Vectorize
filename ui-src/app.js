@@ -1476,7 +1476,7 @@ Made with Vectorize.
 /* ---------- Status, toast, press spring ---------- */
 function setStatus(s, t) { const el = $("#status"); el.dataset.s = s; el.textContent = t; }
 let toastT = 0;
-function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2600); }
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 4500); }   // family toast: 4.5 s
 document.addEventListener("pointerdown", e => { const b = e.target.closest("[data-press]"); if (!b || b.disabled) return; b.classList.remove("vb-release"); b.classList.add("is-pressed"); });
 document.addEventListener("pointerup", () => document.querySelectorAll(".is-pressed").forEach(b => { b.classList.remove("is-pressed"); void b.offsetWidth; b.classList.add("vb-release"); }));
 

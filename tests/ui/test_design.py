@@ -82,6 +82,23 @@ async def main():
         sel = await pg.evaluate("(el => [getComputedStyle(el).boxShadow, getComputedStyle(el, '::after').content])($('[data-preset=logo]'))")
         check("the selected preset has an ink outline and a check", "1.5px" in sel[0] and sel[1] not in ("none", "normal"), sel)
 
+        # One primary per view, including Align view.
+        await pg.click("#v-align"); await pg.wait_for_timeout(300)
+        prim = await pg.evaluate("[...document.querySelectorAll('button')].filter(b => b.offsetParent && getComputedStyle(b).backgroundColor === getComputedStyle($('#exportBtn')).backgroundColor && !b.closest('.seg, .tools, .seg.mini, .export-split')).map(b => b.id || b.textContent.trim())")
+        check("Align view has one primary button", prim == [], prim)
+        await pg.click("#v-compare")
+        # Section headers: diamond, label, dotted rule, index.
+        hdr = await pg.evaluate("(el => [!!el.querySelector('.gt-rule'), el.querySelector('.gt-rule').getBoundingClientRect().width, getComputedStyle(el, '::after').content])($('#pane-setup .group-title'))")
+        check("section headers have a dotted rule and an index", hdr[0] and hdr[1] > 20 and hdr[2].startswith("counter("), hdr)
+        # Error chip and stale banner text meet AA as drawn.
+        err = await pg.evaluate("(() => { const s = $('#status'); s.dataset.s = 'error'; const cs = getComputedStyle(s), card = getComputedStyle(document.documentElement).getPropertyValue('--card').trim(); return [cs.color, card]; })()")
+        rr = ratio(parse(err[0]), parse(err[1]))
+        check("error chip text meets AA", rr >= 4.5, f"{rr:.2f}:1")
+        await pg.evaluate("$('#status').dataset.s = 'done'")
+        # Toast stays 4.5 s.
+        await pg.evaluate("toast('Test')"); await pg.wait_for_timeout(3500)
+        check("toasts stay up for 4.5 s", await pg.evaluate("$('#toast').classList.contains('show')"))
+
         # Card motion: hovering a tile tilts and lifts it.
         r = await pg.evaluate("(r => [r.left + r.width * 0.85, r.top + r.height * 0.2])($('[data-preset=detailed]').getBoundingClientRect())")
         await pg.mouse.move(*r); await pg.wait_for_timeout(400)
@@ -115,6 +132,8 @@ async def main():
         await pg.mouse.move(*r); await pg.wait_for_timeout(300)
         t = await pg.evaluate("(el => [getComputedStyle(el).transform, el.classList.contains('hot')])($('[data-preset=detailed]'))")
         check("Reduce Motion: cards light up but don't tilt", t[0] == "none" and t[1], t)
+        dur = await pg.evaluate("(cs => [cs.transitionDuration, cs.transitionProperty])(getComputedStyle($('[data-preset=detailed]')))")
+        check("Reduce Motion keeps fades at their normal length", "0.3s" in dur[0] and "transform" not in dur[1], dur)
         await pg.close()
         await b.close()
     print(f"{sum(OK)}/{len(OK)} passed")

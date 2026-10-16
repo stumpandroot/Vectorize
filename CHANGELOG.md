@@ -11,6 +11,7 @@ The app shows its version and build in the window title and the toolbar. Each Gi
 - Section headers in the inspector are numbered, with a mono overline.
 - Text uses the Mac's system fonts (SF Pro and SF Mono), so the app no longer loads web fonts.
 - Export's label changes to "Exporting…" and then "Saved." Your first export ever gets one small ring of celebration.
+- Toasts stay up for 4.5 seconds. Section headers have a dotted rule. Each view has one raised primary button.
 - Signal rings replace the mascot while an image converts. The mascot lives on in the new app icon: one ink glyph on butter, with ink and paper variants.
 - The app follows Reduce Motion (no tilt or lift), Reduce Transparency (glass turns opaque), and Increase Contrast (stronger edges, secondary text in ink).
 

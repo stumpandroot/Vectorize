@@ -6,12 +6,10 @@ paper), the two layers for Icon Composer, the toolbar mark, and packaging/AppIco
 
 Run from the repository root: python3 packaging/icon/make_icon.py
 """
-import io
 import re
 from pathlib import Path
 
 import cairosvg
-from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "packaging" / "icon"
@@ -47,6 +45,11 @@ for name, (bg, fg) in variants.items():
 (ROOT / "ui-src" / "assets" / "app-icon.svg").write_text(
     f'<svg class="app-icon" xmlns="http://www.w3.org/2000/svg" viewBox="100 100 824 824" width="824" height="824"><rect x="100" y="100" width="824" height="824" rx="185" fill="{BUTTER}"/>' + glyph(INK, 560) + "</svg>")
 
-png = cairosvg.svg2png(url=str(OUT / "AppIcon-butter.svg"), output_width=1024, output_height=1024)
-Image.open(io.BytesIO(png)).convert("RGBA").save(ROOT / "packaging" / "AppIcon.icns", sizes=[(16, 16), (32, 32), (64, 64), (128, 128), (256, 256), (512, 512), (1024, 1024)])
+# Every macOS slot, @1x and @2x (icnsutil: pip install icnsutil). Each size is rendered from the vector.
+import icnsutil
+SLOTS = {"icp4": 16, "icp5": 32, "ic11": 32, "ic12": 64, "ic07": 128, "ic13": 256, "ic08": 256, "ic14": 512, "ic09": 512, "ic10": 1024}
+icns = icnsutil.IcnsFile()
+for key, px in SLOTS.items():
+    icns.add_media(key, data=cairosvg.svg2png(url=str(OUT / "AppIcon-butter.svg"), output_width=px, output_height=px))
+icns.write(str(ROOT / "packaging" / "AppIcon.icns"))
 print("wrote", ", ".join(sorted(p.name for p in OUT.glob("*.svg"))), "and AppIcon.icns")
