@@ -605,7 +605,22 @@ html.contrast .toolbar,html.contrast .inspector,html.contrast .float-zoom,html.c
   .export-split.celebrate::after{animation:celebrate-fade .3s ease-out both}
   @keyframes celebrate-fade{0%{opacity:1}100%{opacity:0}}
 }
-@media (max-width:860px){ .inspector{margin:0 8px 8px} }
+@media (max-width:860px){
+  .inspector{margin:0 8px 8px}
+  /* Phones and narrow windows: the preview stays pinned at the top while the settings scroll under it,
+     so every change shows on the image. Opaque paper with a scroll-edge shadow, not glass: the artwork
+     and text scroll right beneath it. */
+  .canvas-col{position:sticky;top:0;z-index:8;background:var(--paper);padding:8px 12px 10px;gap:6px;box-shadow:0 1px 0 var(--hairline),0 8px 12px -8px var(--shadow-color)}
+  .stage{height:min(78vw,44svh);min-height:160px}
+  .canvas-head{flex-wrap:nowrap;gap:8px}
+  .file h2{font-size:14px}.file span{display:none}
+  .canvas-foot{display:none}
+  .float-zoom{right:8px;bottom:8px;padding:3px}
+  .float-zoom .tog-btn{display:none}
+  .snapbar{bottom:48px}
+  .alignbar{padding:8px 10px}
+  .insp-head{position:static}
+}
 </style>
 
 <div class="app" id="app">

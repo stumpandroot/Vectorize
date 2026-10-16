@@ -124,6 +124,15 @@ async def main():
         check("no page errors", not errs, errs)
         await pg.close()
 
+        # Phones: the preview stays pinned at the top while the settings scroll.
+        pg = await b.new_page(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+        await pg.goto("file://" + UI)
+        await pg.wait_for_function("document.querySelector('#status').dataset.s==='done'", timeout=60000)
+        await pg.evaluate("window.scrollTo(0, 1200)"); await pg.wait_for_timeout(200)
+        pin = await pg.evaluate("(r => [Math.round(r.top), Math.round(r.height), innerHeight])($('.canvas-col').getBoundingClientRect())")
+        check("phone: the preview stays pinned while settings scroll", pin[0] == 0 and 200 < pin[1] < pin[2] * 0.55, pin)
+        await pg.close()
+
         # Reduce Motion: no tilt or lift, but the edge light stays.
         pg = await b.new_page(viewport={"width": 1400, "height": 900}, reduced_motion="reduce")
         await pg.goto("file://" + UI)
