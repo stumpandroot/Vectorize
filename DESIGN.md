@@ -64,6 +64,42 @@ Radii: `--r-sm` 9 (buttons, fields, chips), `--r-md` 13 (rows, sheets), `--r-lg`
 
 Motion: `--m-press` 100 ms, `--m-touch` 150 ms, `--m-snappy` 200 ms, `--m-calm` and `--m-card` 300 ms, with `--ease-card` for keyframe animations. No bounce anywhere. Under Reduce Motion, transitions keep their duration but only fade color, opacity, and shadow.
 
+## Interaction and motion
+
+Vectorize uses the same interaction vocabulary as Verbatim (its `0d6b88f` pass and the transitions around it). The code is in `ui-src/motion.js`; `tests/ui/test_motion.py` checks it.
+
+| Moment | Motion | Token |
+|---|---|---|
+| Picking a segment | One ink pill slides under the segments (Verbatim's `matchedGeometryEffect` selection) | 200 ms, `--ease-card` |
+| Opening an inspector tab | The pane comes in 12 px from the side of the chosen tab and fades; its sections follow 30 ms apart, up to 5 steps | `motion.calm`, 300 ms |
+| Menus, including right-click menus | Fade in from 97% scale and 4 px up, from the corner they open at | 200 ms |
+| Selection bar | Rises 6 px and fades in | 200 ms |
+| Align bar and batch bar | Drop 6 px and fade in | 300 ms |
+| First paint | Toolbar, canvas, inspector header, and setup sections rise 6 px, 30 ms apart | 300 ms |
+| Converting overlay | Fades in after 120 ms, so quick conversions never show it | 200 ms |
+| Leaving | Everything leaves at once | `motion.instant` |
+
+Rules:
+
+- Keyboard and menu-bar changes never animate. A keydown or a menu command sets `html.kbd`, which turns arrival motion and the pill's glide off until the next pointer press.
+- Under Reduce Motion, the pill is hidden and the selected segment fills in place; panes, menus, and bars fade without moving.
+- The canvas itself never animates when you switch views or zoom. The work area stays instant.
+
+### Right-click options
+
+Each action control with options shows them on right-click (Control-click): the main action first, then options with a check on the current one. Every item is also reachable without right-click.
+
+| Control | Menu |
+|---|---|
+| Export | Export now; format (SVG, PDF, EPS, PNG); Export selection; Export color separations; Send to Versa |
+| Choose image | Choose images; Open the sample logo; Close the batch (in a batch) |
+| A part on the canvas | Selects it (or keeps the selection it's in); Keep only, Hide, Delete, Fine-tune, Edit text, Export selection, Select all, Deselect |
+| Empty canvas | Select all, Zoom to fit, Actual size, Outlines |
+| Zoom controls | Fit, 50%, 100%, 200%, 400%, Outlines |
+| A batch image | Open it, Export all, Close the batch |
+
+Escape or Tab closes a menu and returns focus to the control that opened it.
+
 ## Departures from the family doc, and why
 
 | Departure | Why |
@@ -74,6 +110,8 @@ Motion: `--m-press` 100 ms, `--m-touch` 150 ms, `--m-snappy` 200 ms, `--m-calm` 
 | No grain | Grain is for illustrated level-0 surfaces; Vectorize has none |
 | The Export menu is an opaque popover (`card` with `shadow.high`), not glass | It holds paragraphs of text over the artwork; the family doc keeps glass out from behind text |
 | The inspector is glass even though it holds help text | The Vectorized profile lists the inspector as glass. It sits beside the canvas, never over it, so only plain paper is behind it, and its 84% tint keeps text at 11:1 or better |
+| The segment pill animates its width as well as its position | Segments differ in width; the pill is absolutely positioned, so the width change doesn't reflow anything else |
+| Right-click menus have no link to a Settings pane | Vectorize keeps every setting in the inspector, beside the controls, so there is no Settings pane to link to |
 | Reduce Transparency and Increase Contrast are read when the app opens | WebKit doesn't report Reduce Transparency to web pages, so the app passes both settings in at launch. Changing them while the app is open takes effect the next time it opens |
 
 ## Checks

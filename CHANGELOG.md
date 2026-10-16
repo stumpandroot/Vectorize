@@ -2,6 +2,25 @@
 
 The app shows its version and build in the window title and the toolbar. Each GitHub build has a new build number; the version changes when features change.
 
+## 1.6.0
+
+The interaction and motion pass from Verbatim, so Vectorize moves the way the rest of the family does.
+
+- Segmented controls (the view switcher, the inspector tabs, the tools, and every option group) have one ink pill that slides to the segment you pick.
+- Inspector tabs open from the side of the tab you picked, with their sections arriving 30 ms apart.
+- Menus pop in from where they open, the selection bar rises from the bottom of the canvas, and the Align and batch bars drop in. Everything leaves at once, so nothing lingers in your way.
+- The window's first paint rises in, top to bottom.
+- The converting overlay waits a moment before it shows, so a quick conversion never flashes it.
+- Right-click (or Control-click) for options:
+  - **Export:** export now, pick the format, export the selection or color separations, or send to Versa.
+  - **Choose image:** choose images, open the sample logo, or close a batch.
+  - **A part on the canvas:** it's selected, then Keep only, Hide, Delete, Fine-tune, Edit text, Export selection, Select all, and Deselect.
+  - **Empty canvas:** Select all, Zoom to fit, Actual size, and Outlines.
+  - **Zoom controls:** Fit, 50%, 100%, 200%, 400%, and Outlines, with a check on the current one.
+  - **A batch image:** open it, export all, or close the batch.
+- Anything you do from the keyboard or the menu bar happens at once, without motion. Motion comes back with your next click.
+- Reduce Motion keeps the fades and drops the movement: segments fill in place, and panes and menus fade without sliding.
+
 ## 1.5.0
 
 - New look from the Stump & Root app family design system (version 2.1): warm paper and ink neutrals, a near-black green dark mode, and butter as Vectorize's one accent. See DESIGN.md.

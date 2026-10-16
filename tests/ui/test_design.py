@@ -76,8 +76,8 @@ async def main():
         # Primary button: raised ink; selected segment: ink.
         btn = await pg.evaluate("(s => [s.backgroundColor, s.boxShadow])(getComputedStyle($('#exportBtn')))")
         check("Export is a raised ink button", "38, 53, 46" in btn[0] and "inset" in btn[1], btn)
-        seg = await pg.evaluate("getComputedStyle($('#v-compare')).backgroundColor")
-        check("the selected view segment is ink", "38, 53, 46" in seg, seg)
+        seg = await pg.evaluate("(b => [getComputedStyle(b.parentElement.querySelector('.seg-pill')).backgroundColor, Math.abs(b.getBoundingClientRect().left - b.parentElement.querySelector('.seg-pill').getBoundingClientRect().left)])($('#v-compare'))")
+        check("the selected view segment is ink (the sliding pill under it)", "38, 53, 46" in seg[0] and seg[1] < 1, seg)
         # Selection never relies on color alone: the selected preset has an outline and a check.
         sel = await pg.evaluate("(el => [getComputedStyle(el).boxShadow, getComputedStyle(el, '::after').content])($('[data-preset=logo]'))")
         check("the selected preset has an ink outline and a check", "1.5px" in sel[0] and sel[1] not in ("none", "normal"), sel)

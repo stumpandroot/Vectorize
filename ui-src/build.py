@@ -24,9 +24,9 @@ def svg_inline(path):
 
 def build():
     t = (HERE / "template.html").read_text()
-    js = (HERE / "app.js").read_text() + "\n" + (HERE / "editor.js").read_text() + "\n" + (HERE / "align.js").read_text()
+    js = "\n".join((HERE / f).read_text() for f in ("app.js", "editor.js", "align.js", "motion.js"))
     fit = (HERE / "fit.js").read_text()
-    for name, src in (("app.js + editor.js + align.js", js), ("fit.js", fit)):
+    for name, src in (("app.js + editor.js + align.js + motion.js", js), ("fit.js", fit)):
         assert "</script" not in src, f"{name} contains </script"
     js = js.replace("%%BUILD%%", os.environ.get("VZ_BUILD", "dev"))
     for key in ("%%FIT%%", "%%MARK%%", "%%JS%%"):
