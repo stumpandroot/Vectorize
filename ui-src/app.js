@@ -348,7 +348,7 @@ function quantize(imgd, pal) {
   // Merge small islands of color into the color that surrounds them. Detail sets the size, measured in
   // the source image's pixels (the same rule as the speck filter), so dots on i and j and small punctuation
   // survive on enlarged images.
-  const scq = Math.max(job.scale, 1), minArea = Math.max(4, Math.round(0.8 * (2 + (1 - S.detail / 100) * 8) ** 2 * 0.5 * scq));
+  const scq = Math.max(job.scale, 1), minArea = Math.max(S.detail > 70 ? 1 : 4, Math.round(0.8 * speckFor(S.detail / 100, scq)));
   const comp = new Int32Array(n).fill(-1), stack = new Int32Array(n);
   for (let s0 = 0; s0 < n; s0++) {
     if (comp[s0] !== -1) continue;
@@ -402,21 +402,31 @@ function borderLabel(lab, w, h) {
 }
 
 /* ---------- Dials to tracing numbers ---------- */
-// The dials, measured in the source image's pixels so they act the same at any size.
-//   Small details: the smallest piece kept.
-//   Straight edges: how far an edge may stray from a line and still be drawn straight (0.4 to 2.6 px),
-//   and how close to level or upright a line snaps (1 to 5 degrees).
-//   Curves: how much edges are smoothed before fitting, and how loosely curves follow them.
-//   Corners: how sharp a turn must be to stay a corner (60 degrees, rounder, to 20 degrees, sharper).
+// The dials, measured in the source image's pixels so they act the same at any size. Each dial's middle
+// (70 for Small details, 50 for the rest) gives the tuned defaults; the ends multiply them on a log scale,
+// so the whole slider does something you can see (1.8.0: the old ranges changed under 1% of the edge).
+//   Small details: the smallest piece kept, from about 1 px² (100) to about 580 px² (0). Above its middle it
+//   also blurs edges less before tracing, so hairlines and thin lines survive.
+//   Straight edges: how far an edge may stray from a line and still be drawn straight (0.18 to 6 px), how short
+//   a straight run may be, and how close to level or upright a line snaps (0.6 to 9 degrees).
+//   Curves: how much edges are smoothed before fitting (mask blur and outline smoothing), and how loosely
+//   curves follow them.
+//   Corners: how sharp a turn must be to stay a corner (80 degrees, rounder, to 12 degrees, sharper).
 //   Grow or shrink: how far every edge moves out or in.
+// lo at 0, 1 at the middle, hi at 100, geometric in between.
+function dialMul(v, mid, lo, hi) { return v <= mid ? lo ** ((mid - v) / mid) : hi ** ((v - mid) / (1 - mid)); }
+const speckFor = (detail, sc) => 9.68 * dialMul(detail, 0.7, 60, 0.1) * sc;   // 9.68 px² is the default at 70
 function tuneParams(T, sc) {
   const smooth = (T.smooth ?? 50) / 100, detail = (T.detail ?? 70) / 100, straight = (T.straight ?? 50) / 100, corners = (T.corners ?? 50) / 100;
+  const sm = dialMul(smooth, 0.5, 0.35, 3), st = dialMul(straight, 0.5, 0.15, 5);
   return {
-    sigma: Math.max(0.8, sc * 0.45 * (0.5 + smooth)),
-    speckArea: (2 + (1 - detail) * 8) ** 2 * 0.5 * sc,
-    lineSrc: straight <= 0.5 ? 0.4 + 1.6 * straight : 1.2 + 2.8 * (straight - 0.5),
-    snapDeg: 1 + 4 * straight, cornerDeg: 60 - 40 * corners, grow: (T.grow || 0) * sc,
-    tol: 0.55 * sc * (0.6 + 0.8 * smooth), k: Math.max(4, Math.round(1.2 * sc)),
+    // Raising Small details past its middle also blurs less, so hairlines (a 1 px crossbar) survive.
+    sigma: Math.max(smooth < 0.5 || detail > 0.7 ? 0.4 : 0.8, sc * 0.45 * sm * dialMul(detail, 0.7, 1, 0.35)),
+    fitSigma: 1.6 * dialMul(smooth, 0.5, 0.4, 3),
+    speckArea: speckFor(detail, sc),
+    lineSrc: 1.2 * st, lineMin: dialMul(straight, 0.5, 2, 0.5),
+    snapDeg: 3 * dialMul(straight, 0.5, 0.2, 3), cornerDeg: 40 * dialMul(corners, 0.5, 2, 0.3), grow: (T.grow || 0) * sc,
+    tol: 0.55 * sc * dialMul(smooth, 0.5, 0.4, 2.6), k: Math.max(4, Math.round(1.2 * sc)),
   };
 }
 // Two colors count as the same layer across retraces when they're within a small color distance.
@@ -586,9 +596,9 @@ function traceNow(cancelled = () => false) {
           contours.forEach((q, ci) => { const g = cp[ci].grow; if (g) contours[ci] = offsetContour(q, isHole.has(ci) ? -g : g); });
         }
         const recs = contours.map((q, ci) => {
-          const { tol, k, cornerDeg, lineSrc } = cp[ci];
+          const { tol, k, cornerDeg, lineSrc, lineMin, fitSigma } = cp[ci];
           // Up to 0.6 source pixels of stray is pixel noise; past that a run must also be two-sided to be straight.
-          const ol = VZ.fitOutline(q, tol, k, cornerDeg, lineSrc * sc, Math.max(16, Math.round(12 * sc)), 1.6, 0.6 * sc);
+          const ol = VZ.fitOutline(q, tol, k, cornerDeg, lineSrc * sc, Math.max(16 * lineMin, Math.round(12 * sc * lineMin)), fitSigma, 0.6 * sc);
           allOutlines.push(ol); pieces += ol.segs.length;
           const rec = { outline: ol, shape: null, q };
           if (matching && budget-- > 0) {
@@ -756,7 +766,8 @@ function render() {
   $("#sheet").classList.toggle("clear", result.transparent || hidden.size > 0 || deletedLayers.size > 0);
   const kb = new Blob([svg]).size / 1024, nColors = visibleLayers().length;
   const nShapes = visibleLayers().reduce((s, L) => s + L.items.filter(it => !it.off).length, 0), matched = result.shapes.filter(s => useShape[s.id]).length;
-  $("#stats").textContent = `${nColors} ${nColors === 1 ? "color" : "colors"} · ${nShapes.toLocaleString()} ${nShapes === 1 ? "shape" : "shapes"}${matched ? ` (${matched} exact)` : ""} · ${kb < 1024 ? kb.toFixed(0) + " KB" : (kb / 1024).toFixed(1) + " MB"}`;
+  const nPts = anchorCount(svg);
+  $("#stats").textContent = `${nColors} ${nColors === 1 ? "color" : "colors"} · ${nShapes.toLocaleString()} ${nShapes === 1 ? "shape" : "shapes"}${matched ? ` (${matched} exact)` : ""} · ${nPts.toLocaleString()} ${nPts === 1 ? "point" : "points"} · ${kb < 1024 ? kb.toFixed(0) + " KB" : (kb / 1024).toFixed(1) + " MB"}`;
   $("#exportBtn").disabled = nColors === 0; $("#exportMenuBtn").disabled = nColors === 0; $("#versaBtn").disabled = nColors === 0;
   $("#shapeCount").textContent = result.shapes.length; $("#shapeCount").hidden = !result.shapes.length;
   renderPalette(); renderShapes(); renderTexts(); renderParts(); applyView(); renderBatch();

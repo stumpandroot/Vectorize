@@ -160,7 +160,7 @@ h1,h2,h3,p{margin:0}
 .vec [data-k]{cursor:pointer}
 .stage.hand,.stage.hand .vec [data-k],.stage.hand .vec [data-t]{cursor:grab}
 .stage.panning,.stage.panning *{cursor:grabbing!important}
-.vec.outlines svg :not(.sel):not(.hl):not(.thl):not(.ohl){fill:none!important;stroke:#26352E;stroke-width:1px;vector-effect:non-scaling-stroke}
+.vec.outlines svg :not(.sel):not(.hl):not(.thl):not(.ohl):not(.anchors):not(.anchors *){fill:none!important;stroke:#26352E;stroke-width:1px;vector-effect:non-scaling-stroke}
 .marquee{position:absolute;z-index:2;border:1.5px dashed #E0218A;background:#E0218A14;border-radius:4px;pointer-events:none}
 .snap-acts{display:flex;gap:6px;flex-wrap:wrap}
 .snap-act{min-height:32px;padding:0 12px;border-radius:999px;background:var(--mist-tint);font-size:13px;font-weight:600;white-space:nowrap}
@@ -660,6 +660,11 @@ html.kbd .tour-step{animation:none}
 .tour-foot .spacer{flex:1}
 .tour-foot .btn{min-height:38px;padding:0 18px;font-size:14px}
 @media (max-width:620px){ .tour-card{padding:22px 20px 18px} .tour-pillars{grid-template-columns:1fr} .pillar{min-height:0;gap:6px} .tour-grid{grid-template-columns:1fr} .tour h3{font-size:24px} }
+
+/* Fine-tune: while you drag a dial, the vector shows its outlines and anchor points, so you see what the dial changes. */
+.vec.tuning svg :not(.sel):not(.hl):not(.thl):not(.ohl):not(.anchors):not(.anchors *){fill:none!important;stroke:#26352E;stroke-width:1px;vector-effect:non-scaling-stroke}
+.vec .anchors rect{fill:#FFFFFF;stroke:#E0218A;stroke-width:1.25px;vector-effect:non-scaling-stroke}
+.dial.tuning .top > :first-child::after{content:" · showing points";font-weight:400;color:var(--text3)}
 
 /* Right-click menus open at the pointer. */
 .menu.ctx{position:fixed;right:auto;min-width:210px;max-width:320px;z-index:40}

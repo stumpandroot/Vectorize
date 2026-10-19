@@ -915,6 +915,7 @@ let checkTimer = 0, checkSeq = 0, thinOverlay = null, showThin = false;
 function afterRender() {
   syncDest();
   if (typeof afterAlignRender === "function") afterAlignRender();
+  if (typeof afterTuneRender === "function") afterTuneRender();
   if (showThin && thinOverlay) drawThinOverlay();
   // The cut line is drawn off screen; draw again once it's ready, unless the screen already shows it
   // (or can't, as in the Words view).

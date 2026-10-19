@@ -310,3 +310,88 @@ function closeTour() {
 $("#showTour").onclick = openTour;
 // The web preview decides after the first paint; the Mac app decides once it has read its settings (initNative).
 setTimeout(() => { if (!window.pywebview) maybeShowTour(); }, 900);
+
+/* ---------- Fine-tune: show points while a dial moves ---------- */
+// While you drag a Fine-tune dial (or step it from the keyboard, or press Grow or Shrink), the vector switches to
+// thin outlines with every anchor point marked, so Curves, Corners, and Straight edges show their effect as
+// points appearing and disappearing. It returns to normal a moment after the new trace lands.
+const ANCHOR_ARGS = { M: 2, L: 2, T: 2, H: 1, V: 1, C: 6, S: 4, Q: 4, A: 7, Z: 0 };
+// The anchor points of a path's d: the end point of every segment (a closing Z adds none).
+function anchorsOf(d, out, cap) {
+  const toks = d.match(/[a-zA-Z]|-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) || [];
+  let i = 0, cmd = "", x = 0, y = 0, sx = 0, sy = 0;
+  while (i < toks.length && out.length < cap) {
+    if (/[a-zA-Z]/.test(toks[i])) { cmd = toks[i++]; if (cmd === "Z" || cmd === "z") { x = sx; y = sy; continue; } }
+    const U = cmd.toUpperCase(), n = ANCHOR_ARGS[U]; if (!n) { i++; continue; }
+    const a = toks.slice(i, i + n).map(Number); i += n; if (a.length < n) break;
+    const rel = cmd !== U;
+    if (U === "H") x = rel ? x + a[0] : a[0];
+    else if (U === "V") y = rel ? y + a[0] : a[0];
+    else { x = rel ? x + a[n - 2] : a[n - 2]; y = rel ? y + a[n - 1] : a[n - 1]; }
+    if (U === "M") { sx = x; sy = y; cmd = rel ? "l" : "L"; }   // more pairs after M are line-tos
+    out.push([x, y]);
+  }
+  return out;
+}
+// Points in an SVG string (the footer count): path end points, plus 4 for each circle, ellipse, or rect.
+function anchorCount(svg) {
+  let n = 0;
+  for (const m of svg.matchAll(/\sd="([^"]*)"/g)) n += anchorsOf(m[1], [], 1e7).length;
+  n += 4 * ((svg.match(/<(circle|ellipse|rect)\b/g) || []).length);
+  for (const m of svg.matchAll(/<poly(?:gon|line)\b[^>]*\spoints="([^"]*)"/g)) n += Math.floor(m[1].trim().split(/[\s,]+/).length / 2);
+  return n;
+}
+function drawAnchors() {
+  const svg = $("#vec svg"); if (!svg) return;
+  svg.querySelectorAll(".anchors").forEach(g => g.remove());
+  const vb = svg.viewBox.baseVal, px = svg.getBoundingClientRect().width; if (!px || !vb || !vb.width) return;
+  const u = vb.width / px, r = 2.25 * u, pts = [];
+  const num = (el, k) => +el.getAttribute(k) || 0;
+  for (const p of svg.querySelectorAll(":is(path,polygon,polyline,circle,ellipse,rect):not(.sel):not(.hl):not(.thl):not(.ohl)")) {
+    if (p.closest("defs, clipPath, mask, .anchors")) continue;
+    const tag = p.tagName.toLowerCase(); let loc;
+    if (tag === "path") { const d = p.getAttribute("d"); if (!d) continue; loc = anchorsOf(d, [], 20000 - pts.length); }
+    else if (tag === "polygon" || tag === "polyline") { const v = (p.getAttribute("points") || "").trim().split(/[\s,]+/).map(Number); loc = []; for (let k = 0; k + 1 < v.length; k += 2) loc.push([v[k], v[k + 1]]); }
+    else if (tag === "rect") { const x = num(p, "x"), y = num(p, "y"), w = num(p, "width"), h = num(p, "height"); if (!w || !h) continue; loc = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]; }
+    else { const cx = num(p, "cx"), cy = num(p, "cy"), rx = tag === "circle" ? num(p, "r") : num(p, "rx"), ry = tag === "circle" ? rx : num(p, "ry"); loc = [[cx + rx, cy], [cx, cy + ry], [cx - rx, cy], [cx, cy - ry]]; }
+    const m = p.transform && p.transform.baseVal.consolidate();   // parts moved in Align or drawn with a transform
+    for (const q of loc) pts.push(m ? [m.matrix.a * q[0] + m.matrix.c * q[1] + m.matrix.e, m.matrix.b * q[0] + m.matrix.d * q[1] + m.matrix.f] : q);
+    if (pts.length >= 20000) break;
+  }
+  const g = document.createElementNS("http://www.w3.org/2000/svg", "g"); g.setAttribute("class", "anchors"); g.setAttribute("aria-hidden", "true");
+  g.innerHTML = pts.map(q => `<rect x="${(q[0] - r).toFixed(2)}" y="${(q[1] - r).toFixed(2)}" width="${(2 * r).toFixed(2)}" height="${(2 * r).toFixed(2)}"/>`).join("");
+  svg.appendChild(g);
+}
+let tuneShow = null;   // { dial, held, until }
+function tuneStart(dial) {
+  clearTimeout(tuneShow && tuneShow.t);
+  document.querySelectorAll(".dial.tuning").forEach(d => d.classList.remove("tuning"));
+  tuneShow = { dial, held: true, t: 0 };
+  if (dial) dial.classList.add("tuning");
+  $("#vec").classList.add("tuning"); drawAnchors();
+}
+function tuneRelease(delay) {
+  if (!tuneShow) return;
+  tuneShow.held = false; clearTimeout(tuneShow.t);
+  tuneShow.t = setTimeout(tuneEnd, delay);                 // a retrace landing restarts this (afterTuneRender)
+}
+function tuneEnd() {
+  if (!tuneShow || tuneShow.held) return;
+  clearTimeout(tuneShow.t); if (tuneShow.dial) tuneShow.dial.classList.remove("tuning"); tuneShow = null;
+  $("#vec").classList.remove("tuning"); const svg = $("#vec svg"); if (svg) svg.querySelectorAll(".anchors").forEach(g => g.remove());
+}
+function afterTuneRender() {
+  if (!tuneShow) return;
+  drawAnchors();
+  if (!tuneShow.held) { clearTimeout(tuneShow.t); tuneShow.t = setTimeout(tuneEnd, 1200); }
+}
+const DIAL_IDS = ["detail", "straight", "smooth", "corners"];
+for (const id of DIAL_IDS) {
+  const el = $("#" + id), dial = el.closest(".dial");
+  el.addEventListener("pointerdown", () => tuneStart(dial));
+  el.addEventListener("keydown", e => { if (/^(Arrow|Page|Home|End)/.test(e.key)) { tuneStart(dial); tuneRelease(1600); } });
+}
+for (const id of ["growMinus", "growPlus"]) $("#" + id).addEventListener("click", () => { tuneStart($("#" + id).closest(".dial")); tuneRelease(1600); });
+document.addEventListener("pointerup", () => { if (tuneShow && tuneShow.held) tuneRelease(1600); });
+document.addEventListener("pointercancel", () => { if (tuneShow && tuneShow.held) tuneRelease(400); });
+window.addEventListener("resize", () => { if (tuneShow) drawAnchors(); });

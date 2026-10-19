@@ -62,6 +62,48 @@ async def main():
         await pg.click('[data-sel="tune"]'); await pg.wait_for_timeout(100); await pg.click("#tuneReset"); await done(pg)
         check("reset clears the shape tune", await pg.evaluate("tunes.length") == 0 and abs(await pg.evaluate(AREA, coral) - star_area0) < star_area0 * 0.03)
         check("no page errors", not errs, errs)
+
+        # The dials do something you can see (1.8.0): the ends of each slider change the trace a lot, and the
+        # middle gives the same trace as before.
+        pg = await b.new_page(viewport={"width": 1400, "height": 900}); errs2 = []; pg.on("pageerror", lambda e: errs2.append(str(e)))
+        await pg.goto("file://" + UI); await done(pg)
+        pts = "anchorCount(buildSVG(false, { part: 'all' }))"
+        base = await pg.evaluate(pts)
+        P = await pg.evaluate("tuneParams({ detail: 70, straight: 50, smooth: 50, corners: 50 }, 2)")
+        check("the middle of every dial keeps the tuned defaults", abs(P["sigma"] - 0.9) < 1e-9 and abs(P["tol"] - 1.1) < 1e-9 and abs(P["lineSrc"] - 1.2) < 1e-9 and P["cornerDeg"] == 40 and abs(P["speckArea"] - 19.36) < 1e-9 and P["fitSigma"] == 1.6 and P["lineMin"] == 1 and P["snapDeg"] == 3, P)
+        async def at(dial, v):
+            await pg.evaluate(f"(() => {{ const i = $('#{dial}'); i.value = {v}; i.dispatchEvent(new Event('input', {{ bubbles: true }})); }})()"); await done(pg)
+            return await pg.evaluate(pts)
+        lo, hi = await at("smooth", 0), await at("smooth", 100); await at("smooth", 50)
+        check("Curves: Tight keeps far more points than Smooth", lo > hi * 1.4, f"{lo} vs {hi} (default {base})")
+        lo, hi = await at("corners", 0), await at("corners", 100); await at("corners", 50)
+        check("Corners: Sharper keeps more corner points than Rounder", hi > lo * 1.15, f"{lo} vs {hi}")
+        # Points while dragging.
+        await pg.click("#v-vector")
+        await pg.evaluate("$('#smooth').scrollIntoView({ block: 'center' })"); await pg.wait_for_timeout(200)
+        r = await pg.evaluate("(r => [r.left, r.top + r.height / 2, r.width])($('#smooth').getBoundingClientRect())")
+        await pg.mouse.move(r[0] + r[2] * 0.5, r[1]); await pg.mouse.down(); await pg.mouse.move(r[0] + 2, r[1], steps=6); await done(pg)
+        held = await pg.evaluate("[$('#vec').classList.contains('tuning'), document.querySelectorAll('#vec .anchors rect').length, anchorCount(buildSVG(false, { part: 'all' })), $('#smooth').closest('.dial').classList.contains('tuning')]")
+        check("dragging a dial shows outlines and every anchor point", held[0] and held[3] and held[1] == held[2] and held[1] > 0, held)
+        check("the footer counts points", f"{held[2]} points" in await pg.inner_text("#stats"))
+        await pg.mouse.up(); await pg.wait_for_timeout(300)
+        check("the points stay up just after you let go", await pg.evaluate("$('#vec').classList.contains('tuning')"))
+        await pg.wait_for_timeout(2600)
+        check("then the vector returns to normal", await pg.evaluate("!$('#vec').classList.contains('tuning') && !document.querySelector('#vec .anchors')"))
+        await pg.focus("#corners"); await pg.keyboard.press("ArrowRight"); await pg.wait_for_timeout(100)
+        check("arrow keys on a dial show the points too", await pg.evaluate("$('#vec').classList.contains('tuning')"))
+        await done(pg); await pg.wait_for_timeout(1600)
+        check("and they clear on their own", await pg.evaluate("!$('#vec').classList.contains('tuning')"))
+        # Small details at 0 removes specks on a noisy JPEG.
+        import base64 as _b
+        data = _b.b64encode((ROOT / "bench/testset/images/serif-wordmark.jpg").read_bytes()).decode()
+        await pg.evaluate(f"openImage('data:image/jpeg;base64,{data}', 'serif', 'test')"); await done(pg)
+        n70 = await pg.evaluate("visibleLayers().reduce((s, L) => s + L.items.length, 0)")
+        await at("detail", 0)
+        n0 = await pg.evaluate("visibleLayers().reduce((s, L) => s + L.items.length, 0)")
+        check("Small details at 0 drops small pieces", n0 < n70, f"{n70} -> {n0}")
+        check("no page errors (dial ranges)", not errs2, errs2)
+        await pg.close()
         await b.close()
     print(f"{sum(OK)}/{len(OK)} passed")
     if not all(OK): sys.exit(1)

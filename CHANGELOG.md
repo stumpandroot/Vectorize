@@ -2,6 +2,18 @@
 
 The app shows its version and build in the window title and the toolbar. Each GitHub build has a new build number; the version changes when features change.
 
+## 1.8.0
+
+The Fine-tune dials do something you can see.
+
+- Each dial's range is much wider. The middle of every slider gives the same trace as before; the ends go much further:
+  - **Curves:** Tight keeps about 1.5 times as many points; Smooth smooths edges harder before and during fitting.
+  - **Corners:** what counts as a corner runs from 80 degrees (Rounder) to 12 degrees (Sharper).
+  - **Straight edges:** lines may stray from 0.2 to 6 pixels and still be drawn straight, and snap up to 9 degrees.
+  - **Small details:** 0 drops pieces up to about 580 square pixels; 100 keeps 1-pixel pieces and blurs edges less, so thin lines hold up better.
+- While you drag a dial, use its arrow keys, or press Grow or Shrink, the vector shows thin outlines with every anchor point marked in magenta, so you see points appear and disappear. It returns to normal a moment after the new trace lands.
+- The footer counts points.
+
 ## 1.7.0
 
 Vectorize picks up the design changes from Verbatim's latest build.

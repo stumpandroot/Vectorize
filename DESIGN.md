@@ -79,6 +79,7 @@ Vectorize uses the same interaction vocabulary as Verbatim (its `0d6b88f` pass a
 | Align bar and batch bar | Drop 6 px and fade in | 300 ms |
 | First paint | Toolbar, canvas, inspector header, and setup sections rise 4 px, 30 ms apart (Verbatim Mac's `staggerIn`) | 300 ms |
 | Welcome tour steps | Come in 24 px from the side you're moving toward (Back comes from the left) | 300 ms |
+| Dragging a Fine-tune dial | The vector switches to thin ink outlines with every anchor point as a small white square with a magenta edge; the dial's label adds "showing points" | Instant on, clears 1.2 s after the new trace |
 | Converting overlay | Fades in after 120 ms, so quick conversions never show it | 200 ms |
 | Leaving | Everything leaves at once | `motion.instant` |
 
@@ -119,7 +120,7 @@ It shows once (until `TOUR_VERSION` goes up), and again from Help › Welcome To
 | Departure | Why |
 |---|---|
 | The artwork sheet is pure white (`#FFFFFF`) with a neutral gray checker, not `reader` | A tracing tool has to show the artwork's colors as they are; a warm sheet shifts how colors read |
-| Canvas overlays use functional colors: selection and snap lines magenta `#E0218A`, guides cyan `#18A9E0`, the sticker cut line `#FF00FF`, and the Difference view's red `#E2203C` | They must stand out against any logo, and cyan guides and a magenta CutContour are print and design-tool conventions. They never appear in chrome |
+| Canvas overlays use functional colors: selection, snap lines, and Fine-tune anchor points magenta `#E0218A`, guides cyan `#18A9E0`, the sticker cut line `#FF00FF`, and the Difference view's red `#E2203C` | They must stand out against any logo, and cyan guides and a magenta CutContour are print and design-tool conventions. They never appear in chrome |
 | Glass is CSS (`backdrop-filter`) with a paper tint, not system Liquid Glass | The app's interface is a web view. The tint is strong enough (82%+) that text on it stays legible, and it falls back to opaque `bar` under Reduce Transparency |
 | No grain | Grain is for illustrated level-0 surfaces; Vectorize has none |
 | The Export menu is an opaque popover (`card` with `shadow.high`), not glass | It holds paragraphs of text over the artwork; the family doc keeps glass out from behind text |
