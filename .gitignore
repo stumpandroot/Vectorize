@@ -7,3 +7,5 @@ dist/
 build-web/
 bench/images/
 bench/out/
+ui/font-index.*
+ui/fonts/

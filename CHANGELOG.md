@@ -2,6 +2,24 @@
 
 The app shows its version and build in the window title and the toolbar. Each GitHub build has a new build number; the version changes when features change.
 
+## 1.9.0
+
+A new lettering engine: Vectorize reads words better, finds their fonts in the whole Google Fonts library, sets them in the font's real outlines, and swaps a font in on its own only when every letter checks out.
+
+- **Real font outlines.** A matched font is placed from its own glyph outlines (Bézier curves straight from the font file), sized, spaced, stretched, slanted, and nudged letter by letter to fit the word. Before, Vectorize traced a picture of the font, which rounded its corners and thinned its hairlines. Font letters export with the nonzero fill rule, so overlapping parts of a glyph stay filled.
+- **The whole Google Fonts library.** A built-in index describes the letter shapes of 1,883 families (3,994 styles). Vectorize ranks them all against your word, fits the closest ones for real, tries the weights in between, and recognizes look-alike families (Playfair Display SC is Playfair Display for capitals) so it uses the plain name.
+- **A letter check before any swap.** Each letter is compared with the original: overlap, edge distance, counters (the holes in A, O, and R), and thin strokes. A font swaps in on its own only when every letter passes and no other family is just as close. Otherwise it's listed as a suggestion with what to check, such as "Check R, A".
+- **Compare with the original.** For a word set in a font, the Text tab draws the font's outline over the original so you can see any difference.
+- **More words found.** Vectorize finds one- and two-letter marks, words in several colors, stacked lines, and small taglines under big names. A tagline the reader sees as one line stays one word, so its spacing is fitted once.
+- **Lettering on a circle.** Badge and seal lettering, over the top or along the bottom, is found, straightened to be read, and set in its font along the same curve.
+- **Cleaned letters keep their hairlines.** Cleaned mode traces each word from the original image at twice the detail, with no blur first, so thin strokes and serif corners survive.
+- **Cleanup for hand lettering.** In Cleaned mode, two switches: **Make repeated letters match** gives every copy of a letter the shape of its most typical copy, and **Even out stroke weight** thickens or thins letters drawn heavier or lighter than the rest. Both are off until you turn them on.
+- **The web preview reads text too,** with tesseract.js on your device. Nothing is uploaded.
+- **On a Mac,** Apple Vision also reports a box for each letter, and words you've typed before are expected the next time.
+- **Fonts work offline.** The app carries the 48 most-used families (Latin only, with their licenses in the app), and keeps any other font it downloads, so it works without a network after its first use.
+
+Under the hood: `bench/textset` is a lettering test set (13 hand-picked hard cases plus 300 generated words from Google Fonts with known outlines), `bench/text_score.py` scores it, and GitHub fails a build that finds, reads, or fits words worse, or that swaps a font in when its letters don't match the artwork. PP-OCR (RapidOCR) was measured against tesseract.js on the same images and not shipped: it read 74 percent of words to tesseract.js's 81 percent, about eight times slower (`bench/ocr_bakeoff.py`).
+
 ## 1.8.0
 
 The Fine-tune dials do something you can see.

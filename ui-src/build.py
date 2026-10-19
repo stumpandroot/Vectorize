@@ -24,15 +24,18 @@ def svg_inline(path):
 
 def build():
     t = (HERE / "template.html").read_text()
-    js = "\n".join((HERE / f).read_text() for f in ("app.js", "editor.js", "align.js", "motion.js"))
+    js = "\n".join((HERE / f).read_text() for f in ("app.js", "editor.js", "align.js", "lettering.js", "lettering-index.js", "lettering-arc.js", "lettering-tidy.js", "lettering-ocr.js", "motion.js"))
     fit = (HERE / "fit.js").read_text()
-    for name, src in (("app.js + editor.js + align.js + motion.js", js), ("fit.js", fit)):
+    vendor = (HERE / "vendor" / "fontkit.min.js").read_text()
+    assert "</script" not in vendor, "fontkit bundle contains </script"
+    for name, src in (("page scripts", js), ("fit.js", fit)):
         assert "</script" not in src, f"{name} contains </script"
     js = js.replace("%%BUILD%%", os.environ.get("VZ_BUILD", "dev"))
-    for key in ("%%FIT%%", "%%MARK%%", "%%JS%%"):
+    for key in ("%%FIT%%", "%%MARK%%", "%%JS%%", "%%VENDOR%%"):
         assert t.count(key) == 1, key
     # Replace the JS last so nothing inside it is mistaken for a placeholder.
     return (t.replace("%%MARK%%", svg_inline("app-icon.svg"))
+             .replace("%%VENDOR%%", vendor)
              .replace("%%FIT%%", fit)
              .replace("%%JS%%", js))
 
@@ -43,16 +46,34 @@ def page(body, head=""):
             + head + "</head><body>" + body + "</body></html>\n")
 
 
+def copy_side_files(dest, web=False):
+    """Files the page loads beside itself: the font index, and for the web page the reader (ocr/). The Mac app
+    serves the index from its local web server and reads text with Vision, so it doesn't carry ocr/."""
+    import shutil
+    for f in ("font-index.json", "font-index.bin"):
+        if (HERE / "assets" / f).exists():
+            shutil.copyfile(HERE / "assets" / f, dest / f)
+    ocr = HERE / "vendor" / "ocr"
+    if web and ocr.is_dir():
+        (dest / "ocr").mkdir(exist_ok=True)
+        for f in ocr.iterdir():
+            if f.is_file():
+                shutil.copyfile(f, dest / "ocr" / f.name)
+
+
 def main():
     out = build()
     ui = ROOT / "ui"
     ui.mkdir(exist_ok=True)
     (ui / "index.html").write_text(page(out))
     print("wrote", ui / "index.html")
+    # The font index sits next to the page (the Mac app serves it over its local web server).
+    copy_side_files(ui)
     if "--web" in sys.argv:
         W = Path(sys.argv[sys.argv.index("--web") + 1])
         W.mkdir(parents=True, exist_ok=True)
         (W / "vectorize-web.html").write_text(out)
+        copy_side_files(W, web=True)
         (W / "test.html").write_text(page(out))
         # Test build: local fonts stand in for Google Fonts (the sandbox blocks fonts.googleapis.com).
         N = "/tmp/claude-0/fontdl/nun/package/files/"

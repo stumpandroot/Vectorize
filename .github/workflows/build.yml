@@ -47,8 +47,11 @@ jobs:
           python tests/ui/test_align.py
           python tests/ui/test_design.py
           python tests/ui/test_motion.py
+          python tests/ui/test_lettering.py
       - name: Tracing scores (generated test logos)
         run: python bench/score.py bench-out --check bench/baseline.json
+      - name: Lettering scores (hard cases and generated words, fonts from Google Fonts)
+        run: python bench/text_score.py --net --limit 40 --out bench-out/text --check bench/text_baseline.json
       - name: Upload the tracing scores
         if: always()
         uses: actions/upload-artifact@v4

@@ -115,6 +115,14 @@ Verbatim's pattern: a paper sheet with a section-header strip (diamond, mono lab
 
 It shows once (until `TOUR_VERSION` goes up), and again from Help › Welcome Tour or "Show the welcome tour" in Setup. Finishing, skipping, or pressing Escape marks it seen. Automated test browsers never see it. Titles use SF Pro at 28 pt, not Verbatim's serif, because Vectorize has no display face.
 
+### Text tab (1.9.0)
+
+- A font row shows the family, weight, match, and the letter check in words: "Exact match", "Check R, A", "Another font is just as close", or "Too small to confirm". The check never shows as a score.
+- An automatic swap says so on the card ("font matched automatically") and in a toast that names the undo: choose Traced.
+- **Compare with the original** draws the font's outline in magenta over the original crop, the same functional magenta as selection and anchor points.
+- In Cleaned mode, the two cleanup switches sit right under the Traced / Cleaned / Font buttons on a `mist-tint` panel, both off by default. Their help line turns into the reason when a tool can't run ("Some letters touch or are in pieces…").
+- Arc words say "on an arc" on the card. Multicolor words are titled "Multicolor word".
+
 ## Departures from the family doc, and why
 
 | Departure | Why |

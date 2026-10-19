@@ -1,0 +1,51 @@
+Fonts bundled with Vectorize for offline font matching. Each is subset to Latin and redistributed under its
+own license (SIL Open Font License 1.1 or Apache License 2.0); the license texts are in licenses/.
+
+Roboto: OFL, weights 400, 700, 900, from github.com/google/fonts/tree/main/ofl/roboto; license in licenses/roboto.txt
+Open Sans: OFL, weights 400, 700, 800, from github.com/google/fonts/tree/main/ofl/opensans; license in licenses/open-sans.txt
+Montserrat: OFL, weights 400, 600, 700, 800, 900, from github.com/google/fonts/tree/main/ofl/montserrat; license in licenses/montserrat.txt
+Poppins: OFL, weights 400, 600, 700, 800, 900, from github.com/google/fonts/tree/main/ofl/poppins; license in licenses/poppins.txt
+Lato: OFL, weights 400, 700, 900, from github.com/google/fonts/tree/main/ofl/lato; license in licenses/lato.txt
+Nunito: OFL, weights 400, 700, 900, from github.com/google/fonts/tree/main/ofl/nunito; license in licenses/nunito.txt
+Raleway: OFL, weights 400, 700, 900, from github.com/google/fonts/tree/main/ofl/raleway; license in licenses/raleway.txt
+Work Sans: OFL, weights 400, 700, 900, from github.com/google/fonts/tree/main/ofl/worksans; license in licenses/work-sans.txt
+DM Sans: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/dmsans; license in licenses/dm-sans.txt
+Rubik: OFL, weights 400, 700, 900, from github.com/google/fonts/tree/main/ofl/rubik; license in licenses/rubik.txt
+Inter: OFL, weights 400, 700, 900, from github.com/google/fonts/tree/main/ofl/inter; license in licenses/inter.txt
+Manrope: OFL, weights 400, 800, from github.com/google/fonts/tree/main/ofl/manrope; license in licenses/manrope.txt
+Outfit: OFL, weights 400, 700, 900, from github.com/google/fonts/tree/main/ofl/outfit; license in licenses/outfit.txt
+League Spartan: OFL, weights 400, 700, 900, from github.com/google/fonts/tree/main/ofl/leaguespartan; license in licenses/league-spartan.txt
+Space Grotesk: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/spacegrotesk; license in licenses/space-grotesk.txt
+Barlow: OFL, weights 400, 700, 900, from github.com/google/fonts/tree/main/ofl/barlow; license in licenses/barlow.txt
+Barlow Condensed: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/barlowcondensed; license in licenses/barlow-condensed.txt
+Oswald: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/oswald; license in licenses/oswald.txt
+Bebas Neue: OFL, weights 400, from github.com/google/fonts/tree/main/ofl/bebasneue; license in licenses/bebas-neue.txt
+Anton: OFL, weights 400, from github.com/google/fonts/tree/main/ofl/anton; license in licenses/anton.txt
+Archivo Black: OFL, weights 400, from github.com/google/fonts/tree/main/ofl/archivoblack; license in licenses/archivo-black.txt
+Source Sans 3: OFL, weights 400, 700, 900, from github.com/google/fonts/tree/main/ofl/sourcesans3; license in licenses/source-sans-3.txt
+PT Sans: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/ptsans; license in licenses/pt-sans.txt
+Josefin Sans: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/josefinsans; license in licenses/josefin-sans.txt
+Fredoka: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/fredoka; license in licenses/fredoka.txt
+Quicksand: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/quicksand; license in licenses/quicksand.txt
+Comfortaa: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/comfortaa; license in licenses/comfortaa.txt
+Varela Round: OFL, weights 400, from github.com/google/fonts/tree/main/ofl/varelaround; license in licenses/varela-round.txt
+Baloo 2: OFL, weights 400, 800, from github.com/google/fonts/tree/main/ofl/baloo2; license in licenses/baloo-2.txt
+Righteous: OFL, weights 400, from github.com/google/fonts/tree/main/ofl/righteous; license in licenses/righteous.txt
+Playfair Display: OFL, weights 400, 700, 900, from github.com/google/fonts/tree/main/ofl/playfairdisplay; license in licenses/playfair-display.txt
+Merriweather: OFL, weights 400, 700, 900, from github.com/google/fonts/tree/main/ofl/merriweather; license in licenses/merriweather.txt
+Lora: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/lora; license in licenses/lora.txt
+Roboto Slab: APACHE2, weights 400, 700, 900, from github.com/google/fonts/tree/main/apache/robotoslab; license in licenses/roboto-slab.txt
+Zilla Slab: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/zillaslab; license in licenses/zilla-slab.txt
+Arvo: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/arvo; license in licenses/arvo.txt
+Alfa Slab One: OFL, weights 400, from github.com/google/fonts/tree/main/ofl/alfaslabone; license in licenses/alfa-slab-one.txt
+Libre Baskerville: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/librebaskerville; license in licenses/libre-baskerville.txt
+EB Garamond: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/ebgaramond; license in licenses/eb-garamond.txt
+DM Serif Display: OFL, weights 400, from github.com/google/fonts/tree/main/ofl/dmserifdisplay; license in licenses/dm-serif-display.txt
+Abril Fatface: OFL, weights 400, from github.com/google/fonts/tree/main/ofl/abrilfatface; license in licenses/abril-fatface.txt
+Pacifico: OFL, weights 400, from github.com/google/fonts/tree/main/ofl/pacifico; license in licenses/pacifico.txt
+Lobster: OFL, weights 400, from github.com/google/fonts/tree/main/ofl/lobster; license in licenses/lobster.txt
+Dancing Script: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/dancingscript; license in licenses/dancing-script.txt
+Permanent Marker: APACHE2, weights 400, from github.com/google/fonts/tree/main/apache/permanentmarker; license in licenses/permanent-marker.txt
+Caveat: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/caveat; license in licenses/caveat.txt
+Roboto Mono: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/robotomono; license in licenses/roboto-mono.txt
+Space Mono: OFL, weights 400, 700, from github.com/google/fonts/tree/main/ofl/spacemono; license in licenses/space-mono.txt

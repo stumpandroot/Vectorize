@@ -704,14 +704,16 @@ function itemD(it) {
   const d = (on ? VZ.shapeD(s) : VZ.outlineD(it.outer.outline)) + holes.map(r => r.shape && useShape[r.shape.id] ? VZ.shapeD(r.shape) : VZ.outlineD(r.outline)).join("");
   return translateD(d, ...offOf(it));
 }
-function activeWords(li) { return (result.texts || []).filter(T => T.li === li && !T.removed && T.mode !== "original" && T.repl); }
+function activeWords(li) { return (result.texts || []).filter(T => !T.removed && T.mode !== "original" && T.repl && (T.li === li || (T.parts && T.parts.some(p => p.li === li)))); }
+// A word's glyphs that print in layer li (a multicolor word's letters keep their own colors).
+const wordGlyphs = (T, li) => T.parts ? T.repl.filter(it => (it.li ?? T.li) === li) : T.repl;
 // part: "all", "art" (everything except words), or "text" (words only). Bounds of what was drawn go into box.
 function layerBody(L, li, keyed, part = "all", box = null, only = null) {
   const pick = ii => !only || only.has(li + ":" + ii);
-  const out = [], words = activeWords(li).filter(T => (!only || T.items.some(pick)) && !T.items.every(ii => L.items[ii].off)), grow = b => { if (box) { box[0] = Math.min(box[0], b[0]); box[1] = Math.min(box[1], b[1]); box[2] = Math.max(box[2], b[2]); box[3] = Math.max(box[3], b[3]); } };
-  const skip = new Set(); for (const T of words) for (const ii of T.items) skip.add(ii);
+  const out = [], words = activeWords(li).filter(T => (!only || wordParts(T).some(p => only.has(p.li + ":" + p.ii))) && !wordParts(T).every(p => result.layers[p.li].items[p.ii].off)), grow = b => { if (box) { box[0] = Math.min(box[0], b[0]); box[1] = Math.min(box[1], b[1]); box[2] = Math.max(box[2], b[2]); box[3] = Math.max(box[3], b[3]); } };
+  const skip = new Set(); for (const T of words) for (const p of wordParts(T)) if (p.li === li) skip.add(p.ii);
   // Letters of a word left as traced still count as text for the wordmark file.
-  const textItems = new Set(); for (const T of (result.texts || [])) if (T.li === li && !T.removed) for (const ii of T.items) textItems.add(ii);
+  const textItems = new Set(); for (const T of (result.texts || [])) if (!T.removed) for (const p of wordParts(T)) if (p.li === li) textItems.add(p.ii);
   L.items.forEach((it, ii) => {
     if (skip.has(ii) || it.off || !pick(ii)) return;
     const isText = textItems.has(ii); if ((part === "art" && isText) || (part === "text" && !isText)) return;
@@ -723,9 +725,10 @@ function layerBody(L, li, keyed, part = "all", box = null, only = null) {
   if (part !== "art") for (const T of words) {
     const font = T.mode === "font" && T.pick ? ` data-font="${esc(T.pick.label || T.pick.fam)} ${T.pick.w}"` : "";
     // A word moves with its first remaining letter's offset (letters of a word always move together).
-    const [wx, wy] = offOf(L.items[T.items.find(ii => !L.items[ii].off) ?? T.items[0]] || {});
-    for (const it of T.repl) { const b = bboxOf(it.outer.q); grow([b[0] + wx, b[1] + wy, b[2] + wx, b[3] + wy]); }
-    out.push(`<g data-text="${esc(T.text || "")}"${font}>` + `<path${keyed ? ` data-t="${T.id}"` : ""} d="${translateD(T.repl.map(it => [it.outer, ...it.holes].map(r => VZ.outlineD(r.outline)).join("")).join(""), wx, wy)}"/>` + `</g>`);
+    const LT0 = result.layers[T.li], [wx, wy] = offOf(LT0.items[T.items.find(ii => !LT0.items[ii].off) ?? T.items[0]] || {});
+    const glyphs = wordGlyphs(T, li); if (!glyphs.length) continue;
+    for (const it of glyphs) { const b = bboxOf(it.outer.q); grow([b[0] + wx, b[1] + wy, b[2] + wx, b[3] + wy]); }
+    out.push(`<g data-text="${esc(T.text || "")}"${font}>` + `<path${keyed ? ` data-t="${T.id}"` : ""}${T.fillRule === "nonzero" ? ' fill-rule="nonzero"' : ""} d="${translateD(glyphs.map(it => [it.outer, ...it.holes].map(r => VZ.outlineD(r.outline)).join("")).join(""), wx, wy)}"/>` + `</g>`);
   }
   return out.map(e => "    " + e + "\n").join("");
 }
@@ -1055,7 +1058,7 @@ function fontText(T, c) {
 let textMemory = [];      // what the user set per word: { box, text, mode, pick }
 const boxIoU = (a, b) => { const iw = Math.min(a[2], b[2]) - Math.max(a[0], b[0]), ih = Math.min(a[3], b[3]) - Math.max(a[1], b[1]); if (iw <= 0 || ih <= 0) return 0; const i = iw * ih; return i / ((a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - i); };
 function memFor(T) { return textMemory.find(m => boxIoU(m.box, T.box) > 0.6); }
-function remember(T) { let m = memFor(T); if (!m) textMemory.push(m = { box: T.box.slice() }); Object.assign(m, { text: T.text, mode: T.mode, pick: T.pick ? { fam: T.pick.fam, w: T.pick.w } : null, removed: T.removed, manual: T.manual, auto: T.auto }); }
+function remember(T) { let m = memFor(T); if (!m) textMemory.push(m = { box: T.box.slice() }); Object.assign(m, { text: T.text, mode: T.mode, pick: T.pick ? { fam: T.pick.fam, w: T.pick.w, wd: T.pick.wd || 0, text: T.pick.text, P: T.pick.P || null, src: T.pick.src, label: T.pick.label } : null, removed: T.removed, manual: T.manual, auto: T.auto, tidy: T.tidy ? { ...T.tidy } : null }); }
 function setupText() {
   const runs = S.textMode === "off" ? [] : detectText(result.layers);
   // Words keep their traced letters by default; cleaned letters and fonts are choices in the Text tab.
@@ -1065,8 +1068,8 @@ function setupText() {
     const t = manualRun(m.box); if (t) result.texts.push({ ...t, id: result.texts.length, text: "", mode: "original", repl: null, manual: true });
   }
   for (const T of result.texts) {
-    const m = memFor(T); if (m) Object.assign(T, { text: m.text || "", mode: m.mode || "original", removed: m.removed, manual: m.manual, auto: m.auto });
-    if (!T.removed && T.mode === "clean") T.repl = cleanText(T);
+    const m = memFor(T); if (m) Object.assign(T, { text: m.text || "", mode: m.mode || "original", removed: m.removed, manual: m.manual, auto: m.auto, tidy: m.tidy ? { ...m.tidy } : null });
+    if (!T.removed && T.mode === "clean") { T.cleanBase = cleanText(T); T.repl = applyTidy(T, T.cleanBase); cleanTextAsync(T); }
   }
   // Re-apply chosen fonts (fonts load in the background).
   for (const T of result.texts) { const m = memFor(T); if (m && m.mode === "font" && m.pick && m.text) applyFontPick(T, m.pick, true); }
@@ -1082,9 +1085,10 @@ function manualRun(box) {
   let b = [Infinity, Infinity, -Infinity, -Infinity]; for (const ii of best.items) { const q = bboxOf(result.layers[best.li].items[ii].outer.q); b = [Math.min(b[0], q[0]), Math.min(b[1], q[1]), Math.max(b[2], q[2]), Math.max(b[3], q[3])]; }
   return { ...best, box: b };
 }
-function textOf(li, ii) { return result.texts ? result.texts.find(T => !T.removed && T.li === li && T.mode !== "original" && T.repl && T.items.includes(ii)) : null; }
+function textOf(li, ii) { return result.texts ? result.texts.find(T => !T.removed && T.mode !== "original" && T.repl && wordParts(T).some(p => p.li === li && p.ii === ii)) : null; }
 async function applyFontPick(T, pick, quiet) {
   try {
+    if (await reapplyPick(T, pick)) { remember(T); if (!quiet) toast(`Set in ${pick.label || pick.fam} ${WEIGHT_NAME[pick.w] || pick.w}.`); render(); return; }
     const { results } = await matchFonts(T, T.text);
     const c = results.find(r => r.fam === pick.fam && r.w === pick.w) || (await matchOne(T, pick));
     if (!c) return;
@@ -1099,16 +1103,24 @@ function renderTexts() {
   const list = (result.texts || []).filter(T => !T.removed);
   $("#textCount").textContent = list.length; $("#textCount").hidden = !list.length;
   $("#textList").innerHTML = list.length ? list.map(T => {
-    const L = result.layers[T.li], n = T.items.length, picks = T.results || [];
+    const L = result.layers[T.li], n = wordParts(T).length, picks = T.results || [], multi = new Set(wordParts(T).map(p => p.li)).size > 1;
+    for (const c of picks) previewCSS(c.fam);
     return `<div class="text-card${textSel === T.id ? " on" : ""}" data-tid="${T.id}">
-      <div class="text-top"><b>${esc(colorName(recolor[L.hex] || L.hex))} word</b><small>${n} letters${T.manual ? " · marked by you" : ""}${T.auto && T.mode === "font" ? " · font matched automatically" : ""}</small><button type="button" class="link-btn" data-notext="${T.id}">Not text</button></div>
+      <div class="text-top"><b>${multi ? "Multicolor word" : esc(colorName(recolor[L.hex] || L.hex)) + " word"}</b><small>${n} ${n === 1 ? "letter" : "letters"}${T.arc ? " · on an arc" : ""}${T.manual ? " · marked by you" : ""}${T.auto && T.mode === "font" ? " · font matched automatically" : ""}</small><button type="button" class="link-btn" data-notext="${T.id}">Not text</button></div>
       <label class="text-field"><span>What does it say?</span><input type="text" id="tx-${T.id}" data-tin="${T.id}" value="${esc(T.text)}" placeholder="Type the word, like SUNNY CO" autocomplete="off" spellcheck="false"></label>
       <div class="seg full" role="group" aria-label="Letters">
         <button data-tmode="original" data-t="${T.id}" aria-pressed="${T.mode === "original"}">Traced</button>
         <button data-tmode="clean" data-t="${T.id}" aria-pressed="${T.mode === "clean"}">Cleaned</button>
         <button data-tmode="font" data-t="${T.id}" aria-pressed="${T.mode === "font"}" ${T.text.trim() ? "" : "disabled"}>Font</button>
       </div>
-      ${T.mode === "font" || picks.length ? `<div class="font-list">${T.busy ? `<p class="help">${esc(T.busy)}</p>` : picks.map((c, i) => `<button type="button" class="font-row" data-pick="${T.id}:${i}" aria-pressed="${!!(T.pick && T.pick.fam === c.fam && T.pick.w === c.w && T.mode === "font")}"><span class="fprev" style="font-family:'${esc(c.fam)}';font-weight:${c.w}">${esc(c.text)}</span><span class="fmeta"><b>${esc(c.label || c.fam)}</b>${c.src === "file" ? "" : " " + (WEIGHT_NAME[c.w] || c.w)} · ${Math.round(c.iou * 100)}% match${c.src === "installed" ? " · on this computer" : c.src === "file" ? " · your file" : ""}</span></button>`).join("")}</div>` : ""}
+      ${T.mode === "clean" ? `<div class="tidy" role="group" aria-label="Lettering cleanup">
+        <label class="switch" for="tm-${T.id}">Make repeated letters match<input type="checkbox" id="tm-${T.id}" data-tidy="match" data-t="${T.id}"${T.tidy && T.tidy.match ? " checked" : ""}${T.text.trim() ? "" : " disabled"}><span class="track"><i></i></span></label>
+        <label class="switch" for="ts-${T.id}">Even out stroke weight<input type="checkbox" id="ts-${T.id}" data-tidy="stems" data-t="${T.id}"${T.tidy && T.tidy.stems ? " checked" : ""}><span class="track"><i></i></span></label>
+        <p class="help">${T.tidyNote ? esc(T.tidyNote) : "For hand lettering: each copy of a letter takes the most typical copy's shape, and heavy or light letters move to the word's usual stroke."}</p>
+      </div>` : ""}
+      ${T.mode === "font" || picks.length ? `<div class="font-list">${T.busy ? `<p class="help">${esc(T.busy)}</p>` : picks.map((c, i) => `<button type="button" class="font-row" data-pick="${T.id}:${i}" aria-pressed="${!!(T.pick && T.pick.fam === c.fam && T.pick.w === c.w && T.mode === "font")}"><span class="fprev" style="font-family:'${esc(c.fam)}';font-weight:${c.w}">${esc(c.text)}</span><span class="fmeta"><b>${esc(c.label || c.fam)}</b>${c.src === "file" ? "" : " " + (WEIGHT_NAME[c.w] || c.w)} · ${Math.round(c.iou * 100)}% match${c.verdict ? ` · ${esc(verdictLabel(c.verdict))}` : ""}${c.src === "installed" ? " · on this computer" : c.src === "file" ? " · your file" : ""}</span></button>`).join("")}</div>` : ""}
+      ${T.suggest && T.mode !== "font" ? `<p class="help suggest">Suggested: ${esc(T.suggest)}. Pick it above to use it, or keep the traced letters.</p>` : ""}
+      ${T.mode === "font" && T.repl ? `<div class="cmp-row"><button type="button" class="link-btn" data-compare="${T.id}">${T.comparing ? "Hide the comparison" : "Compare with the original"}</button></div>${T.comparing ? `<canvas class="cmp" data-cmpc="${T.id}" aria-label="The original word with the font's outline drawn over it"></canvas>` : ""}` : ""}
       ${T.text.trim() ? `<details class="own-font"${T.ownOpen ? " open" : ""} data-own="${T.id}"><summary>Use a specific font</summary>
         <div class="own-row"><input type="text" id="fn-${T.id}" data-fname="${T.id}" list="localFonts" value="${esc(T.ownName || "")}" placeholder="Font name, like Futura" autocomplete="off" spellcheck="false"><button type="button" class="btn btn-soft btn-sm" data-ffind="${T.id}"><span class="inner">Use</span></button></div>
         <div class="own-row"><button type="button" class="link-btn" data-fupload="${T.id}">Upload a font file</button>${NATIVE || "queryLocalFonts" in window ? `<button type="button" class="link-btn" data-fbrowse="${T.id}">Browse installed fonts</button>` : ""}</div>
@@ -1116,14 +1128,22 @@ function renderTexts() {
       </details>` : ""}
     </div>`;
   }).join("") : `<p class="help">${S.textMode === "off" ? "Text detection is off. Turn it on in Setup." : "No words found. Select letters in the vector and choose Text to mark them."}</p>`;
+  document.querySelectorAll("canvas[data-cmpc]").forEach(cv => drawCompare(result.texts[+cv.dataset.cmpc], cv));
 }
 $("#textList").addEventListener("input", e => { const i = e.target.closest("[data-tin]"); if (!i) return; const T = result.texts[+i.dataset.tin]; pushUndo("text:" + T.id); T.text = i.value; remember(T); const fb = $(`[data-tmode="font"][data-t="${T.id}"]`); if (fb) fb.disabled = !T.text.trim(); });
 $("#textList").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.closest("[data-tin]")) { const T = result.texts[+e.target.dataset.tin]; if (T.text.trim()) { pushUndo(); findFonts(T); } } });
 $("#textList").addEventListener("click", e => {
   if (e.target.closest("[data-notext],[data-tmode],[data-pick]")) pushUndo();
   const nt = e.target.closest("[data-notext]"); if (nt) { const T = result.texts[+nt.dataset.notext]; T.removed = true; T.manual = false; remember(T); render(); toast("Marked as not text."); return; }
-  const mb = e.target.closest("[data-tmode]"); if (mb) { const T = result.texts[+mb.dataset.t], m = mb.dataset.tmode; if (m === "font") { findFonts(T); return; } T.mode = m; T.repl = m === "clean" ? cleanText(T) : null; T.pick = null; remember(T); render(); return; }
-  const pk = e.target.closest("[data-pick]"); if (pk) { const [tid, i] = pk.dataset.pick.split(":").map(Number), T = result.texts[tid], c = T.results[i]; T.pick = c; T.mode = "font"; T.repl = fontText(T, c); remember(T); render(); toast(`Set in ${c.fam} ${WEIGHT_NAME[c.w] || c.w}.`); return; }
+  const mb = e.target.closest("[data-tmode]"); if (mb) { const T = result.texts[+mb.dataset.t], m = mb.dataset.tmode; if (m === "font") { findFonts(T); return; } T.mode = m; T.cleanBase = m === "clean" ? cleanText(T) : null; T.repl = m === "clean" ? applyTidy(T, T.cleanBase) : null; T.pick = null; T.fillRule = null; T.auto = false; remember(T); render(); if (m === "clean") cleanTextAsync(T); return; }
+  const pk = e.target.closest("[data-pick]"); if (pk) { const [tid, i] = pk.dataset.pick.split(":").map(Number), T = result.texts[tid], c = T.results[i]; if (c.run) useFontResult(T, c); else { T.pick = c; T.mode = "font"; T.repl = fontText(T, c); T.fillRule = null; } T.auto = false; remember(T); render(); toast(`Set in ${c.label || c.fam} ${WEIGHT_NAME[c.w] || c.w}.`); checkPick(T, c); return; }
+  const cp = e.target.closest("[data-compare]"); if (cp) { const T = result.texts[+cp.dataset.compare]; T.comparing = !T.comparing; renderTexts(); return; }
+});
+$("#textList").addEventListener("change", e => {
+  const c = e.target.closest("[data-tidy]"); if (!c) return; const T = result.texts[+c.dataset.t]; pushUndo();
+  T.tidy = { ...(T.tidy || {}), [c.dataset.tidy]: c.checked };
+  if (!T.cleanBase) T.cleanBase = cleanText(T);
+  T.repl = applyTidy(T, T.cleanBase); assignGlyphLayers(T, T.repl); remember(T); render();
 });
 $("#textList").addEventListener("toggle", e => { const d = e.target.closest && e.target.closest("[data-own]"); if (d) result.texts[+d.dataset.own].ownOpen = d.open; }, true);
 $("#textList").addEventListener("click", e => {
@@ -1174,22 +1194,30 @@ async function googleFont(name) {
 }
 async function scoreOwn(T, faces, label) {
   T.busy = `Fitting ${label}…`; T.mode = "font"; renderTexts();
-  const { results } = await matchFonts(T, T.text.trim(), faces);
+  let c = null;
+  const real = faces.filter(f => f.face || f.google);
+  if (real.length) { const { results } = await identifyWord(T, T.text.trim(), { faces: real.map(f => f.face ? { face: f.face, fam: f.face.fam, w: f.face.w, src: f.src, label } : { fam: f.fam, w: f.w, src: "google", label }), refine: 4, rounds: 4, keep: 1 }); c = results[0] || null; }
+  if (c) { T.busy = null; T.results = [c, ...(T.results || []).filter(r => r.fam !== c.fam)].slice(0, 6); useFontResult(T, c); T.auto = false; remember(T); render(); checkPick(T, c); toast(`Set in ${fontLabel(c)}.`); return; }
+  const legacy = faces.filter(f => Array.isArray(f));
+  if (!legacy.length) { T.busy = null; renderTexts(); toast(`${label} couldn't be drawn here.`); return; }
+  const { results } = await matchFonts(T, T.text.trim(), legacy);
   T.busy = null;
   if (!results.length) { renderTexts(); toast(`${label} couldn't be drawn here.`); return; }
-  const c = results[0];
+  c = results[0];
   T.results = [c, ...(T.results || []).filter(r => r.fam !== c.fam)].slice(0, 6);
-  T.pick = c; T.repl = fontText(T, c); remember(T); render();
+  T.pick = c; T.repl = fontText(T, c); T.fillRule = null; remember(T); render();
   toast(`Set in ${fontLabel(c)}, ${Math.round(c.iou * 100)}% match.`);
 }
 async function useNamedFont(T, name) {
   name = name.replace(/["';{}<>\\]/g, "").trim(); if (!name) return; T.ownName = name;
   T.busy = `Looking for ${name}…`; T.mode = "font"; renderTexts();
   let faces;
-  if (isInstalled(name)) faces = distinctWeights(name).map(w => [name, w, "installed", name]);
-  else { const ws = await googleFont(name); faces = ws.map(w => [name, w, "google", name]); }
+  const own = NATIVE && NATIVE.installed_font_file ? await NATIVE.installed_font_file(name) : null;
+  if (own && own.b64) faces = [{ face: faceFromBytes(`VZ Installed ${name}`, b64Bytes(own.b64), name, "installed", own.postscript), src: "installed" }];
+  else if (isInstalled(name)) faces = distinctWeights(name).map(w => [name, w, "installed", name]);
+  else { const ws = await googleFont(name); faces = ws.map(w => ({ fam: name, w, google: true, src: "google" })); }
   if (!faces.length) { T.busy = null; renderTexts(); toast(`Couldn't find ${name} on this computer or in Google Fonts. Check the spelling, or upload the font file.`); return; }
-  for (const f of faces) if (!customFaces.some(c => c[0] === f[0] && c[1] === f[1])) customFaces.push(f);
+  for (const f of faces) if (Array.isArray(f) && !customFaces.some(c => c[0] === f[0] && c[1] === f[1])) customFaces.push(f);
   await scoreOwn(T, faces, name);
 }
 let fontFileFor = null, fontFileN = 0;
@@ -1198,9 +1226,10 @@ async function useFontFile(file) {
   if (!/\.(ttf|otf|woff2?)$/i.test(file.name)) { toast("Use a .ttf, .otf, .woff, or .woff2 font file."); return; }
   const label = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " "), fam = `VZ Upload ${++fontFileN}`;
   try {
-    const face = new FontFace(fam, await file.arrayBuffer()); await face.load(); document.fonts.add(face);
+    const buf = await file.arrayBuffer(), face = new FontFace(fam, buf); await face.load(); document.fonts.add(face);
     const f = [fam, 400, "file", label]; customFaces.push(f);
-    await scoreOwn(T, [f], label);
+    let real = null; try { real = faceFromBytes(fam, new Uint8Array(buf), label, "file"); } catch (e) { real = null; }
+    await scoreOwn(T, real ? [{ face: real, src: "file" }] : [f], label);
   } catch (e) { console.error(e); toast("That font file couldn't be read. Try a different format."); }
 }
 $("#fontFile").onchange = e => { useFontFile(e.target.files[0]); e.target.value = ""; };
@@ -1219,12 +1248,19 @@ async function findFonts(T) {
   const prev = T.mode === "font" ? "original" : T.mode;
   T.busy = "Comparing fonts…"; T.mode = "font"; renderTexts();
   try {
-    const { faces, results } = await matchFonts(T, T.text.trim());
+    const d = await autoDecide(T, T.text.trim());
     T.busy = null;
-    if (!faces || !results.length) { T.mode = prev; T.repl = prev === "clean" ? cleanText(T) : null; render(); toast("Fonts couldn't load in this view, so font matching isn't available."); return; }
-    T.results = results; const c = results[0]; T.pick = c; T.repl = fontText(T, c); remember(T); render();
-    toast(`Closest font: ${c.fam} ${WEIGHT_NAME[c.w] || c.w}, ${Math.round(c.iou * 100)}% match. Pick another below.`);
-  } catch (e) { console.error(e); T.busy = null; T.mode = "original"; T.repl = null; render(); toast("Font matching failed. The word is back to its traced letters."); }
+    if (!d.results.length) return legacyFindFonts(T, prev);
+    useFontResult(T, d.best); T.auto = false; remember(T); render();
+    toast(`Closest font: ${d.best.label || d.best.fam} ${WEIGHT_NAME[d.best.w] || d.best.w}. ${d.verdict && d.verdict.pass ? "Every letter matches." : "Some letters differ; compare before you export."}`);
+  } catch (e) { console.error(e); T.busy = null; T.mode = "original"; T.repl = null; T.fillRule = null; render(); toast("Font matching failed. The word is back to its traced letters."); }
+}
+// Without font files (an offline web page), match by drawing fonts on a canvas and tracing them, as before 1.9.
+async function legacyFindFonts(T, prev) {
+  const { faces, results } = await matchFonts(T, T.text.trim());
+  if (!faces || !results.length) { T.mode = prev; T.repl = prev === "clean" ? cleanText(T) : null; render(); toast("Fonts couldn't load in this view, so font matching isn't available."); return; }
+  T.results = results; const c = results[0]; T.pick = c; T.repl = fontText(T, c); T.fillRule = null; remember(T); render();
+  toast(`Closest font: ${c.fam} ${WEIGHT_NAME[c.w] || c.w}, ${Math.round(c.iou * 100)}% match. Pick another below.`);
 }
 function markAsText(li, ii) {
   // Mark the selected outline and the letters on its line as a word.
@@ -1460,7 +1496,7 @@ function versaPackage() {
   const chroma = hex => { const [L, a, b] = rgb2lab(...fromHex(hex)); return { L, C: Math.hypot(a, b) }; };
   const brand = layers.find(x => { const c = chroma(x.hex); return c.C > 15 && c.L > 15 && c.L < 92; }) || layers[0];
   const colors = layers.map(x => { const [r, g, b] = fromHex(x.hex); return { hex: x.hex, rgb: [r, g, b], name: colorName(x.hex), locked: locked.includes(x.hex) }; });
-  const text = (result.texts || []).filter(T => !T.removed).map(T => ({ text: T.text.trim() || null, letters: T.items.length, color: recolor[result.layers[T.li].hex] || result.layers[T.li].hex,
+  const text = (result.texts || []).filter(T => !T.removed).map(T => ({ text: T.text.trim() || null, letters: wordParts(T).length, color: recolor[result.layers[T.li].hex] || result.layers[T.li].hex,
     font: T.mode === "font" && T.pick ? { family: T.pick.label || T.pick.fam, weight: T.pick.w, style: T.pick.src === "file" ? null : WEIGHT_NAME[T.pick.w] || String(T.pick.w), source: T.pick.src === "installed" ? "installed" : T.pick.src === "file" ? "file" : "google-fonts", match: Math.round(T.pick.iou * 100) / 100 } : null,
     letters_style: T.mode }));
   const manifest = {

@@ -54,44 +54,41 @@ function afterTrace() {
   autoFonts();
 }
 
-/* ---------- Words: read them on the Mac and set them in the matching font ---------- */
-// A font swaps in on its own only when its letters cover the word this closely (intersection over union).
-const AUTO_FONT_MIN = 0.86;
+/* ---------- Words: read them and set them in the matching font ---------- */
+// Reading: Apple Vision on the Mac, tesseract.js in the web preview (lettering-ocr.js). A font swaps in on its
+// own only when every letter passes the letter check (autoDecide); otherwise it's offered as a suggestion.
 let ocrSeq = 0;
 async function autoFonts() {
-  if (!NATIVE || !APP || !APP.ocr || !result || S.textMode === "off") return;
+  if (!result || S.textMode === "off" || !canReadText()) return;
   const res = result, seq = ++ocrSeq;
-  const swapped = await matchWords(res, job, () => seq !== ocrSeq || result !== res);
+  res.wordsDone = false;   // read by the lettering benchmark
+  let swapped = null;
+  try { swapped = await matchWords(res, job, () => seq !== ocrSeq || result !== res); } finally { res.wordsDone = true; }
   if (swapped === null || seq !== ocrSeq || result !== res) return;
   render();
   if (swapped.length) toast(`Set ${swapped.length === 1 ? swapped[0] : swapped.length + " words in matching fonts"}. Choose Traced in the Text tab to undo.`);
 }
-// Reads the words in job j with Apple Vision and sets each one in its matching font when the match is
-// strong. Words you've already changed are left alone. Returns what it swapped, or null when cancelled.
+// Reads the words in job j and sets each in its matching font when every letter checks out. Words you've
+// already changed are left alone. Returns what it swapped, or null when cancelled.
 async function matchWords(res, j, stale = () => false) {
-  const todo = (res.texts || []).filter(T => !T.removed && !memFor(T));
-  if (!todo.length) return [];
-  if (!j.ocr) {
-    let r = null; try { r = await NATIVE.recognize_text(j.srcURL); } catch (e) { console.error(e); }
-    j.ocr = r && r.lines ? r.lines : [];
-  }
+  if (!j.ocr) { j.ocr = await readImageText(j); }
   if (stale()) return null;
-  const words = j.ocr.flatMap(l => l.words.map(w => ({ text: w.text, x0: w.box[0] * res.w, x: (w.box[0] + w.box[2] / 2) * res.w, y: (w.box[1] + w.box[3] / 2) * res.h })));
+  if (typeof addArcWords === "function") await addArcWords(res);   // letters on a circle, read from a straightened strip
+  if (stale()) return null;
+  mergeReadWords(res, j.ocr);           // words the reader found, including ones the outline grouping missed
+  const todo = (res.texts || []).filter(T => !T.removed && !memFor(T) && T.ocrText);
   const swapped = [];
   for (const T of todo) {
-    const pad = 0.35 * (T.box[3] - T.box[1]);
-    const mine = words.filter(w => w.x >= T.box[0] - pad && w.x <= T.box[2] + pad && w.y >= T.box[1] - pad && w.y <= T.box[3] + pad).sort((a, b) => a.x0 - b.x0);
-    if (!mine.length) continue;
-    T.text = mine.map(w => w.text).join(" ");
+    T.text = T.ocrText;
     try {
-      const { results } = await matchFonts(T, T.text);
+      const d = await autoDecide(T, T.text);
       if (stale()) return null;
-      T.results = results;
-      const c = results[0];
-      if (c && c.iou >= AUTO_FONT_MIN) { T.pick = c; T.repl = fontText(T, c); T.mode = "font"; T.auto = true; swapped.push(`${T.text} in ${fontLabel(c)}`); }
+      if (d.swap) { useFontResult(T, d.best); T.auto = true; swapped.push(`${T.text} in ${fontLabel(d.best)}`); }
+      else if (d.best) T.suggest = `${d.best.label || d.best.fam} ${WEIGHT_NAME[d.best.w] || d.best.w} (${verdictLabel(d.best.verdict).toLowerCase() || "close"})`;
     } catch (e) { console.error(e); }
     remember(T);
   }
+  if (typeof renderTexts === "function" && res === result) renderTexts();
   return swapped;
 }
 // Finds the part an edit was made to, by its traced box, after a retrace.
@@ -168,7 +165,7 @@ const GRIP = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" 
 const CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.3 9.3a1 1 0 0 1 1.4 0L12 11.6l2.3-2.3a1 1 0 1 1 1.4 1.4l-3 3a1 1 0 0 1-1.4 0l-3-3a1 1 0 0 1 0-1.4z"/></svg>';
 const TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6a1 1 0 0 1 1 1v1h4a1 1 0 1 1 0 2h-1l-1 12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 7H4a1 1 0 0 1 0-2h4V4a1 1 0 0 1 1-1zm-1.9 4 .9 12h8l.9-12z"/></svg>';
 const OBJ_LIMIT = 120;
-function wordOf(li, ii) { return (result.texts || []).find(T => !T.removed && T.li === li && T.items.includes(ii)); }
+function wordOf(li, ii) { return (result.texts || []).find(T => !T.removed && wordParts(T).some(p => p.li === li && p.ii === ii)); }
 function itemLabel(li, ii) {
   const it = result.layers[li].items[ii], T = wordOf(li, ii);
   if (T) return T.text.trim() ? `Letter in “${T.text.trim()}”` : "Letter";
@@ -655,12 +652,14 @@ async function withJob(j, st, fn) {
       const m = fontMems.find(f => boxIoU(f.box, T.box) > 0.6); if (!m || T.removed) continue;
       T.text = m.text;
       try {
-        const { results } = await matchFonts(T, T.text);
-        const c = results.find(r => r.fam === m.pick.fam && r.w === m.pick.w) || results[0];
-        if (c) { T.pick = c; T.repl = fontText(T, c); T.mode = "font"; }
+        if (!(await reapplyPick(T, { ...m.pick, text: m.pick.text || m.text }))) {
+          const { results } = await matchFonts(T, T.text);
+          const c = results.find(r => r.fam === m.pick.fam && r.w === m.pick.w) || results[0];
+          if (c) { T.pick = c; T.repl = fontText(T, c); T.mode = "font"; T.fillRule = null; }
+        }
       } catch (e) { console.error(e); }
     }
-    if (NATIVE && APP && APP.ocr && S.textMode !== "off") await matchWords(result, j);
+    if (S.textMode !== "off" && canReadText()) await matchWords(result, j);
     stickerCache = null;
     if (S.output === "sticker") await buildSticker();        // the cut line is drawn off screen, so wait for it
     return await fn();

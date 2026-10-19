@@ -10,11 +10,15 @@ BUILD = os.environ.get("VZ_BUILD", "1")
 a = Analysis(
     [str(ROOT / "packaging" / "launch.py")],
     pathex=[str(ROOT)],
-    datas=[(str(ROOT / "ui" / "index.html"), "ui")],
+    # The page, its font index (built into ui/ by ui-src/build.py), and the offline font pack with its licenses.
+    datas=[(str(ROOT / "ui" / "index.html"), "ui"),
+           (str(ROOT / "ui" / "font-index.json"), "ui"),
+           (str(ROOT / "ui" / "font-index.bin"), "ui"),
+           (str(ROOT / "packaging" / "fonts"), "packaging/fonts")],
     hiddenimports=[
-        "app.main", "app.bridge", "app.native", "app.selftest", "app.vector_export", "app.greenlaunch_license",
+        "app.main", "app.bridge", "app.native", "app.fonts", "app.selftest", "app.vector_export", "app.greenlaunch_license",
         "webview.platforms.cocoa", "bottle", "proxy_tools",
-        "objc", "AppKit", "Foundation", "WebKit", "Quartz", "Vision", "PyObjCTools.AppHelper",
+        "objc", "AppKit", "Foundation", "WebKit", "Quartz", "Vision", "CoreText", "PyObjCTools.AppHelper",
         "cryptography.hazmat.primitives.asymmetric.ed25519",
     ],
     excludes=["tkinter", "PyQt5", "PyQt6", "PySide2", "PySide6", "gi", "numpy"],

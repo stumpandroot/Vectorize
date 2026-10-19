@@ -86,11 +86,18 @@ def remove_background(image_bytes: bytes) -> bytes:
         raise RuntimeError(f"AI cutout failed while {step}: {e}") from e
 
 
-def recognize_text(image_bytes: bytes) -> list[dict]:
+def recognize_text(image_bytes: bytes, custom_words: list[str] | None = None) -> list[dict]:
     """Reads the text in an image with Apple Vision, on this Mac.
 
-    Returns one entry per line: {text, confidence, box, words: [{text, box}]}.
+    Returns one entry per line: {text, confidence, box, words: [{text, box, chars: [{text, box}]}]}.
     Boxes are [x, y, width, height] as fractions of the image, measured from the top left.
+
+    The first pass reads literally (no language correction), because brand names aren't dictionary words.
+    When the page knows words to expect (custom_words: names the user typed or confirmed before), a second
+    pass with language correction and those words reads lines the literal pass got wrong; a line from it
+    replaces the literal one only when it contains one of the expected words.
+    Letter boxes come from Vision's text-rectangle detector, which reports each character; a word gets them
+    only when the count matches its letters.
     """
     import re
     import Vision
@@ -100,28 +107,68 @@ def recognize_text(image_bytes: bytes) -> list[dict]:
         o, s = r.origin, r.size
         return [float(o.x), float(1 - o.y - s.height), float(s.width), float(s.height)]
 
+    def read(correct: bool):
+        handler = Vision.VNImageRequestHandler.alloc().initWithData_options_(data, {})
+        request = Vision.VNRecognizeTextRequest.alloc().init()
+        request.setRecognitionLevel_(Vision.VNRequestTextRecognitionLevelAccurate)
+        request.setUsesLanguageCorrection_(correct)
+        request.setMinimumTextHeight_(0.01)
+        if correct and custom_words:
+            request.setCustomWords_(list(custom_words))
+        ok, err = handler.performRequests_error_([request], None)
+        if not ok:
+            raise RuntimeError(f"Text recognition failed: {err.localizedDescription() if err else 'unknown error'}")
+        lines = []
+        for obs in request.results() or []:
+            cands = obs.topCandidates_(1)
+            if not cands:
+                continue
+            cand = cands[0]
+            text = str(cand.string())
+            words = []
+            for m in re.finditer(r"\S+", text):
+                wb, _ = cand.boundingBoxForRange_error_(NSMakeRange(m.start(), m.end() - m.start()), None)
+                if wb is not None:
+                    words.append({"text": m.group(0), "box": box(wb.boundingBox())})
+            lines.append({"text": text, "confidence": float(cand.confidence()), "box": box(obs.boundingBox()), "words": words})
+        return lines
+
+    def char_boxes():
+        handler = Vision.VNImageRequestHandler.alloc().initWithData_options_(data, {})
+        request = Vision.VNDetectTextRectanglesRequest.alloc().init()
+        request.setReportCharacterBoxes_(True)
+        ok, _ = handler.performRequests_error_([request], None)
+        out = []
+        if ok:
+            for obs in request.results() or []:
+                for c in obs.characterBoxes() or []:
+                    out.append(box(c.boundingBox()))
+        return out
+
     data = NSData.dataWithBytes_length_(image_bytes, len(image_bytes))
-    handler = Vision.VNImageRequestHandler.alloc().initWithData_options_(data, {})
-    request = Vision.VNRecognizeTextRequest.alloc().init()
-    request.setRecognitionLevel_(Vision.VNRequestTextRecognitionLevelAccurate)
-    request.setUsesLanguageCorrection_(False)   # brand names aren't dictionary words
-    request.setMinimumTextHeight_(0.02)
-    ok, err = handler.performRequests_error_([request], None)
-    if not ok:
-        raise RuntimeError(f"Text recognition failed: {err.localizedDescription() if err else 'unknown error'}")
-    lines = []
-    for obs in request.results() or []:
-        cands = obs.topCandidates_(1)
-        if not cands:
-            continue
-        cand = cands[0]
-        text = str(cand.string())
-        words = []
-        for m in re.finditer(r"\S+", text):
-            wb, _ = cand.boundingBoxForRange_error_(NSMakeRange(m.start(), m.end() - m.start()), None)
-            if wb is not None:
-                words.append({"text": m.group(0), "box": box(wb.boundingBox())})
-        lines.append({"text": text, "confidence": float(cand.confidence()), "box": box(obs.boundingBox()), "words": words})
+    lines = read(False)
+    if custom_words:
+        want = [w.lower() for w in custom_words if w.strip()]
+        for alt in read(True):
+            if not any(w in alt["text"].lower() for w in want):
+                continue
+            cx, cy = alt["box"][0] + alt["box"][2] / 2, alt["box"][1] + alt["box"][3] / 2
+            hit = next((i for i, l in enumerate(lines) if l["box"][0] <= cx <= l["box"][0] + l["box"][2] and l["box"][1] <= cy <= l["box"][1] + l["box"][3]), None)
+            if hit is None:
+                lines.append(alt)
+            elif lines[hit]["text"] != alt["text"]:
+                lines[hit] = alt
+    try:
+        chars = char_boxes()
+    except Exception:
+        chars = []
+    for l in lines:
+        for w in l["words"]:
+            b = w["box"]
+            mine = sorted((c for c in chars if b[0] - 0.01 <= c[0] + c[2] / 2 <= b[0] + b[2] + 0.01 and b[1] - 0.01 <= c[1] + c[3] / 2 <= b[1] + b[3] + 0.01), key=lambda c: c[0])
+            letters = [ch for ch in w["text"] if not ch.isspace()]
+            if mine and len(mine) == len(letters):
+                w["chars"] = [{"text": ch, "box": c} for ch, c in zip(letters, mine)]
     return lines
 
 

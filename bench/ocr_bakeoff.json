@@ -1,0 +1,1861 @@
+{
+ "tesseract.js": {
+  "token_recall": 0.824,
+  "word_recall": 0.812,
+  "extra_per_image": 0.02,
+  "seconds_per_image": 0.12,
+  "protected_word_recall": 0.812,
+  "per_case": {
+   "h-hairline": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "HARBOR"
+    ]
+   },
+   "h-hairline-jpg": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "HARBOR"
+    ]
+   },
+   "thin-serif": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "ELEGANT"
+    ]
+   },
+   "tight-av": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "AVATAR"
+    ]
+   },
+   "connected-script": {
+    "tokens": 2,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Sunday Brunch"
+    ]
+   },
+   "tiny-tagline": {
+    "tokens": 5,
+    "hit": 5,
+    "extra": 0,
+    "words": 2,
+    "words_ok": 2,
+    "read": [
+     "NORTHWIND",
+     "Coffee Roasters Since 1998"
+    ]
+   },
+   "multicolor-word": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Rainbow"
+    ]
+   },
+   "lower-arc": {
+    "tokens": 4,
+    "hit": 0,
+    "extra": 1,
+    "words": 2,
+    "words_ok": 0,
+    "read": [
+     "197"
+    ]
+   },
+   "stacked-lines": {
+    "tokens": 3,
+    "hit": 2,
+    "extra": 0,
+    "words": 2,
+    "words_ok": 1,
+    "read": [
+     "STUMP",
+     "ROOT"
+    ]
+   },
+   "one-letter-mark": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "K"
+    ]
+   },
+   "two-letter-mark": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "JS"
+    ]
+   },
+   "unknown-font": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Zephyr"
+    ]
+   },
+   "custom-r": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Rover"
+    ]
+   },
+   "syn-000": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Xylo"
+    ]
+   },
+   "syn-001": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "COPPERLEAF"
+    ]
+   },
+   "syn-002": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Marigold"
+    ]
+   },
+   "syn-003": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "syn-004": {
+    "tokens": 2,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Pine Ridge"
+    ]
+   },
+   "syn-005": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Lantern"
+    ]
+   },
+   "syn-006": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "syn-007": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "QUOKKA"
+    ]
+   },
+   "syn-008": {
+    "tokens": 3,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "Maple Oak"
+    ]
+   },
+   "syn-009": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Juniper"
+    ]
+   },
+   "syn-010": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "MOSAIC"
+    ]
+   },
+   "syn-011": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Summit"
+    ]
+   },
+   "syn-012": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "syn-013": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "QUANTA"
+    ]
+   },
+   "syn-014": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Larkspur"
+    ]
+   },
+   "syn-015": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "LARKSPUR"
+    ]
+   },
+   "syn-016": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "QUILL"
+    ]
+   },
+   "syn-017": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Sparrow"
+    ]
+   },
+   "syn-018": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Riverbend"
+    ]
+   },
+   "syn-019": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Quill"
+    ]
+   },
+   "syn-020": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Xylo"
+    ]
+   },
+   "syn-021": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Saltbox"
+    ]
+   },
+   "syn-022": {
+    "tokens": 2,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Pine Ridge"
+    ]
+   },
+   "syn-023": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Kinfolk"
+    ]
+   },
+   "syn-024": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "KESTREL"
+    ]
+   },
+   "syn-025": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "IRONWOOD"
+    ]
+   },
+   "syn-026": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Tidewater"
+    ]
+   },
+   "syn-027": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "BASALT"
+    ]
+   },
+   "syn-028": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "syn-029": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "syn-030": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "FOXGLOVE"
+    ]
+   },
+   "syn-031": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Lantern"
+    ]
+   },
+   "syn-032": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "BASALT"
+    ]
+   },
+   "syn-033": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "RIVERBEND"
+    ]
+   },
+   "syn-034": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Larkspur"
+    ]
+   },
+   "syn-035": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "QUOKKA"
+    ]
+   },
+   "syn-036": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Bluebird"
+    ]
+   },
+   "syn-037": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "ironwood"
+    ]
+   },
+   "syn-038": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "LUMINA"
+    ]
+   },
+   "syn-039": {
+    "tokens": 3,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "Wolf",
+     "Co"
+    ]
+   },
+   "syn-040": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Quill"
+    ]
+   },
+   "syn-041": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "ironwood"
+    ]
+   },
+   "syn-042": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Fable"
+    ]
+   },
+   "syn-043": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Tempest"
+    ]
+   },
+   "syn-044": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "mosaic"
+    ]
+   },
+   "syn-045": {
+    "tokens": 2,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Pine Ridge"
+    ]
+   },
+   "syn-046": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Lantern"
+    ]
+   },
+   "syn-047": {
+    "tokens": 2,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "BADGER BROS"
+    ]
+   },
+   "syn-048": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "MARIGOLD"
+    ]
+   },
+   "syn-049": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "CRESCENT"
+    ]
+   },
+   "syn-050": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Driftwood"
+    ]
+   },
+   "syn-051": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Sparrow"
+    ]
+   },
+   "syn-052": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Crescent"
+    ]
+   },
+   "syn-053": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Marigold"
+    ]
+   },
+   "syn-054": {
+    "tokens": 2,
+    "hit": 0,
+    "extra": 1,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "Kros"
+    ]
+   },
+   "syn-055": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "syn-056": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Wildflower"
+    ]
+   },
+   "syn-057": {
+    "tokens": 3,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "Rook Raven"
+    ]
+   },
+   "syn-058": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Saltbox"
+    ]
+   },
+   "syn-059": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Saltbox"
+    ]
+   },
+   "syn-060": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Bramble"
+    ]
+   },
+   "syn-061": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Waypoint"
+    ]
+   },
+   "syn-062": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Driftwood"
+    ]
+   },
+   "syn-063": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "syn-064": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "syn-065": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Crescent"
+    ]
+   },
+   "syn-066": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "QUANTA"
+    ]
+   },
+   "syn-067": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "FABLE"
+    ]
+   },
+   "syn-068": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Summit"
+    ]
+   },
+   "syn-069": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "ember"
+    ]
+   },
+   "syn-070": {
+    "tokens": 2,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Velvet Moon"
+    ]
+   },
+   "syn-071": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "COPPERLEAF"
+    ]
+   },
+   "syn-072": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Summit"
+    ]
+   },
+   "syn-073": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "syn-074": {
+    "tokens": 2,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Badger Bros"
+    ]
+   },
+   "syn-075": {
+    "tokens": 3,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "Maple Oak"
+    ]
+   },
+   "syn-076": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "THISTLE"
+    ]
+   },
+   "syn-077": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "ZINNIA"
+    ]
+   },
+   "syn-078": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "syn-079": {
+    "tokens": 2,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "badger bros"
+    ]
+   }
+  }
+ },
+ "PP-OCR (RapidOCR)": {
+  "token_recall": 0.723,
+  "word_recall": 0.74,
+  "extra_per_image": 0.22,
+  "seconds_per_image": 1.01,
+  "protected_word_recall": 0.562,
+  "per_case": {
+   "h-hairline": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "HARBOR"
+    ]
+   },
+   "h-hairline-jpg": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "HARBOR"
+    ]
+   },
+   "thin-serif": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "ELEGANT"
+    ]
+   },
+   "tight-av": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "AVATAR"
+    ]
+   },
+   "connected-script": {
+    "tokens": 2,
+    "hit": 0,
+    "extra": 1,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "Bnunch"
+    ]
+   },
+   "tiny-tagline": {
+    "tokens": 5,
+    "hit": 1,
+    "extra": 1,
+    "words": 2,
+    "words_ok": 1,
+    "read": [
+     "NORTHWIND",
+     "CoffeeRoastersSince1998"
+    ]
+   },
+   "multicolor-word": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Rainbow"
+    ]
+   },
+   "lower-arc": {
+    "tokens": 4,
+    "hit": 3,
+    "extra": 1,
+    "words": 2,
+    "words_ok": 1,
+    "read": [
+     "COFFEE",
+     "MAPLE",
+     "S/NCE 1920"
+    ]
+   },
+   "stacked-lines": {
+    "tokens": 3,
+    "hit": 2,
+    "extra": 0,
+    "words": 2,
+    "words_ok": 1,
+    "read": [
+     "STUMP",
+     "ROOT"
+    ]
+   },
+   "one-letter-mark": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "two-letter-mark": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "JS"
+    ]
+   },
+   "unknown-font": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "custom-r": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 1,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "over"
+    ]
+   },
+   "syn-000": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Xylo"
+    ]
+   },
+   "syn-001": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "COPPERLEAF"
+    ]
+   },
+   "syn-002": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Marigold"
+    ]
+   },
+   "syn-003": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Marigold"
+    ]
+   },
+   "syn-004": {
+    "tokens": 2,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Pine",
+     "Ridge"
+    ]
+   },
+   "syn-005": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Lantern"
+    ]
+   },
+   "syn-006": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 1,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "Shnkpu"
+    ]
+   },
+   "syn-007": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "QUOKKA"
+    ]
+   },
+   "syn-008": {
+    "tokens": 3,
+    "hit": 3,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Maple & Oak"
+    ]
+   },
+   "syn-009": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Juniper"
+    ]
+   },
+   "syn-010": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "MOSAIC"
+    ]
+   },
+   "syn-011": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Summit"
+    ]
+   },
+   "syn-012": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "OXBOW"
+    ]
+   },
+   "syn-013": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "QUANTA"
+    ]
+   },
+   "syn-014": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "syn-015": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 1,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "-ARKSPUR"
+    ]
+   },
+   "syn-016": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "QUILL"
+    ]
+   },
+   "syn-017": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "syn-018": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Riverbend"
+    ]
+   },
+   "syn-019": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Quill"
+    ]
+   },
+   "syn-020": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Xylo"
+    ]
+   },
+   "syn-021": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Saltbox"
+    ]
+   },
+   "syn-022": {
+    "tokens": 2,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Pine Ridge"
+    ]
+   },
+   "syn-023": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Kinfolk"
+    ]
+   },
+   "syn-024": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "KESTREL"
+    ]
+   },
+   "syn-025": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "IRONWOOD"
+    ]
+   },
+   "syn-026": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     " Tidewater"
+    ]
+   },
+   "syn-027": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "BASALT"
+    ]
+   },
+   "syn-028": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 1,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "rescent"
+    ]
+   },
+   "syn-029": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "syn-030": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "FOXGLOVE"
+    ]
+   },
+   "syn-031": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Lantern"
+    ]
+   },
+   "syn-032": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "BASALT"
+    ]
+   },
+   "syn-033": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "RIVERBEND"
+    ]
+   },
+   "syn-034": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Larkspur"
+    ]
+   },
+   "syn-035": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     " QUOKKA"
+    ]
+   },
+   "syn-036": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Bluebird"
+    ]
+   },
+   "syn-037": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "ironwood"
+    ]
+   },
+   "syn-038": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "LUMINA"
+    ]
+   },
+   "syn-039": {
+    "tokens": 3,
+    "hit": 3,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Wolf & Co"
+    ]
+   },
+   "syn-040": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Quill"
+    ]
+   },
+   "syn-041": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     " ironwood"
+    ]
+   },
+   "syn-042": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Fable"
+    ]
+   },
+   "syn-043": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Tempest"
+    ]
+   },
+   "syn-044": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "mosaic"
+    ]
+   },
+   "syn-045": {
+    "tokens": 2,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Pine",
+     "Ridge"
+    ]
+   },
+   "syn-046": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "L.antern"
+    ]
+   },
+   "syn-047": {
+    "tokens": 2,
+    "hit": 0,
+    "extra": 3,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "BADGI",
+     "BR",
+     "ROS"
+    ]
+   },
+   "syn-048": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 2,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     " MARIG",
+     "OLD"
+    ]
+   },
+   "syn-049": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 2,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "CRES",
+     "SCENT"
+    ]
+   },
+   "syn-050": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Driftwood"
+    ]
+   },
+   "syn-051": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 1,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "parrow"
+    ]
+   },
+   "syn-052": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Crescent"
+    ]
+   },
+   "syn-053": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Marigold"
+    ]
+   },
+   "syn-054": {
+    "tokens": 2,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "syn-055": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 1,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "paka"
+    ]
+   },
+   "syn-056": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Wildflower"
+    ]
+   },
+   "syn-057": {
+    "tokens": 3,
+    "hit": 0,
+    "extra": 1,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "Rook&Raven"
+    ]
+   },
+   "syn-058": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Saltbox"
+    ]
+   },
+   "syn-059": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Saltbox"
+    ]
+   },
+   "syn-060": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Bramble"
+    ]
+   },
+   "syn-061": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Waypoint"
+    ]
+   },
+   "syn-062": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Driftwood"
+    ]
+   },
+   "syn-063": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": []
+   },
+   "syn-064": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "XYLO"
+    ]
+   },
+   "syn-065": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Crescent"
+    ]
+   },
+   "syn-066": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 1,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "JANTA"
+    ]
+   },
+   "syn-067": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "FABLE"
+    ]
+   },
+   "syn-068": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Summit"
+    ]
+   },
+   "syn-069": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "ember"
+    ]
+   },
+   "syn-070": {
+    "tokens": 2,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     " Velvet Moon"
+    ]
+   },
+   "syn-071": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "COPPERLEAF"
+    ]
+   },
+   "syn-072": {
+    "tokens": 1,
+    "hit": 0,
+    "extra": 1,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "ummit"
+    ]
+   },
+   "syn-073": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Quokka"
+    ]
+   },
+   "syn-074": {
+    "tokens": 2,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Badger Bros"
+    ]
+   },
+   "syn-075": {
+    "tokens": 3,
+    "hit": 2,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "Maple ",
+     "Oak"
+    ]
+   },
+   "syn-076": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "THISTLE"
+    ]
+   },
+   "syn-077": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "ZINNIA"
+    ]
+   },
+   "syn-078": {
+    "tokens": 1,
+    "hit": 1,
+    "extra": 0,
+    "words": 1,
+    "words_ok": 1,
+    "read": [
+     "Quill"
+    ]
+   },
+   "syn-079": {
+    "tokens": 2,
+    "hit": 1,
+    "extra": 1,
+    "words": 1,
+    "words_ok": 0,
+    "read": [
+     "bager",
+     "bros"
+    ]
+   }
+  }
+ }
+}

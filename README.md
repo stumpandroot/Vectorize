@@ -6,9 +6,12 @@ Vectorize turns PNG and JPEG logos into clean SVG, PDF, and EPS files. This repo
 
 | Path | What it is |
 | --- | --- |
-| `ui-src/` | The interface: tracing engine (`fit.js`, `app.js`), editor (`editor.js`), Align view (`align.js`), and page (`template.html`) |
+| `ui-src/` | The interface: tracing engine (`fit.js`, `app.js`), editor (`editor.js`), Align view (`align.js`), lettering engine (`lettering*.js`), and page (`template.html`) |
+| `ui-src/vendor/` | Third-party browser code, rebuilt by `vendor-src/build.sh`: fontkit (MIT) for reading font files, and tesseract.js with its English model (Apache-2.0) for reading text in the web preview |
+| `ui-src/assets/font-index.*` | The font index: letter-shape descriptors for every Latin Google Fonts family, built by `bench/fonts/build_index.py` |
+| `packaging/fonts/` | The offline font pack: the 48 most-used Google Fonts families, Latin only, with their licenses, built by `bench/fonts/make_pack.py` |
 | `ui/index.html` | The built interface that ships inside the app. Rebuild it after changing `ui-src/`. |
-| `app/` | The Mac side: the window and menus (`main.py`), what the interface can ask the Mac to do (`bridge.py`), Apple Vision cutout and fonts (`native.py`), PDF and EPS writing (`vector_export.py`), and the GreenLaunch license check |
+| `app/` | The Mac side: the window and menus (`main.py`), what the interface can ask the Mac to do (`bridge.py`), Apple Vision cutout, text reading, and installed fonts (`native.py`), font files for lettering (`fonts.py`), PDF and EPS writing (`vector_export.py`), and the GreenLaunch license check |
 | `packaging/` | The app recipe (`Vectorize.spec`), icon, signing settings, and the sign-and-DMG script |
 | `.github/workflows/build.yml` | Builds, tests, signs, and notarizes the app on GitHub's Macs |
 | `tests/` | Python tests, plus interface tests that run in a headless browser |
@@ -136,6 +139,28 @@ Choose **Align** above the canvas (or **View > Align**).
 
 Drag from the top or left ruler to add a guide, and drag it back onto the ruler to remove it. While you drag a part, it snaps to guides, to other parts' edges and centers, and to the middle of the image; hold Option to turn snapping off. With two or more parts selected, the align buttons line up their edges or centers. Moves stay through retraces and undo, and go into every export.
 
+## How lettering works
+
+1. **Find words.** Outlines of similar size in a row become a word. The text reader (Apple Vision on a Mac, tesseract.js in the web preview) adds what grouping misses: one- and two-letter marks, words in several colors, and lines. Letters whose baselines follow a circle become an arc word, read from a straightened strip.
+2. **Shortlist fonts.** Each letter's shape is compared with the font index (`lettering-index.js`), which covers every Latin Google Fonts family. The closest 14 families, plus any popular family ranked nearby, go on.
+3. **Fit.** Each candidate is set from its real outlines (`lettering.js`, using fontkit) and fitted to the word's ink: size, position, spacing, stretch, slant, arc, and small per-letter nudges. The closest few also try the weights between the indexed ones.
+4. **Check.** The best fit is compared with the original letter by letter: overlap, edge distance, counters, and thin strokes. It swaps in on its own only when every letter passes and the next family isn't just as close. Otherwise it's a suggestion.
+
+Fonts come from the font pack in the app, then the download cache (`~/Library/Application Support/Vectorize/fonts`), then Google Fonts. The web preview loads them from Google Fonts directly.
+
+To rebuild the index or the pack, check out [google/fonts](https://github.com/google/fonts) and run `VZ_GFONTS=path/to/fonts python3 bench/fonts/build_index.py`, or `make_pack.py`. Both need `pip install freetype-py fonttools numpy`.
+
+## Score lettering changes
+
+`bench/textset` holds 13 hand-picked hard cases (hairlines, a tight AV, script, a small tagline, a word in several colors, a badge, stacked lines, one- and two-letter marks, and two that must not match a font) and 300 generated words, all drawn from Google Fonts with their true outlines saved. `bench/text_score.py` runs the app on them and reports how many words it finds and reads, where the true font ranks, how close the fitted and traced letters are to the truth, and every automatic swap.
+
+1. Build the interface: `python3 ui-src/build.py`
+2. Run: `python3 bench/text_score.py --net --limit 40 --check bench/text_baseline.json`
+
+`--net` loads fonts from Google Fonts like the app does. Without it, fonts come from a local google/fonts checkout when `VZ_GFONTS` points at one. GitHub runs step 2 on every build and fails it if finding, reading, font rank, or fit gets worse by more than 0.02, or if any automatic swap's letters match the artwork worse than the true font does. After a change that improves the scores, run it with `--save-baseline` and commit `bench/text_baseline.json`.
+
+`python3 bench/ocr_bakeoff.py` compares text readers on the same images (it needs `pip install rapidocr_onnxruntime`).
+
 ## Score tracing changes
 
 `bench/testset` holds 42 generated test logos: 14 designs, each saved as a 240 px PNG, a 480 px PNG, and a 480 px JPEG. Each design was drawn from known shapes and open-license Google Fonts, so the right answer is known exactly. `bench/score.py` traces them with the app's engine and measures shape error, edge error, corner error, and points against the true artwork.
@@ -146,7 +171,7 @@ Drag from the top or left ruler to add a guide, and drag it back onto the ruler 
 
 GitHub runs the same command on every build and fails it if shape, edge, or corner error gets more than 10 percent worse. When a change makes tracing better, run `python3 bench/score.py bench-out --save-baseline` and commit `bench/baseline.json`, so the next change has to beat it. Try settings without changing code with `--set`, such as `--set corners=80`.
 
-To regenerate the test logos, download the fonts listed in `bench/make_testset.py` and run `python3 bench/make_testset.py FONTS_DIR`.
+To regenerate the test logos, download the fonts listed in `bench/make_testset.py` and run `python3 bench/make_testset.py FONTS_DIR`. The lettering test set is regenerated with `VZ_GFONTS=path/to/fonts python3 bench/make_textset.py`.
 
 ## Test
 
@@ -161,6 +186,8 @@ To regenerate the test logos, download the fonts listed in `bench/make_testset.p
   python3 tests/ui/test_presets.py
   python3 tests/ui/test_align.py
   python3 tests/ui/test_design.py
+  python3 tests/ui/test_motion.py
+  python3 tests/ui/test_lettering.py
   ```
 
 - A built app checks itself: `dist/Vectorize.app/Contents/MacOS/Vectorize --self-test` checks the bundled parts, and `--smoke-test` opens the window, converts the sample logo, and closes.

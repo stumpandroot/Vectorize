@@ -49,7 +49,7 @@ def run() -> int:
     def ui():
         html = (app_main.resource_dir() / "index.html").read_text()
         assert "VZ_MENU" in html and "pywebviewready" in html, "index.html is missing the editor"
-        for marker in ('id="tuneGroup"', "AUTO_FONT_MIN", "LOAD_WEIGHTS", 'id="destBox"', "PRESET_HELP", "CutContour", 'id="alignBar"', "bestShift", "data-card", 'class="app-icon"', "seg-pill", "ctxMenu", "pane-enter", "TOUR_VERSION", 'id="limitMotion"', "anchorCount", "dialMul"):
+        for marker in ('id="tuneGroup"', "AUTO_MARGIN", "LOAD_WEIGHTS", "letterCheck", "indexShortlist", "addArcWords", "applyTidy", "fontkit", 'id="destBox"', "PRESET_HELP", "CutContour", 'id="alignBar"', "bestShift", "data-card", 'class="app-icon"', "seg-pill", "ctxMenu", "pane-enter", "TOUR_VERSION", 'id="limitMotion"', "anchorCount", "dialMul"):
             assert marker in html, f"index.html is an old build: no {marker}"
         from .bridge import BUILD, VERSION
         if BUILD != "dev":
@@ -123,8 +123,33 @@ def run() -> int:
         assert "VECTORIZE" in read.upper().replace(" ", ""), f"read {read!r}"
         w = lines[0]["words"][0]["box"]
         assert 0 <= w[0] < 0.2 and 0.1 < w[1] < 0.6, f"word box {w}"
-        return f"read {read!r}"
+        # Expected words and letter boxes (1.9.0).
+        lines2 = native.recognize_text(png, ["VECTORIZE"])
+        chars = [c for l in lines2 for wd in l["words"] for c in wd.get("chars", [])]
+        return f"read {read!r}, {len(chars)} letter boxes"
     check("text recognition (Apple Vision)", ocr)
+
+    def font_index():
+        d = app_main.resource_dir()
+        import json
+        meta = json.loads((d / "font-index.json").read_text())
+        size = (d / "font-index.bin").stat().st_size
+        faces = sum(len(f["i"]) for f in meta["families"])
+        assert size == faces * meta["record"] * len(meta["chars"]), "font-index.bin doesn't match font-index.json"
+        return f"{len(meta['families'])} families, {faces} faces"
+    check("font index is bundled", font_index)
+
+    def font_pack():
+        from . import fonts
+        pack = fonts.pack_dir()
+        assert (pack / "NOTICE.txt").exists() and (pack / "licenses").is_dir(), f"no font pack licenses in {pack}"
+        data = fonts.font_bytes("Roboto", 700)      # from the pack, no network
+        assert data and data[:4] in fonts.MAGIC, "Roboto Bold isn't in the font pack"
+        n = len(list(pack.glob("*.ttf")))
+        inst = fonts.installed_font_file("Helvetica")
+        assert inst and len(inst[0]) > 1000, "couldn't read the Helvetica font file"
+        return f"{n} files in the pack; Helvetica read as {inst[1]}"
+    check("font files for lettering", font_pack)
 
     def bridge():
         tmp = Path(tempfile.mkdtemp())

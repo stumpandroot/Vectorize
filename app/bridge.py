@@ -203,15 +203,34 @@ class Bridge:
             return {"error": str(e)}
 
     # --- Text recognition ----------------------------------------------------
-    def recognize_text(self, data_url: str):
+    def recognize_text(self, data_url: str, custom_words: list | None = None):
         try:
-            return {"lines": native.recognize_text(_decode(data_url, "base64"))}
+            words = [str(w)[:64] for w in (custom_words or [])][:50]
+            return {"lines": native.recognize_text(_decode(data_url, "base64"), words)}
         except Exception as e:
             return {"error": str(e)}
 
     # --- Fonts ---------------------------------------------------------------
     def font_families(self):
         return native.installed_font_families()
+
+    def font_file(self, family: str, weight: int = 400, wdth: int = 0):
+        """A Google Fonts family at one weight, for the lettering engine: the bundled pack, the cache, or a download."""
+        from . import fonts
+        try:
+            data = fonts.font_bytes(str(family), int(weight), int(wdth or 0))
+            return {"b64": base64.b64encode(data).decode()} if data else {"missing": True}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def installed_font_file(self, name: str):
+        """An installed font's file (for exact outlines), with the face's PostScript name."""
+        from . import fonts
+        try:
+            r = fonts.installed_font_file(str(name))
+            return {"b64": base64.b64encode(r[0]).decode(), "postscript": r[1]} if r else None
+        except Exception as e:
+            return {"error": str(e)}
 
     # --- Versa ---------------------------------------------------------------
     def send_to_versa(self, name: str, zip_b64: str):

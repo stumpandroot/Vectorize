@@ -250,6 +250,9 @@ input[type=range]{width:100%;accent-color:var(--sun);height:24px}
 .text-field input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--sun)}
 .text-card .seg button:disabled{opacity:.4;cursor:default}
 .font-list{display:flex;flex-direction:column;gap:6px}
+.tidy{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:12px;background:var(--mist-tint)}
+.tidy .help{margin:0}
+.switch input:disabled+.track{opacity:.4}
 .font-row{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 12px;border-radius:12px;background:var(--mist-tint);text-align:left;width:100%;overflow:hidden}
 .font-row[aria-pressed="true"]{background:var(--sun-tint);box-shadow:inset 0 0 0 2px var(--sun)}
 .fprev{font-size:22px;line-height:1.15;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -1014,6 +1017,9 @@ html.limit .export-split.celebrate::after{animation:fade-out .3s ease-out both}
 <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2" class="sr" tabindex="-1">
 <datalist id="localFonts"></datalist>
 
+<script>
+%%VENDOR%%
+</script>
 <script>
 %%FIT%%
 %%JS%%

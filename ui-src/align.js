@@ -170,7 +170,7 @@ function drawSnapLines(lines) {
 function partKeysAt(target) {
   const tk = target.closest && target.closest("[data-k]"), tt = target.closest && target.closest("[data-t]");
   if (tk) { const [li, ii] = tk.dataset.k.split(":").map(Number); return [{ li, ii }]; }
-  if (tt) { const T = (result.texts || []).find(T => T.id === +tt.dataset.t); if (T) return T.items.map(ii => ({ li: T.li, ii })); }
+  if (tt) { const T = (result.texts || []).find(T => T.id === +tt.dataset.t); if (T) return wordParts(T).map(p => ({ li: p.li, ii: p.ii })); }
   return null;
 }
 $("#stage").addEventListener("pointerdown", e => {
