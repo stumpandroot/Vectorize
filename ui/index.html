@@ -11,6 +11,7 @@
   --accent:#F4C76B; --accent-wash:#FCECCC; --accent-text:#8A6414;
   --warn:#FA6B47; --warn-wash:#FDE3D9; --warn-text:#B23F24;
   --ok-wash:#E9EFE0; --ok-text:#4F6440;
+  --switch-on:#4F6440; --fill-butter:#F4C76B; --fill-sage:#AFC398; --fill-petal:#EFB6C8; --fixed-ink:#26352E;
   --danger:#D70015;
   --artboard:#FFFFFF; --artboard-check:#E8E8E8;
   --glass:rgba(245,240,230,.84); --glass-rim:rgba(255,255,255,.75);
@@ -39,6 +40,7 @@
   --accent:#D4AB55; --accent-wash:#484A32; --accent-text:#E8C27A;
   --warn:#F27A57; --warn-wash:#463D30; --warn-text:#FF8A6B;
   --ok-wash:#394A3A; --ok-text:#B9CDA3;
+  --switch-on:#6E8A58; --fill-butter:#D4AB55; --fill-sage:#93A87C; --fill-petal:#C98EA2;
   --danger:#FF6961;
   --glass:rgba(30,44,38,.86); --glass-rim:rgba(245,240,230,.16);
   --shadow-low:0 1px 3px rgba(0,0,0,.3),0 1px 1px rgba(0,0,0,.2); --shadow-high:0 8px 16px rgba(0,0,0,.35);
@@ -53,6 +55,7 @@
   --accent:#D4AB55; --accent-wash:#484A32; --accent-text:#E8C27A;
   --warn:#F27A57; --warn-wash:#463D30; --warn-text:#FF8A6B;
   --ok-wash:#394A3A; --ok-text:#B9CDA3;
+  --switch-on:#6E8A58; --fill-butter:#D4AB55; --fill-sage:#93A87C; --fill-petal:#C98EA2;
   --danger:#FF6961;
   --glass:rgba(30,44,38,.86); --glass-rim:rgba(245,240,230,.16);
   --shadow-low:0 1px 3px rgba(0,0,0,.3),0 1px 1px rgba(0,0,0,.2); --shadow-high:0 8px 16px rgba(0,0,0,.35);
@@ -397,8 +400,8 @@ h1,h2,h3{letter-spacing:-.012em}
 .btn-soft.is-pressed,.btn-sun.is-pressed,.out-chip:active{box-shadow:inset 0 0 0 1px var(--outline-strong)}
 .vb-release>.inner{animation:none}
 
-/* Level 2 glass: toolbar */
-.toolbar{background:var(--glass);-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);border-bottom:1px solid var(--hairline);box-shadow:inset 0 1px 0 var(--glass-rim);position:relative;z-index:10;padding:8px 16px}
+/* Toolbar: flush paper with one hairline (Verbatim, October 18: glass panes read grey against the paper). */
+.toolbar{background:var(--paper);border-bottom:1px solid var(--hairline);box-shadow:none;position:relative;z-index:10;padding:8px 16px}
 .brand svg,.brand .app-icon{width:30px;height:30px;border-radius:7px;box-shadow:var(--shadow-low)}
 .brand b{font-size:17px;font-weight:650;letter-spacing:-.02em}
 .brand small{font:600 10.5px var(--mono);letter-spacing:1.1px;text-transform:uppercase;padding:3px 7px;border-radius:6px;background:var(--track);color:var(--text2)}
@@ -494,9 +497,9 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 2px var(-
 /* Switches: system-like, ink when on. */
 .switch .track{background:var(--track-strong);transition:background var(--m-snappy)}
 .switch .track i{background:#FFFDF9;transition:transform var(--m-snappy)}
-.switch input:checked + .track{background:var(--interactive)}
-:root[data-theme="dark"] .switch input:checked + .track i{background:#18241F}
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .switch input:checked + .track i{background:#18241F} }
+/* Switches and checkboxes in brand sage (Verbatim): deep sage on paper, lighter sage on dark, so the white knob always shows. */
+.switch input:checked + .track{background:var(--switch-on)}
+input[type=checkbox]{accent-color:var(--switch-on)}
 .switch input:focus-visible + .track{outline:2px solid var(--ink);outline-offset:2px}
 
 /* Canvas: an inset well holding the artboard. */
@@ -543,10 +546,9 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 2px var(-
 @keyframes ring{0%{transform:scale(.35);opacity:.7}100%{transform:scale(1);opacity:0}}
 .busy div{font-weight:600;font-size:13.5px}
 
-/* Level 2 glass: the inspector, an inset panel. */
-@media (min-width:861px){ .main{grid-template-columns:minmax(0,1fr) 336px} }
-.inspector{margin:8px 8px 8px 0;border:0;border-radius:18px;background:var(--glass);-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);box-shadow:inset 1px 1px 0 var(--glass-rim),inset 0 0 0 1px var(--hairline),0 6px 20px var(--shadow-color);padding:16px 16px 22px;gap:18px}
-.insp-head{background:linear-gradient(var(--glass) 82%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);margin:-16px -16px 0;padding:16px 16px 12px;top:-16px;box-shadow:none;border-radius:18px 18px 0 0}
+/* The inspector is part of the page: the same opaque paper, flush to the window edges, divided from the canvas by one hairline. No glass, no shadow, no inset. */
+.inspector{margin:0;border:0;border-left:1px solid var(--hairline);border-radius:0;background:var(--paper);box-shadow:none;padding:16px 16px 22px;gap:18px}
+.insp-head{background:linear-gradient(var(--paper) 82%,transparent);margin:-16px -16px 0;padding:16px 16px 12px;top:-16px;box-shadow:none;border-radius:0}
 .insp-head h2{font-size:10.5px;font-weight:600;letter-spacing:1.1px;text-transform:uppercase;color:var(--text2)}
 
 /* Section headers: diamond, mono overline, index, dotted rule. */
@@ -590,12 +592,11 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 2px var(-
 #exportLabel{transition:opacity var(--m-snappy)}
 
 /* Reduce Transparency: glass becomes the opaque bar. */
-html.rt .toolbar,html.rt .inspector,html.rt .float-zoom,html.rt .insp-head{background:var(--bar);-webkit-backdrop-filter:none;backdrop-filter:none}
-html.rt .insp-head{background:var(--bar)}
-@media (prefers-reduced-transparency: reduce){ .toolbar,.inspector,.float-zoom,.insp-head{background:var(--bar);-webkit-backdrop-filter:none;backdrop-filter:none} }
+html.rt .float-zoom{background:var(--bar);-webkit-backdrop-filter:none;backdrop-filter:none}
+@media (prefers-reduced-transparency: reduce){ .float-zoom{background:var(--bar);-webkit-backdrop-filter:none;backdrop-filter:none} }
 /* Increase Contrast: glass edges get a strong outline. */
-@media (prefers-contrast: more){ .toolbar,.inspector,.float-zoom,.menu{box-shadow:inset 0 0 0 1px var(--outline-strong)} }
-html.contrast .toolbar,html.contrast .inspector,html.contrast .float-zoom,html.contrast .menu{box-shadow:inset 0 0 0 1px var(--outline-strong)}
+@media (prefers-contrast: more){ .float-zoom,.menu{box-shadow:inset 0 0 0 1px var(--outline-strong)} }
+html.contrast .float-zoom,html.contrast .menu{box-shadow:inset 0 0 0 1px var(--outline-strong)}
 /* Reduce Motion: movement becomes a fade; cards keep their light and shadow but don't tilt, lift, or scale. */
 /* Interaction and motion pass (matches Verbatim). Things arrive with motion and leave at once; nothing bounces.
    html.kbd is set while the keyboard or a menu command is driving, and turns arrival motion off. */
@@ -603,9 +604,7 @@ html.contrast .toolbar,html.contrast .inspector,html.contrast .float-zoom,html.c
 .seg-pill{position:absolute;left:0;top:0;width:0;height:0;border-radius:8px;background:var(--interactive);box-shadow:var(--shadow-low);pointer-events:none;opacity:0;
   transition:transform .2s var(--ease-card),width .2s var(--ease-card),height .2s var(--ease-card),opacity var(--m-touch)}
 .has-pill>button{position:relative;z-index:1}
-@media (prefers-reduced-motion: no-preference){
-  :is(.seg,.tools,.seg.mini,.seg.full).has-pill>button:is([aria-selected="true"],[aria-pressed="true"]){background:transparent;box-shadow:none}
-}
+html:not(.limit) :is(.seg,.tools,.seg.mini,.seg.full).has-pill>button:is([aria-selected="true"],[aria-pressed="true"]){background:transparent;box-shadow:none}
 html.kbd .seg-pill{transition:none}
 .pane-enter>*{animation:enter-x .3s var(--ease-card) both;animation-delay:calc(var(--i,0) * 30ms)}
 .menu:not([hidden]){animation:pop-in .2s var(--ease-card) both;transform-origin:top right}
@@ -616,9 +615,52 @@ html.intro :is(.toolbar,.canvas-col,.insp-head,#pane-setup>*){animation:rise-in 
 html.kbd :is(.pane-enter>*,.menu,.snapbar,.alignbar,.batch){animation:none}
 @keyframes enter-x{from{opacity:0;transform:translateX(var(--dx,12px))}to{opacity:1;transform:none}}
 @keyframes pop-in{from{opacity:0;transform:scale(.97) translateY(-4px)}to{opacity:1;transform:none}}
-@keyframes rise-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes rise-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @keyframes drop-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 @keyframes fade-in{from{opacity:0}to{opacity:1}}
+/* Welcome tour (Verbatim's pattern): a paper sheet with a section-header strip, one idea per step, Back and one primary. */
+.tour{z-index:60}
+.tour-card{width:min(640px,100%);min-height:min(460px,calc(100svh - 32px));max-height:calc(100svh - 32px);overflow:auto;background:var(--paper);border-radius:var(--r-xl);box-shadow:inset 0 0 0 1px var(--hairline),var(--shadow-high);padding:30px 40px 24px;display:flex;flex-direction:column}
+.tour-head{display:flex;align-items:center;gap:10px;font:500 10.5px var(--mono);letter-spacing:1.1px;text-transform:uppercase;color:var(--text2)}
+.tour-head .dia{width:7px;height:7px;border:1px solid var(--ink);transform:rotate(45deg);flex:none}
+.tour-head .gt-rule{flex:1;height:2px;background:radial-gradient(circle,var(--outline-strong) .9px,transparent 1.1px) left center/5px 2px repeat-x}
+.tour-head #tourCount{color:var(--text3)}
+.tour-body{flex:1;min-height:0;overflow:hidden}
+.tour-step{animation:enter-x .3s var(--ease-card) both}
+html.kbd .tour-step{animation:none}
+.tour h3{font-size:28px;font-weight:650;letter-spacing:-.02em;line-height:1.15;color:var(--ink);margin:18px 0 8px}
+.tour p.lead{font-size:14.5px;line-height:1.5;color:var(--text2);max-width:52ch}
+.tour-pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px}
+.pillar{border-radius:16px;padding:14px;min-height:130px;display:flex;flex-direction:column;color:var(--fixed-ink)}
+.pillar .top{display:flex;justify-content:space-between;align-items:flex-start;font:400 11px var(--mono)}
+.pillar svg,.tour-row svg,.tour-opt svg{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.pillar svg{width:34px;height:34px}
+.pillar b{margin-top:auto;font-size:19px;font-weight:650;letter-spacing:-.01em}
+.pillar small{font-size:12px;font-weight:600;min-height:2.7em;line-height:1.35}   /* titles line up across the three cards */
+.tour-list{margin-top:18px;background:var(--reader);border-radius:16px;box-shadow:inset 0 0 0 1px var(--hairline);overflow:hidden}
+.tour-row{display:flex;align-items:center;gap:14px;padding:11px 16px}
+.tour-row+.tour-row,.tour-opt+.tour-opt{border-top:1px solid var(--hairline)}
+.tour-row .tile{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:none;color:var(--fixed-ink)}
+.tour-row .tile svg{width:20px;height:20px}
+.tour-row b,.tour-opt b{display:block;font-size:14px;font-weight:600;color:var(--ink)}
+.tour-row span,.tour-opt span{display:block;font-size:12.5px;color:var(--text3);line-height:1.35}
+.tour-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:18px}
+.tour-opt{position:relative;display:flex;flex-direction:column;justify-content:flex-start;align-items:flex-start;text-align:left;padding:10px 34px 10px 14px;width:100%;transition:background var(--m-touch)}
+.tour-grid .tour-opt{border-radius:var(--r-md);background:var(--reader);box-shadow:inset 0 0 0 1px var(--hairline);border-top:0}
+.tour-opt:hover:not(:disabled){background:var(--track)}
+.tour-opt[aria-checked="true"]{background:var(--ok-wash)}
+.tour-grid .tour-opt[aria-checked="true"]{box-shadow:inset 0 0 0 1.5px var(--ok-text)}
+.tour-opt[aria-checked="true"]::after{content:"";position:absolute;right:14px;top:50%;width:10px;height:5px;margin-top:-5px;border:solid var(--ok-text);border-width:0 0 2px 2px;transform:rotate(-45deg)}
+.tour-opt:disabled{cursor:default}.tour-opt:disabled b{color:var(--text3)}
+.tour-opt .rec{display:inline;margin-left:6px;font-size:11px;font-weight:600;color:var(--ok-text)}
+.tour-note{margin-top:10px;font-size:12.5px;color:var(--text3)}
+.tour-foot{display:flex;align-items:center;gap:14px;margin-top:20px}
+.tour-foot .link-btn{color:var(--text2);font-weight:500}
+.tour-foot .link-btn.quiet{color:var(--text3)}
+.tour-foot .spacer{flex:1}
+.tour-foot .btn{min-height:38px;padding:0 18px;font-size:14px}
+@media (max-width:620px){ .tour-card{padding:22px 20px 18px} .tour-pillars{grid-template-columns:1fr} .pillar{min-height:0;gap:6px} .tour-grid{grid-template-columns:1fr} .tour h3{font-size:24px} }
+
 /* Right-click menus open at the pointer. */
 .menu.ctx{position:fixed;right:auto;min-width:210px;max-width:320px;z-index:40}
 .menu.ctx button{display:grid;grid-template-columns:1fr auto;column-gap:18px;align-items:baseline;padding:6px 10px 6px 28px}
@@ -627,23 +669,19 @@ html.kbd :is(.pane-enter>*,.menu,.snapbar,.alignbar,.batch){animation:none}
 .menu kbd{font:400 11.5px var(--mono);color:var(--text3)}
 .menu button.danger{color:var(--danger)}
 .menu button:disabled kbd{opacity:.7}
-@media (prefers-reduced-motion: reduce){
-  .seg-pill{display:none}
-  @keyframes enter-x{from{opacity:0}to{opacity:1}}
-  @keyframes pop-in{from{opacity:0}to{opacity:1}}
-  @keyframes rise-in{from{opacity:0}to{opacity:1}}
-  @keyframes drop-in{from{opacity:0}to{opacity:1}}
-}
-@media (prefers-reduced-motion: reduce){
-  *,*::before,*::after{transition-property:opacity,background,background-color,box-shadow,color,filter!important}
-  [data-card]{transform:none!important}
-  .is-pressed>.inner{transform:none}
-  .busy .rings i{animation:none;opacity:.35;transform:scale(.7)} .busy .rings i:nth-child(2){transform:scale(.85)} .busy .rings i:nth-child(3){transform:scale(1)}
-  .export-split.celebrate::after{animation:celebrate-fade .3s ease-out both}
-  @keyframes celebrate-fade{0%{opacity:1}100%{opacity:0}}
-}
+/* Limit animation: html.limit is on when the system's Reduce Motion is on or you turn on Limit animation
+   (motion.js keeps it in sync). Movement becomes a fade; cards keep their light and shadow but don't tilt, lift, or scale. */
+html.limit .seg-pill{display:none}
+html.limit :is(.pane-enter>*,.menu:not([hidden]),.snapbar:not([hidden]),.alignbar:not([hidden]),.batch:not([hidden]),.tour-step){animation-name:fade-in}
+html.limit.intro :is(.toolbar,.canvas-col,.insp-head,#pane-setup>*){animation-name:fade-in}
+html.limit *,html.limit *::before,html.limit *::after{transition-property:opacity,background,background-color,box-shadow,color,filter!important}
+html.limit [data-card]{transform:none!important}
+html.limit .is-pressed>.inner{transform:none}
+html.limit .busy .rings i{animation:none;opacity:.35;transform:scale(.7)} html.limit .busy .rings i:nth-child(2){transform:scale(.85)} html.limit .busy .rings i:nth-child(3){transform:scale(1)}
+html.limit .export-split.celebrate::after{animation:fade-out .3s ease-out both}
+@keyframes fade-out{from{opacity:1}to{opacity:0}}
 @media (max-width:860px){
-  .inspector{margin:0 8px 8px}
+  .inspector{margin:0;border-left:0;border-top:1px solid var(--hairline)}
   /* Phones and narrow windows: the preview stays pinned at the top while the settings scroll under it,
      so every change shows on the image. Opaque paper with a scroll-edge shadow, not glass: the artwork
      and text scroll right beneath it. */
@@ -901,6 +939,13 @@ html.kbd :is(.pane-enter>*,.menu,.snapbar,.alignbar,.batch){animation:none}
             <button id="xm-off" data-xmode="off" aria-pressed="false" data-press><span class="inner">Off</span></button>
           </div>
           <p class="help">Vectorize finds words so you can match them to a font in the Text tab.</p>
+        </div>
+
+        <div class="group" id="appGroup">
+          <span class="group-title"><span class="gt">This app</span><i class="gt-rule" aria-hidden="true"></i></span>
+          <label class="switch" for="limitMotion">Limit animation<input type="checkbox" id="limitMotion"><span class="track"><i></i></span></label>
+          <p class="help">Fades instead of movement. Vectorize also does this when Reduce Motion is on in System Settings.</p>
+          <div class="row"><button type="button" class="link-btn" id="showTour">Show the welcome tour</button></div>
         </div>
 
         <div class="note" id="setupNote"><b>This is the web preview.</b> The Mac app adds AI background cutout, PDF and EPS export, and saving straight to your folders. Everything here runs in your browser; your image never leaves this page.</div>
@@ -4437,6 +4482,8 @@ function runCommand(cmd) {
     case "zoomOut": zoomAt(1 / 1.5); break;
     case "actual": if (job) zoomTo(1 / fitScale); break;
     case "license": openLicense(); break;
+    case "tour": openTour(); break;
+    case "limitMotion": setLimitMotion(!limitPref); toast(limitPref ? "Limit animation is on." : "Limit animation is off."); break;
     case "deactivate": deactivate(); break;
   }
 }
@@ -4474,7 +4521,7 @@ document.addEventListener("keyup", e => { if (e.key === " " && spaceDown) { spac
 // feature cards (preset tiles), 2 for rows (batch items), and wide rows tilt less. Reduce Motion keeps
 // the light, sheen, and shadow and drops tilt, lift, and scale (CSS handles that).
 (() => {
-  const fine = matchMedia("(hover: hover) and (pointer: fine)"), still = matchMedia("(prefers-reduced-motion: reduce)");
+  const fine = matchMedia("(hover: hover) and (pointer: fine)"), still = { get matches() { return document.documentElement.classList.contains("limit"); } };   // Reduce Motion or Limit animation (motion.js)
   let hot = null, pressed = false;
   const set = (el, k, v) => el.style.setProperty(k, v);
   function aim(el, e) {
@@ -4536,11 +4583,13 @@ async function initNative() {
     + `<br><span class="build-tag">Vectorize ${esc(APP.version || "")} (build ${esc(APP.build || "dev")})</span>`;
   $("#file").removeAttribute("accept");
   const st = APP.settings || {};
+  setLimitMotion(!!st.limitMotion, true);
   if (FORMATS[st.exportFormat]) S.exportFormat = st.exportFormat;
   if (OUTPUTS[st.lastPreset] && !S.output) applyOutput(st.lastPreset, true);
   syncControls(); if (result) renderTexts();
   try { LIC = await NATIVE.license_status(); } catch (e) { LIC = { enabled: false, licensed: true }; }
   if (LIC.enabled && !LIC.licensed) openLicense();
+  else maybeShowTour();
 }
 window.addEventListener("pywebviewready", initNative);
 
@@ -4980,6 +5029,24 @@ alignReady = true;
 
 function root() { return document.documentElement; }
 
+/* Limit animation (Verbatim's motion.limited): on when the system's Reduce Motion is on or you turn on the
+   setting. html.limit is the one switch the CSS and card motion read, so both behave the same. */
+const MOTION_SYS = matchMedia("(prefers-reduced-motion: reduce)");
+let limitPref = false;
+try { limitPref = localStorage.getItem("vz-limit-motion") === "1"; } catch { /* storage off */ }
+function syncLimit() {
+  root().classList.toggle("limit", MOTION_SYS.matches || limitPref);
+  const sw = $("#limitMotion"); if (sw) sw.checked = limitPref;
+}
+function setLimitMotion(on, fromNative) {
+  limitPref = !!on; syncLimit();
+  if (fromNative) return;
+  try { if (NATIVE) { NATIVE.remember("limitMotion", limitPref); if (APP && APP.settings) APP.settings.limitMotion = limitPref; } else localStorage.setItem("vz-limit-motion", limitPref ? "1" : "0"); } catch { /* storage off */ }
+}
+MOTION_SYS.addEventListener("change", syncLimit);
+syncLimit();
+$("#limitMotion").addEventListener("change", e => setLimitMotion(e.target.checked));
+
 /* Segmented controls: one pill that slides between segments. */
 const SEG_SEL = ".seg, .tools";
 function segPill(seg) {
@@ -5154,6 +5221,105 @@ $("#stage").addEventListener("contextmenu", e => {
     { label: "Outlines", act: toggleOutlines, checked: outlines },
   ]);
 });
+
+/* ---------- Welcome tour (Verbatim's pattern, four steps) ---------- */
+// Shown once (until TOUR_VERSION goes up), and from Help > Welcome Tour or "Show the welcome tour" in Setup.
+// Skipping or finishing marks it seen. Never shown to automated test browsers.
+const TOUR_VERSION = 1;
+const TOUR_ICONS = {
+  trace: '<path d="M4 18C7 7 17 7 20 18"/><path d="M4 18 9.5 7.5"/><circle cx="9.5" cy="7.5" r="1.4"/><rect x="2.6" y="16.6" width="2.8" height="2.8" rx=".4"/><rect x="18.6" y="16.6" width="2.8" height="2.8" rx=".4"/>',
+  tune: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
+  export: '<path d="M12 4v11M7.5 8.5 12 4l4.5 4.5M5 14v5h14v-5"/>',
+  shapes: '<circle cx="9" cy="10" r="5"/><rect x="11" y="11" width="8" height="8" rx="1.2"/>',
+  text: '<path d="M5 6h14M12 6v13M9.5 19h5"/>',
+  align: '<path d="M4 4v16M8 7h10v4H8zM8 14h6v4H8z"/>',
+  click: '<rect x="7" y="3" width="10" height="18" rx="5"/><path d="M12 3v6M7 9h10"/><path d="M12.6 3.8a4.4 4.4 0 0 1 3.6 4.4" stroke-width="2.4"/>',
+};
+const tsvg = (k, cls) => `<svg viewBox="0 0 24 24" aria-hidden="true"${cls ? ` class="${cls}"` : ""}>${TOUR_ICONS[k]}</svg>`;
+let tourStep = 0;
+const TOUR_LABELS = ["Welcome to Vectorize", "What you're tracing", "Fine-tune", "Last step"];
+function tourSeen() {
+  if (navigator.webdriver) return true;
+  try { return NATIVE ? (APP && APP.settings && +APP.settings.tourSeen >= TOUR_VERSION) : +localStorage.getItem("vz-tour") >= TOUR_VERSION; } catch { return true; }
+}
+function markTourSeen() {
+  try { if (NATIVE) { NATIVE.remember("tourSeen", TOUR_VERSION); if (APP && APP.settings) APP.settings.tourSeen = TOUR_VERSION; } else localStorage.setItem("vz-tour", String(TOUR_VERSION)); } catch { /* storage off */ }
+}
+function maybeShowTour() { if (!tourSeen() && !$("#tour")) openTour(); }
+function tourBody(step) {
+  const where = NATIVE ? "on this Mac" : "in your browser";
+  if (step === 0) return `<h3 id="tourTitle">Clean vectors from any logo.</h3>
+    <p class="lead">Drop in a PNG or JPEG. Vectorize traces it into shapes you can edit and export, and it all stays ${where}.</p>
+    <div class="tour-pillars">
+      <div class="pillar" style="background:var(--fill-butter)"><div class="top">01${tsvg("trace")}</div><b>Trace</b><small>Presets for logos, sketches, and more</small></div>
+      <div class="pillar" style="background:var(--fill-sage)"><div class="top">02${tsvg("tune")}</div><b>Fine-tune</b><small>True shapes, real fonts, exact alignment</small></div>
+      <div class="pillar" style="background:var(--fill-petal)"><div class="top">03${tsvg("export")}</div><b>Export</b><small>SVG, PDF, EPS, and PNG</small></div>
+    </div>`;
+  if (step === 1) return `<h3 id="tourTitle">Tell it what it is.</h3>
+    <p class="lead">A preset sets up the trace for that kind of art. Pick one now; you can change it anytime in Setup.</p>
+    <div class="tour-grid" role="radiogroup" aria-label="Preset">${["onecolor", "logo", "detailed", "silhouette", "sketch", "gray"].map(k => {
+      const name = $(`.preset[data-preset="${k}"]`).textContent.trim();
+      return `<button type="button" class="tour-opt" role="radio" data-tp="${k}" aria-checked="${S.preset === k}"><b>${esc(name)}</b><span>${esc(PRESET_HELP[k])}</span></button>`; }).join("")}</div>`;
+  if (step === 2) return `<h3 id="tourTitle">Make it exact.</h3>
+    <p class="lead">Traces are close. These get them the rest of the way.</p>
+    <div class="tour-list">
+      <div class="tour-row"><span class="tile" style="background:var(--fill-butter)">${tsvg("shapes")}</span><div><b>Snap to true shapes</b><span>Click an outline to make it a perfect circle, star, heart, and more</span></div></div>
+      <div class="tour-row"><span class="tile" style="background:var(--fill-sage)">${tsvg("text")}</span><div><b>Match the font</b><span>Traced words become real type in the Text tab</span></div></div>
+      <div class="tour-row"><span class="tile" style="background:var(--fill-petal)">${tsvg("align")}</span><div><b>Line it up</b><span>Align view lays the original under the vector so you can nudge parts into place</span></div></div>
+      <div class="tour-row"><span class="tile" style="background:var(--track-strong)">${tsvg("click")}</span><div><b>Right-click for options</b><span>On Export, the canvas, a part, or the zoom level</span></div></div>
+    </div>`;
+  return `<h3 id="tourTitle">Ready when you are.</h3>
+    <p class="lead">Pick the format Export uses. You can change it later from the menu beside Export.</p>
+    <div class="tour-list" role="radiogroup" aria-label="Export format">${Object.keys(FORMATS).map(f => {
+      const off = !NATIVE && (f === "pdf" || f === "eps"), b = $(`#exportMenu [data-fmt="${f}"] small`);
+      return `<button type="button" class="tour-opt" role="radio" data-tf="${f}" aria-checked="${fmtNow() === f}"${off ? " disabled" : ""}><b>${FORMATS[f]}${f === "svg" ? '<span class="rec">Recommended</span>' : ""}</b><span>${esc(off ? "In the Mac app" : (b ? b.textContent.replace(/ In the Mac app\.$/, "") : ""))}</span></button>`; }).join("")}</div>`;
+}
+function renderTour(dir) {
+  const t = $("#tour"); if (!t) return;
+  $("#tourLabel").textContent = TOUR_LABELS[tourStep];
+  $("#tourCount").textContent = `${String(tourStep + 1).padStart(2, "0")} / ${String(TOUR_LABELS.length).padStart(2, "0")}`;
+  const body = $("#tourBody"); body.innerHTML = `<div class="tour-step">${tourBody(tourStep)}</div>`;
+  body.firstElementChild.style.setProperty("--dx", (dir < 0 ? -24 : 24) + "px");
+  $("#tourBack").textContent = tourStep === 0 ? "Skip the tour" : "Back";
+  $("#tourNext").querySelector(".inner").textContent = tourStep === 0 ? "Get started" : tourStep === TOUR_LABELS.length - 1 ? "Start using Vectorize" : "Continue";
+  t.setAttribute("aria-labelledby", "tourTitle");
+}
+function openTour() {
+  closeCtx(); if (!$("#exportMenu").hidden) openExportMenu(false);
+  let t = $("#tour"); if (t) t.remove();
+  t = document.createElement("div"); t.className = "modal tour"; t.id = "tour"; t.setAttribute("role", "dialog"); t.setAttribute("aria-modal", "true");
+  t.innerHTML = `<div class="tour-card">
+    <div class="tour-head"><i class="dia" aria-hidden="true"></i><span id="tourLabel"></span><i class="gt-rule" aria-hidden="true"></i><span id="tourCount"></span></div>
+    <div class="tour-body" id="tourBody"></div>
+    <div class="tour-foot"><button type="button" class="link-btn" id="tourBack"></button><span class="spacer"></span><button type="button" class="btn btn-dark" id="tourNext" data-press><span class="inner"></span></button></div></div>`;
+  document.body.appendChild(t);
+  tourStep = 0; renderTour(1);
+  t._back = document.activeElement;
+  $("#tourNext").focus({ preventScroll: true });
+  $("#tourNext").onclick = () => { if (tourStep === TOUR_LABELS.length - 1) closeTour(); else { tourStep++; renderTour(1); } };
+  $("#tourBack").onclick = () => { if (tourStep === 0) closeTour(); else { tourStep--; renderTour(-1); } };
+  t.addEventListener("click", e => {
+    const p = e.target.closest("[data-tp]"), f = e.target.closest("[data-tf]");
+    if (p) { const b = $(`.preset[data-preset="${p.dataset.tp}"]`); if (b && S.preset !== p.dataset.tp) b.click(); t.querySelectorAll("[data-tp]").forEach(x => x.setAttribute("aria-checked", String(x === p))); }
+    if (f && !f.disabled) { S.exportFormat = f.dataset.tf; if (NATIVE) NATIVE.remember("exportFormat", S.exportFormat); syncEditorControls(); t.querySelectorAll("[data-tf]").forEach(x => x.setAttribute("aria-checked", String(x === f))); }
+  });
+  t.addEventListener("keydown", e => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeTour(); return; }
+    if (e.key === "Tab") {                                   // keep focus inside the tour
+      const f = [...t.querySelectorAll("button:not(:disabled)")], i = f.indexOf(document.activeElement);
+      if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); } else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+    }
+    e.stopPropagation();                                     // the editor's shortcuts stay off while the tour is open
+  });
+}
+function closeTour() {
+  const t = $("#tour"); if (!t) return;
+  markTourSeen(); const back = t._back; t.remove();
+  if (back && back.isConnected && back !== document.body) back.focus({ preventScroll: true });
+}
+$("#showTour").onclick = openTour;
+// The web preview decides after the first paint; the Mac app decides once it has read its settings (initNative).
+setTimeout(() => { if (!window.pywebview) maybeShowTour(); }, 900);
 
 </script>
 </body></html>

@@ -2,6 +2,16 @@
 
 The app shows its version and build in the window title and the toolbar. Each GitHub build has a new build number; the version changes when features change.
 
+## 1.7.0
+
+Vectorize picks up the design changes from Verbatim's latest build.
+
+- The toolbar and the inspector are flush paper, divided from the canvas by one hairline. No glass, shadow, or inset. Only the zoom controls over the canvas stay glass.
+- Switches turn brand sage when on, in light and dark.
+- Limit animation: turn it on in Setup › This app (or View › Limit Animation on a Mac) for fades instead of movement. Vectorize also does this when Reduce Motion is on in System Settings.
+- Entrances are quieter: things rise 4 px instead of 6.
+- A welcome tour shows once: what Vectorize does, a preset to start with, the fine-tune tools, and your export format. Open it again from Help › Welcome Tour or "Show the welcome tour" in Setup.
+
 ## 1.6.0
 
 The interaction and motion pass from Verbatim, so Vectorize moves the way the rest of the family does.

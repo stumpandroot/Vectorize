@@ -139,10 +139,15 @@ def build_menu(window):
             MenuAction("Zoom Out", run("zoomOut")),
             MenuAction("Actual Size", run("actual")),
             MenuAction("Zoom to Fit", run("fit")),
+            MenuSeparator(),
+            MenuAction("Limit Animation", run("limitMotion")),
         ]),
         Menu("License", [
             MenuAction("Enter License Key…", run("license")),
             MenuAction("Deactivate This Mac", run("deactivate")),
+        ]),
+        Menu("Help", [
+            MenuAction("Welcome Tour", run("tour")),
         ]),
     ]
 

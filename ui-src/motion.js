@@ -19,6 +19,24 @@
 
 function root() { return document.documentElement; }
 
+/* Limit animation (Verbatim's motion.limited): on when the system's Reduce Motion is on or you turn on the
+   setting. html.limit is the one switch the CSS and card motion read, so both behave the same. */
+const MOTION_SYS = matchMedia("(prefers-reduced-motion: reduce)");
+let limitPref = false;
+try { limitPref = localStorage.getItem("vz-limit-motion") === "1"; } catch { /* storage off */ }
+function syncLimit() {
+  root().classList.toggle("limit", MOTION_SYS.matches || limitPref);
+  const sw = $("#limitMotion"); if (sw) sw.checked = limitPref;
+}
+function setLimitMotion(on, fromNative) {
+  limitPref = !!on; syncLimit();
+  if (fromNative) return;
+  try { if (NATIVE) { NATIVE.remember("limitMotion", limitPref); if (APP && APP.settings) APP.settings.limitMotion = limitPref; } else localStorage.setItem("vz-limit-motion", limitPref ? "1" : "0"); } catch { /* storage off */ }
+}
+MOTION_SYS.addEventListener("change", syncLimit);
+syncLimit();
+$("#limitMotion").addEventListener("change", e => setLimitMotion(e.target.checked));
+
 /* Segmented controls: one pill that slides between segments. */
 const SEG_SEL = ".seg, .tools";
 function segPill(seg) {
@@ -193,3 +211,102 @@ $("#stage").addEventListener("contextmenu", e => {
     { label: "Outlines", act: toggleOutlines, checked: outlines },
   ]);
 });
+
+/* ---------- Welcome tour (Verbatim's pattern, four steps) ---------- */
+// Shown once (until TOUR_VERSION goes up), and from Help > Welcome Tour or "Show the welcome tour" in Setup.
+// Skipping or finishing marks it seen. Never shown to automated test browsers.
+const TOUR_VERSION = 1;
+const TOUR_ICONS = {
+  trace: '<path d="M4 18C7 7 17 7 20 18"/><path d="M4 18 9.5 7.5"/><circle cx="9.5" cy="7.5" r="1.4"/><rect x="2.6" y="16.6" width="2.8" height="2.8" rx=".4"/><rect x="18.6" y="16.6" width="2.8" height="2.8" rx=".4"/>',
+  tune: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
+  export: '<path d="M12 4v11M7.5 8.5 12 4l4.5 4.5M5 14v5h14v-5"/>',
+  shapes: '<circle cx="9" cy="10" r="5"/><rect x="11" y="11" width="8" height="8" rx="1.2"/>',
+  text: '<path d="M5 6h14M12 6v13M9.5 19h5"/>',
+  align: '<path d="M4 4v16M8 7h10v4H8zM8 14h6v4H8z"/>',
+  click: '<rect x="7" y="3" width="10" height="18" rx="5"/><path d="M12 3v6M7 9h10"/><path d="M12.6 3.8a4.4 4.4 0 0 1 3.6 4.4" stroke-width="2.4"/>',
+};
+const tsvg = (k, cls) => `<svg viewBox="0 0 24 24" aria-hidden="true"${cls ? ` class="${cls}"` : ""}>${TOUR_ICONS[k]}</svg>`;
+let tourStep = 0;
+const TOUR_LABELS = ["Welcome to Vectorize", "What you're tracing", "Fine-tune", "Last step"];
+function tourSeen() {
+  if (navigator.webdriver) return true;
+  try { return NATIVE ? (APP && APP.settings && +APP.settings.tourSeen >= TOUR_VERSION) : +localStorage.getItem("vz-tour") >= TOUR_VERSION; } catch { return true; }
+}
+function markTourSeen() {
+  try { if (NATIVE) { NATIVE.remember("tourSeen", TOUR_VERSION); if (APP && APP.settings) APP.settings.tourSeen = TOUR_VERSION; } else localStorage.setItem("vz-tour", String(TOUR_VERSION)); } catch { /* storage off */ }
+}
+function maybeShowTour() { if (!tourSeen() && !$("#tour")) openTour(); }
+function tourBody(step) {
+  const where = NATIVE ? "on this Mac" : "in your browser";
+  if (step === 0) return `<h3 id="tourTitle">Clean vectors from any logo.</h3>
+    <p class="lead">Drop in a PNG or JPEG. Vectorize traces it into shapes you can edit and export, and it all stays ${where}.</p>
+    <div class="tour-pillars">
+      <div class="pillar" style="background:var(--fill-butter)"><div class="top">01${tsvg("trace")}</div><b>Trace</b><small>Presets for logos, sketches, and more</small></div>
+      <div class="pillar" style="background:var(--fill-sage)"><div class="top">02${tsvg("tune")}</div><b>Fine-tune</b><small>True shapes, real fonts, exact alignment</small></div>
+      <div class="pillar" style="background:var(--fill-petal)"><div class="top">03${tsvg("export")}</div><b>Export</b><small>SVG, PDF, EPS, and PNG</small></div>
+    </div>`;
+  if (step === 1) return `<h3 id="tourTitle">Tell it what it is.</h3>
+    <p class="lead">A preset sets up the trace for that kind of art. Pick one now; you can change it anytime in Setup.</p>
+    <div class="tour-grid" role="radiogroup" aria-label="Preset">${["onecolor", "logo", "detailed", "silhouette", "sketch", "gray"].map(k => {
+      const name = $(`.preset[data-preset="${k}"]`).textContent.trim();
+      return `<button type="button" class="tour-opt" role="radio" data-tp="${k}" aria-checked="${S.preset === k}"><b>${esc(name)}</b><span>${esc(PRESET_HELP[k])}</span></button>`; }).join("")}</div>`;
+  if (step === 2) return `<h3 id="tourTitle">Make it exact.</h3>
+    <p class="lead">Traces are close. These get them the rest of the way.</p>
+    <div class="tour-list">
+      <div class="tour-row"><span class="tile" style="background:var(--fill-butter)">${tsvg("shapes")}</span><div><b>Snap to true shapes</b><span>Click an outline to make it a perfect circle, star, heart, and more</span></div></div>
+      <div class="tour-row"><span class="tile" style="background:var(--fill-sage)">${tsvg("text")}</span><div><b>Match the font</b><span>Traced words become real type in the Text tab</span></div></div>
+      <div class="tour-row"><span class="tile" style="background:var(--fill-petal)">${tsvg("align")}</span><div><b>Line it up</b><span>Align view lays the original under the vector so you can nudge parts into place</span></div></div>
+      <div class="tour-row"><span class="tile" style="background:var(--track-strong)">${tsvg("click")}</span><div><b>Right-click for options</b><span>On Export, the canvas, a part, or the zoom level</span></div></div>
+    </div>`;
+  return `<h3 id="tourTitle">Ready when you are.</h3>
+    <p class="lead">Pick the format Export uses. You can change it later from the menu beside Export.</p>
+    <div class="tour-list" role="radiogroup" aria-label="Export format">${Object.keys(FORMATS).map(f => {
+      const off = !NATIVE && (f === "pdf" || f === "eps"), b = $(`#exportMenu [data-fmt="${f}"] small`);
+      return `<button type="button" class="tour-opt" role="radio" data-tf="${f}" aria-checked="${fmtNow() === f}"${off ? " disabled" : ""}><b>${FORMATS[f]}${f === "svg" ? '<span class="rec">Recommended</span>' : ""}</b><span>${esc(off ? "In the Mac app" : (b ? b.textContent.replace(/ In the Mac app\.$/, "") : ""))}</span></button>`; }).join("")}</div>`;
+}
+function renderTour(dir) {
+  const t = $("#tour"); if (!t) return;
+  $("#tourLabel").textContent = TOUR_LABELS[tourStep];
+  $("#tourCount").textContent = `${String(tourStep + 1).padStart(2, "0")} / ${String(TOUR_LABELS.length).padStart(2, "0")}`;
+  const body = $("#tourBody"); body.innerHTML = `<div class="tour-step">${tourBody(tourStep)}</div>`;
+  body.firstElementChild.style.setProperty("--dx", (dir < 0 ? -24 : 24) + "px");
+  $("#tourBack").textContent = tourStep === 0 ? "Skip the tour" : "Back";
+  $("#tourNext").querySelector(".inner").textContent = tourStep === 0 ? "Get started" : tourStep === TOUR_LABELS.length - 1 ? "Start using Vectorize" : "Continue";
+  t.setAttribute("aria-labelledby", "tourTitle");
+}
+function openTour() {
+  closeCtx(); if (!$("#exportMenu").hidden) openExportMenu(false);
+  let t = $("#tour"); if (t) t.remove();
+  t = document.createElement("div"); t.className = "modal tour"; t.id = "tour"; t.setAttribute("role", "dialog"); t.setAttribute("aria-modal", "true");
+  t.innerHTML = `<div class="tour-card">
+    <div class="tour-head"><i class="dia" aria-hidden="true"></i><span id="tourLabel"></span><i class="gt-rule" aria-hidden="true"></i><span id="tourCount"></span></div>
+    <div class="tour-body" id="tourBody"></div>
+    <div class="tour-foot"><button type="button" class="link-btn" id="tourBack"></button><span class="spacer"></span><button type="button" class="btn btn-dark" id="tourNext" data-press><span class="inner"></span></button></div></div>`;
+  document.body.appendChild(t);
+  tourStep = 0; renderTour(1);
+  t._back = document.activeElement;
+  $("#tourNext").focus({ preventScroll: true });
+  $("#tourNext").onclick = () => { if (tourStep === TOUR_LABELS.length - 1) closeTour(); else { tourStep++; renderTour(1); } };
+  $("#tourBack").onclick = () => { if (tourStep === 0) closeTour(); else { tourStep--; renderTour(-1); } };
+  t.addEventListener("click", e => {
+    const p = e.target.closest("[data-tp]"), f = e.target.closest("[data-tf]");
+    if (p) { const b = $(`.preset[data-preset="${p.dataset.tp}"]`); if (b && S.preset !== p.dataset.tp) b.click(); t.querySelectorAll("[data-tp]").forEach(x => x.setAttribute("aria-checked", String(x === p))); }
+    if (f && !f.disabled) { S.exportFormat = f.dataset.tf; if (NATIVE) NATIVE.remember("exportFormat", S.exportFormat); syncEditorControls(); t.querySelectorAll("[data-tf]").forEach(x => x.setAttribute("aria-checked", String(x === f))); }
+  });
+  t.addEventListener("keydown", e => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeTour(); return; }
+    if (e.key === "Tab") {                                   // keep focus inside the tour
+      const f = [...t.querySelectorAll("button:not(:disabled)")], i = f.indexOf(document.activeElement);
+      if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); } else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+    }
+    e.stopPropagation();                                     // the editor's shortcuts stay off while the tour is open
+  });
+}
+function closeTour() {
+  const t = $("#tour"); if (!t) return;
+  markTourSeen(); const back = t._back; t.remove();
+  if (back && back.isConnected && back !== document.body) back.focus({ preventScroll: true });
+}
+$("#showTour").onclick = openTour;
+// The web preview decides after the first paint; the Mac app decides once it has read its settings (initNative).
+setTimeout(() => { if (!window.pywebview) maybeShowTour(); }, 900);

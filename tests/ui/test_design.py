@@ -40,6 +40,8 @@ PAIRS = [
     ("ink", "accent-wash", 4.5), ("accent-text", "accent-wash", 4.5), ("accent-text", "paper", 4.5),
     ("ok-text", "ok-wash", 4.5), ("warn-text", "warn-wash", 4.5), ("danger", "card", 4.5),
     ("fixed-ink", "accent", 4.5),        # glyphs on a butter tile are always the family's dark ink
+    ("fixed-ink", "fill-butter", 4.5), ("fixed-ink", "fill-sage", 4.5), ("fixed-ink", "fill-petal", 4.5),   # tour pillars
+    ("ok-text", "reader", 4.5),          # the tour's checks and "Recommended"
 ]
 
 async def main():
@@ -49,7 +51,7 @@ async def main():
             pg = await b.new_page(viewport={"width": 1400, "height": 900}, color_scheme=scheme)
             await pg.goto("file://" + UI)
             await pg.wait_for_function("document.querySelector('#status').dataset.s==='done'", timeout=60000)
-            tok = await pg.evaluate("(names => { const cs = getComputedStyle(document.documentElement); return Object.fromEntries(names.map(n => [n, cs.getPropertyValue('--' + n).trim()])); })", sorted({x for a, bb, _ in PAIRS for x in (a, bb)} - {"fixed-ink"}))
+            tok = await pg.evaluate("(names => { const cs = getComputedStyle(document.documentElement); return Object.fromEntries(names.map(n => [n, cs.getPropertyValue('--' + n).trim()])); })", sorted({x for a, bb, _ in PAIRS for x in (a, bb)} - {"fixed-ink"}) + ["switch-on", "paper"])
             tok["fixed-ink"] = "#26352E"
             bad = []
             for fg, bg, need in PAIRS:
@@ -57,6 +59,8 @@ async def main():
                 r = ratio(parse(tok[fg], surf), surf)
                 if r < need: bad.append(f"{fg} on {bg} {r:.2f}")
             check(f"{scheme}: every token pair meets WCAG AA", not bad, bad)
+            kn = ratio(parse("#FFFDF9"), parse(tok["switch-on"]))
+            check(f"{scheme}: the switch knob stands out on sage (3:1)", kn >= 3, f"{kn:.2f}:1")
             # Glass text: ink on the toolbar's glass over paper.
             glass = await pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--glass').trim()")
             r = ratio(parse(tok["ink"]), parse(glass, parse(tok["paper"])))
@@ -111,10 +115,20 @@ async def main():
         fz = await pg.evaluate("(el => [el.closest('#stage') !== null, getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter])($('#floatZoom'))")
         check("zoom controls float on glass over the canvas", fz[0] and "blur" in (fz[1] or ""), fz)
 
-        # Reduce Transparency: glass becomes the opaque bar.
+        # Toolbar and inspector: flush paper with one hairline, no glass, no shadow, no inset (Verbatim, October 18).
+        fl = await pg.evaluate("""(() => { const cs = getComputedStyle(document.documentElement), paper = cs.getPropertyValue('--paper').trim();
+          const t = getComputedStyle($('.toolbar')), i = getComputedStyle($('.inspector'));
+          return { paper, tb: t.backgroundColor, tbf: t.backdropFilter, tbl: t.borderBottomWidth, ib: i.backgroundColor, ibf: i.backdropFilter, il: i.borderLeftWidth, im: i.marginTop + ' ' + i.marginRight, ir: i.borderTopLeftRadius, ish: i.boxShadow, pad: i.paddingTop, h2: getComputedStyle($('.insp-head h2')).fontSize }; })()""")
+        same = lambda c: tuple(round(x) for x in parse(c)) == parse(fl["paper"])
+        check("the toolbar is flush paper with a hairline", same(fl["tb"]) and fl["tbf"] == "none" and fl["tbl"] == "1px", fl)
+        check("the inspector is flush paper with a hairline", same(fl["ib"]) and fl["ibf"] == "none" and fl["il"] == "1px" and fl["im"] == "0px 0px" and fl["ir"] == "0px" and fl["ish"] == "none" and fl["pad"] == "16px" and fl["h2"] == "10.5px", fl)
+        # Switches are brand sage when on.
+        sw = await pg.evaluate("(() => { const i = $('#snap'); i.checked = true; return [getComputedStyle(i.nextElementSibling).backgroundColor, getComputedStyle(document.documentElement).getPropertyValue('--switch-on').trim()]; })()")
+        check("switches are sage when on", tuple(round(x) for x in parse(sw[0])) == parse(sw[1]) and sw[1].upper() == "#4F6440", sw)
+        # Reduce Transparency: the floating zoom glass becomes the opaque bar.
         await pg.evaluate("document.documentElement.classList.add('rt')")
-        rt = await pg.evaluate("[getComputedStyle($('.toolbar')).backdropFilter, getComputedStyle($('.toolbar')).backgroundColor, getComputedStyle(document.documentElement).getPropertyValue('--bar').trim()]")
-        check("Reduce Transparency makes the toolbar opaque", rt[0] == "none" and tuple(round(x) for x in parse(rt[1])) == parse(rt[2]), rt)
+        rt = await pg.evaluate("[getComputedStyle($('#floatZoom')).backdropFilter, getComputedStyle($('#floatZoom')).backgroundColor, getComputedStyle(document.documentElement).getPropertyValue('--bar').trim()]")
+        check("Reduce Transparency makes the zoom controls opaque", rt[0] == "none" and tuple(round(x) for x in parse(rt[1])) == parse(rt[2]), rt)
         await pg.evaluate("document.documentElement.classList.remove('rt')")
         # Increase Contrast: secondary text moves to ink.
         await pg.evaluate("document.documentElement.classList.add('contrast')")

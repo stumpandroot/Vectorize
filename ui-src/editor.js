@@ -1171,6 +1171,8 @@ function runCommand(cmd) {
     case "zoomOut": zoomAt(1 / 1.5); break;
     case "actual": if (job) zoomTo(1 / fitScale); break;
     case "license": openLicense(); break;
+    case "tour": openTour(); break;
+    case "limitMotion": setLimitMotion(!limitPref); toast(limitPref ? "Limit animation is on." : "Limit animation is off."); break;
     case "deactivate": deactivate(); break;
   }
 }
@@ -1208,7 +1210,7 @@ document.addEventListener("keyup", e => { if (e.key === " " && spaceDown) { spac
 // feature cards (preset tiles), 2 for rows (batch items), and wide rows tilt less. Reduce Motion keeps
 // the light, sheen, and shadow and drops tilt, lift, and scale (CSS handles that).
 (() => {
-  const fine = matchMedia("(hover: hover) and (pointer: fine)"), still = matchMedia("(prefers-reduced-motion: reduce)");
+  const fine = matchMedia("(hover: hover) and (pointer: fine)"), still = { get matches() { return document.documentElement.classList.contains("limit"); } };   // Reduce Motion or Limit animation (motion.js)
   let hot = null, pressed = false;
   const set = (el, k, v) => el.style.setProperty(k, v);
   function aim(el, e) {
@@ -1270,11 +1272,13 @@ async function initNative() {
     + `<br><span class="build-tag">Vectorize ${esc(APP.version || "")} (build ${esc(APP.build || "dev")})</span>`;
   $("#file").removeAttribute("accept");
   const st = APP.settings || {};
+  setLimitMotion(!!st.limitMotion, true);
   if (FORMATS[st.exportFormat]) S.exportFormat = st.exportFormat;
   if (OUTPUTS[st.lastPreset] && !S.output) applyOutput(st.lastPreset, true);
   syncControls(); if (result) renderTexts();
   try { LIC = await NATIVE.license_status(); } catch (e) { LIC = { enabled: false, licensed: true }; }
   if (LIC.enabled && !LIC.licensed) openLicense();
+  else maybeShowTour();
 }
 window.addEventListener("pywebviewready", initNative);
 

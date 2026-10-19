@@ -93,12 +93,12 @@ class Bridge:
             "cutout": native.can_remove_background(),
             "ocr": bool(native.macos_version()),
             "licensing": self._license is not None,
-            "settings": {k: self._settings.get(k) for k in ("lastPreset", "exportFormat", "celebrated")},
+            "settings": {k: self._settings.get(k) for k in ("lastPreset", "exportFormat", "celebrated", "limitMotion", "tourSeen")},
             "display": native.accessibility_display(),
         }
 
     def remember(self, key: str, value):
-        if key in ("lastPreset", "exportFormat", "celebrated"):
+        if key in ("lastPreset", "exportFormat", "celebrated", "limitMotion", "tourSeen"):
             self._settings.set(key, value)
         return True
 

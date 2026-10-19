@@ -15,7 +15,7 @@ The app is **Vectorize**. The family doc calls it "Vectorized"; Tim kept the shi
 | Signature accent | Butter, signed off by Tim (October 2026), used sparingly |
 | Supporting | Ink |
 | Display face | None. SF Pro for UI, SF Mono for data |
-| Glass | Toolbar, inspector (inset glass panel), and the floating zoom controls over the canvas |
+| Glass | Only the floating zoom controls over the canvas. The toolbar and inspector are flush paper with one hairline (Verbatim's sidebar change, October 18, 2026: glass panes read grey against the paper) |
 | Tactile emphasis | Inset canvas well, inset sliders and fields, the raised Export button, card motion on preset tiles and batch rows |
 | Character | None in the interface. The mascot lives only in the app icon, drawn as one ink glyph |
 | Celebrate moment | The first export: the Export button's label morphs to "Saved," and one ring pulses out from it |
@@ -49,6 +49,8 @@ The tokens live in `ui-src/template.html`, in the `:root` block marked "Family t
 | `--warn-text` (persimmon text-safe) | `#B23F24` | `#FF8A6B` |
 | `--ok-text` (sage text-safe) | `#4F6440` | `#B9CDA3` |
 | `--danger` (system red, accessible variant) | `#D70015` | `#FF6961` |
+| `--switch-on` (Verbatim's `switchOn`) | `#4F6440` | `#6E8A58` |
+| `--fill-butter` / `--fill-sage` / `--fill-petal` (tour cards, ink text) | `#F4C76B` / `#AFC398` / `#EFB6C8` | `#D4AB55` / `#93A87C` / `#C98EA2` |
 
 The family doc names washes, a track fill, and hover and press states without giving values. Vectorize derives them as follows, and `test_design.py` checks their contrast:
 
@@ -62,7 +64,7 @@ The family doc names washes, a track fill, and hover and press states without gi
 
 Radii: `--r-sm` 9 (buttons, fields, chips), `--r-md` 13 (rows, sheets), `--r-lg` 17 (feature cards, the canvas well, panels), `--r-xl` 23. Two more follow from the spec rather than adding new sizes: segments sit in an 11 pt track with 3 pt padding, so they're 8 pt (concentric: 11 − 3), and small inline badges (counts, the status chip, the version tag, canvas labels) use 6 pt.
 
-Motion: `--m-press` 100 ms, `--m-touch` 150 ms, `--m-snappy` 200 ms, `--m-calm` and `--m-card` 300 ms, with `--ease-card` for keyframe animations. No bounce anywhere. Under Reduce Motion, transitions keep their duration but only fade color, opacity, and shadow.
+Motion: `--m-press` 100 ms, `--m-touch` 150 ms, `--m-snappy` 200 ms, `--m-calm` and `--m-card` 300 ms, with `--ease-card` for keyframe animations. No bounce anywhere. Under Reduce Motion or Limit animation, transitions keep their duration but only fade color, opacity, and shadow.
 
 ## Interaction and motion
 
@@ -73,16 +75,17 @@ Vectorize uses the same interaction vocabulary as Verbatim (its `0d6b88f` pass a
 | Picking a segment | One ink pill slides under the segments (Verbatim's `matchedGeometryEffect` selection) | 200 ms, `--ease-card` |
 | Opening an inspector tab | The pane comes in 12 px from the side of the chosen tab and fades; its sections follow 30 ms apart, up to 5 steps | `motion.calm`, 300 ms |
 | Menus, including right-click menus | Fade in from 97% scale and 4 px up, from the corner they open at | 200 ms |
-| Selection bar | Rises 6 px and fades in | 200 ms |
+| Selection bar | Rises 4 px and fades in | 200 ms |
 | Align bar and batch bar | Drop 6 px and fade in | 300 ms |
-| First paint | Toolbar, canvas, inspector header, and setup sections rise 6 px, 30 ms apart | 300 ms |
+| First paint | Toolbar, canvas, inspector header, and setup sections rise 4 px, 30 ms apart (Verbatim Mac's `staggerIn`) | 300 ms |
+| Welcome tour steps | Come in 24 px from the side you're moving toward (Back comes from the left) | 300 ms |
 | Converting overlay | Fades in after 120 ms, so quick conversions never show it | 200 ms |
 | Leaving | Everything leaves at once | `motion.instant` |
 
 Rules:
 
 - Keyboard and menu-bar changes never animate. A keydown or a menu command sets `html.kbd`, which turns arrival motion and the pill's glide off until the next pointer press.
-- Under Reduce Motion, the pill is hidden and the selected segment fills in place; panes, menus, and bars fade without moving.
+- **Limit animation** (Verbatim's `motion.limited`): `html.limit` is on when the system's Reduce Motion is on or you turn on Limit animation (Setup › This app, or View › Limit Animation on Mac). The CSS and card motion read only that class, so both switches behave the same: the pill is hidden and the selected segment fills in place; panes, menus, bars, and tour steps fade without moving; cards keep their light and shadow but don't tilt, lift, or scale.
 - The canvas itself never animates when you switch views or zoom. The work area stays instant.
 
 ### Right-click options
@@ -100,6 +103,17 @@ Each action control with options shows them on right-click (Control-click): the 
 
 Escape or Tab closes a menu and returns focus to the control that opened it.
 
+### Welcome tour
+
+Verbatim's pattern: a paper sheet with a section-header strip (diamond, mono label, dotted rule, `01 / 04`), one idea per step, Back on the left, and one primary button on the right.
+
+1. **Welcome:** "Clean vectors from any logo." Three cards, Trace, Fine-tune, and Export, on butter, sage, and petal with ink text and fine-line glyphs.
+2. **What you're tracing:** pick a preset. The choice applies right away.
+3. **Fine-tune:** snap to true shapes, match the font, line it up, and right-click for options.
+4. **Last step:** pick the export format. PDF and EPS are marked "In the Mac app" in the web preview.
+
+It shows once (until `TOUR_VERSION` goes up), and again from Help › Welcome Tour or "Show the welcome tour" in Setup. Finishing, skipping, or pressing Escape marks it seen. Automated test browsers never see it. Titles use SF Pro at 28 pt, not Verbatim's serif, because Vectorize has no display face.
+
 ## Departures from the family doc, and why
 
 | Departure | Why |
@@ -109,7 +123,7 @@ Escape or Tab closes a menu and returns focus to the control that opened it.
 | Glass is CSS (`backdrop-filter`) with a paper tint, not system Liquid Glass | The app's interface is a web view. The tint is strong enough (82%+) that text on it stays legible, and it falls back to opaque `bar` under Reduce Transparency |
 | No grain | Grain is for illustrated level-0 surfaces; Vectorize has none |
 | The Export menu is an opaque popover (`card` with `shadow.high`), not glass | It holds paragraphs of text over the artwork; the family doc keeps glass out from behind text |
-| The inspector is glass even though it holds help text | The Vectorized profile lists the inspector as glass. It sits beside the canvas, never over it, so only plain paper is behind it, and its 84% tint keeps text at 11:1 or better |
+| The toolbar and inspector are flush paper, not glass | The family doc (2.1) lists them as glass; Verbatim dropped its glass sidebar on October 18 because it read grey against the paper, and Tim chose to follow it. Only the floating zoom controls stay glass |
 | The segment pill animates its width as well as its position | Segments differ in width; the pill is absolutely positioned, so the width change doesn't reflow anything else |
 | Right-click menus have no link to a Settings pane | Vectorize keeps every setting in the inspector, beside the controls, so there is no Settings pane to link to |
 | Reduce Transparency and Increase Contrast are read when the app opens | WebKit doesn't report Reduce Transparency to web pages, so the app passes both settings in at launch. Changing them while the app is open takes effect the next time it opens |
