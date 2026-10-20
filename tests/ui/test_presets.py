@@ -175,7 +175,7 @@ async def main():
         check("PDF page is the art plus border", abs(w - vb[2] * ppu) < 0.01 and w > 3 * 72, f"{w:.1f} x {h:.1f} pt")
         pdf = svg_to_pdf(svg, "sticker")
         check("PDF has the CutContour separation", b"/Separation /CutContour /DeviceCMYK" in pdf)
-        border_box = await pg.evaluate("bboxOf(stickerCache.border.flatMap(o => o.V))")
+        border_box = await pg.evaluate("bboxOf(stickerCache.border.flatMap(o => outlinePoints(o)))")
         art = await pg.evaluate("artBox()")
         per_mm = art_w / (3 * 25.4)
         gap = min(art[0] - border_box[0], border_box[2] - art[2]) / per_mm

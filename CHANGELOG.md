@@ -2,6 +2,20 @@
 
 The app shows its version and build in the window title and the toolbar. Each GitHub build has a new build number; the version changes when features change.
 
+## 1.10.0
+
+Cleaner tracing and lettering, tuned on real logos.
+
+- **More detail from small images.** Vectorize traces at about 3,200 px on the long side (up to 6 megapixels), twice the old size, so thin gaps in small type stay open and 1-pixel lines survive. A trace takes a little longer.
+- **Edges placed between pixels.** Each edge pixel's blend of the two colors beside it says where the edge really runs, so outlines follow the artwork more closely than the pixel grid allows.
+- **Less noise.** A noisy or grainy image (paper texture, a photographed print) is smoothed before tracing, with edges kept. Thin bands of an in-between shade along edges (JPEG ringing, anti-aliasing) join the colors on either side instead of becoming specks.
+- **Straighter edges and truer corners.** Short edges between corners stay straight, long stems stay straight where they run into a curve, a curve that meets an edge at a slight angle no longer kinks just before the join, and small round ends (a stroke's cap, a dot) stay round instead of becoming points. Corners that the image's blur rounded off are drawn sharp.
+- **More words found.** Words are also read from each color of the trace on its own, so lettering over a busy background or in an extruded style reads. Stray reads of artwork (a lightning bolt read as 4) are dropped, and lettering on a circle is found even when the straight read got some of it.
+- **Fonts checked more carefully.** Words in a family the app has already matched in the logo use it too when they nearly pass. Pointed letters (the A's apex) no longer fail the thin-stroke check. Lettering under 14 px tall is never swapped on its own: at that size similar fonts can't be told apart.
+- **Sticker borders** size the page from the border's curves, not just its end points, so the border is never clipped.
+
+Under the hood: the tracing test set scores better than 1.9.0 on shape, edge, and worst-edge error, and the lettering score passes its baseline.
+
 ## 1.9.0
 
 A new lettering engine: Vectorize reads words better, finds their fonts in the whole Google Fonts library, sets them in the font's real outlines, and swaps a font in on its own only when every letter checks out.

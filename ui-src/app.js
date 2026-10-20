@@ -1,6 +1,6 @@
 "use strict";
 const $ = s => document.querySelector(s);
-const WORK_MAX = 1600, WORK_MIN = 1600;
+const WORK_MAX = (typeof window !== "undefined" && window.__WORK_MAX) || 3200, WORK_MIN = 1600;
 
 /* ---------- Settings ---------- */
 // Named for the kind of art you start with. Illustrator's names are in the comments for reference.
@@ -131,11 +131,56 @@ async function makeJob(src, name, meta) {
   let im;
   try { im = await loadImage(src); } catch { return null; }
   const ow = im.naturalWidth, oh = im.naturalHeight, long = Math.max(ow, oh);
-  // Trace at about 1,600 px on the long side, capped at 1.4 megapixels for speed.
-  let sc = WORK_MAX / long; sc = Math.min(sc, Math.sqrt(1.4e6 / (ow * oh)));
+  // Trace at about 3,200 px on the long side, up to 6 megapixels: enlarging gives thin gaps and small corners
+  // pixels of their own (a 2 px gap in small type closes up at 1x), and shrinking a large image does the opposite.
+  const MP = window.__WORK_MP || 6e6; let sc = Math.min(WORK_MAX / long, Math.sqrt(MP / (ow * oh)));
   const ww = Math.max(1, Math.round(ow * sc)), wh = Math.max(1, Math.round(oh * sc));
-  const imgd = rasterize(im, ww, wh, sc); let hasAlpha = false; for (let i = 3; i < imgd.data.length; i += 4) if (imgd.data[i] < 128) { hasAlpha = true; break; }
+  const imgd = rasterize(denoisedSource(im), ww, wh, sc); let hasAlpha = false; for (let i = 3; i < imgd.data.length; i += 4) if (imgd.data[i] < 128) { hasAlpha = true; break; }
   return { name, meta: meta || `${ow} × ${oh}`, origW: ow, origH: oh, workW: ww, workH: wh, scale: sc, imgd, hasAlpha, srcURL: src, cutImgd: null };
+}
+// Film grain, paper texture, and sensor noise: when flat areas of the image vary pixel to pixel, smooth them
+// with an edge-preserving (bilateral) filter, so colors are flat and edges stay where they are. Clean art,
+// where flat areas are flat, is left untouched.
+function noiseLevel(imgd) {
+  // Grain is measured where the image is otherwise flat: each sampled pixel's difference from the mean of its
+  // 5 x 5 neighborhood, where that neighborhood holds no edge. Returns the root mean square, in 0-255 units.
+  const { width: w, height: h, data: d } = imgd; let ss = 0, n = 0;
+  const step = Math.max(2, Math.floor(Math.sqrt(w * h / 60000)));
+  for (let y = 2; y < h - 2; y += step) for (let x = 2; x < w - 2; x += step) {
+    let lo = 255, hi = 0, m = 0, ok = true;
+    for (let dy = -2; dy <= 2 && ok; dy++) for (let dx = -2; dx <= 2; dx++) { const o = ((y + dy) * w + x + dx) * 4; if (d[o + 3] < 255) { ok = false; break; } const l = 0.3 * d[o] + 0.59 * d[o + 1] + 0.11 * d[o + 2]; lo = Math.min(lo, l); hi = Math.max(hi, l); m += l; }
+    if (!ok || hi - lo > 40) continue;
+    const o = (y * w + x) * 4, v = 0.3 * d[o] + 0.59 * d[o + 1] + 0.11 * d[o + 2] - m / 25; ss += v * v; n++;
+  }
+  return n > 200 ? Math.sqrt(ss / n) : 0;
+}
+// The image at its own size, with grain smoothed away when it has any; otherwise the image itself.
+function denoisedSource(im) {
+  const w = im.naturalWidth, h = im.naturalHeight; if (w * h > 16e6) return im;
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0);
+  const src = g.getImageData(0, 0, w, h), out = denoise(src); if (out === src) return im;
+  g.putImageData(out, 0, 0); return c;
+}
+function denoise(imgd) {
+  const noise = noiseLevel(imgd); if (noise < 1.2) return imgd;
+  const { width: w, height: h, data: d } = imgd, out = new Uint8ClampedArray(d), R = 3, ss = 2 * 1.8 * 1.8, rs = 2 * (5 * noise) ** 2;
+  const sw = []; for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) sw.push([dx, dy, Math.exp(-(dx * dx + dy * dy) / ss)]);
+  for (let pass = 0; pass < 2; pass++) {
+    const src = pass ? new Uint8ClampedArray(out) : d;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const o = (y * w + x) * 4; if (src[o + 3] === 0) continue;
+      let r = 0, g = 0, b = 0, ws = 0;
+      for (const [dx, dy, wsp] of sw) {
+        const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+        const q = (yy * w + xx) * 4; if (src[q + 3] === 0) continue;
+        const dr = src[q] - src[o], dg = src[q + 1] - src[o + 1], db = src[q + 2] - src[o + 2];
+        const wt = wsp * Math.exp(-(dr * dr + dg * dg + db * db) / rs); r += src[q] * wt; g += src[q + 1] * wt; b += src[q + 2] * wt; ws += wt;
+      }
+      out[o] = r / ws; out[o + 1] = g / ws; out[o + 2] = b / ws;
+    }
+  }
+  return new ImageData(out, w, h);
 }
 function rasterize(im, ww, wh, sc) {
   const c = document.createElement("canvas"); c.width = ww; c.height = wh;
@@ -166,19 +211,32 @@ async function openImage(src, name, meta) {
 function sourcePixels(j = job) { return S.bg === "ai" && j.cutImgd ? j.cutImgd : j.imgd; }
 
 /* ---------- Palette ---------- */
+// The scale images were traced at before 1.10 (about 1,600 px on the long side, up to 1.4 megapixels). Steps tuned
+// in work pixels then (the palette's reach, the speck size) measure from it, so they keep their size in the
+// original's pixels at today's larger working size.
+function oldScale(sc) {
+  if (typeof job === "undefined" || !job || !job.origW) return sc;
+  return Math.min(sc, 1600 / Math.max(job.origW, job.origH), Math.sqrt(1.4e6 / (job.origW * job.origH)));
+}
 function buildPalette(imgd) {
   const { width: w, height: h, data } = imgd;
   let transparent = 0;
   // Every flat (non-edge) pixel goes into a color histogram, so even a tiny accent color is counted.
   const at = (x, y) => (y * w + x) * 4;
-  const rr = 2;   // short reach, so small accents keep their flat centers
+  // Short reach, so small accents (and thin lines) keep their flat centers. The reach is measured as it was
+  // when images were traced at 1,600 px: at the larger working size an edge's blend spans more pixels, and a
+  // one-pixel step would count blend pixels (JPEG ringing, anti-aliasing) as flat colors of their own.
+  const s1 = Math.max(1, Math.floor(job.scale / oldScale(job.scale))), rr = 2 * s1;
   const bins = new Map(), binsAll = new Map();
   const put = (m, i) => { const key = ((data[i] >> 3) << 10) | ((data[i + 1] >> 3) << 5) | (data[i + 2] >> 3); let b = m.get(key); if (!b) m.set(key, b = [0, 0, 0, 0]); b[0] += data[i]; b[1] += data[i + 1]; b[2] += data[i + 2]; b[3]++; };
-  for (let y = rr; y < h - rr; y++) for (let x = rr; x < w - rr; x++) {
-    const i = at(x, y); if (data[i + 3] < 128) { transparent++; continue; }
+  // Large (enlarged) images are sampled on a grid: the colors are the same, and it's much faster.
+  const st = Math.max(1, Math.floor(Math.sqrt(w * h / 2.5e6))), wt = st * st;
+  const nb = [[s1, 0], [-s1, 0], [0, s1], [0, -s1], [s1, s1], [-s1, -s1], [s1, -s1], [-s1, s1], [rr, 0], [-rr, 0], [0, rr], [0, -rr]].map(([dx, dy]) => (dy * w + dx) * 4);
+  for (let y = rr; y < h - rr; y += st) for (let x = rr; x < w - rr; x += st) {
+    const i = at(x, y); if (data[i + 3] < 128) { transparent += wt; continue; }
     let edge = 0;
-    for (const j of [at(x + 1, y), at(x - 1, y), at(x, y + 1), at(x, y - 1), at(x + 1, y + 1), at(x - 1, y - 1), at(x + 1, y - 1), at(x - 1, y + 1), at(x + rr, y), at(x - rr, y), at(x, y + rr), at(x, y - rr)]) { const e = Math.abs(data[i] - data[j]) + Math.abs(data[i + 1] - data[j + 1]) + Math.abs(data[i + 2] - data[j + 2]); if (e > edge) edge = e; if (edge >= 40) break; }
-    if (edge < 34) put(bins, i); else if ((x + y) % 3 === 0) put(binsAll, i);
+    for (let q = 0; q < nb.length; q++) { const j = i + nb[q]; const e = Math.abs(data[i] - data[j]) + Math.abs(data[i + 1] - data[j + 1]) + Math.abs(data[i + 2] - data[j + 2]); if (e > edge) edge = e; if (edge >= 40) break; }
+    if (edge < 34) { for (let r = 0; r < wt; r++) put(bins, i); } else if ((x + y) % 3 === 0) put(binsAll, i);
   }
   const toPts = m => { const P = [], Wt = []; for (const b of m.values()) { P.push(rgb2lab(b[0] / b[3], b[1] / b[3], b[2] / b[3])); Wt.push(b[3]); } return [P, Wt]; };
   let [sample, wts] = toPts(bins);
@@ -297,8 +355,10 @@ function quantize(imgd, pal) {
   const wdist = (L, q) => 2.25 * (L[0] - q[0]) ** 2 + 0.6 * ((L[1] - q[1]) ** 2 + (L[2] - q[2]) ** 2);
   const pixLab = o => { const key = (d[o] << 16) | (d[o + 1] << 8) | d[o + 2]; let L = cache.get(key); if (!L) { L = rgb2lab(d[o], d[o + 1], d[o + 2]); cache.set(key, L); } return L; };
   const nearest = L => { let bd = Infinity, bi = 0; labs.forEach((q, j) => { const dd = wdist(L, q); if (dd < bd) { bd = dd; bi = j; } }); return bi; };
+  // The flatness step, like the palette's, is measured as at the old 1,600 px working size.
+  const gs = Math.max(1, Math.floor(job.scale / oldScale(job.scale)));
   const grad = (x, y) => {
-    const o = (y * w + x) * 4, l = (y * w + Math.max(0, x - 1)) * 4, r = (y * w + Math.min(w - 1, x + 1)) * 4, u = (Math.max(0, y - 1) * w + x) * 4, dn = (Math.min(h - 1, y + 1) * w + x) * 4;
+    const o = (y * w + x) * 4, l = (y * w + Math.max(0, x - gs)) * 4, r = (y * w + Math.min(w - 1, x + gs)) * 4, u = (Math.max(0, y - gs) * w + x) * 4, dn = (Math.min(h - 1, y + gs) * w + x) * 4;
     if (d[l + 3] !== d[r + 3] || d[u + 3] !== d[dn + 3]) return 999;
     return Math.abs(d[r] - d[l]) + Math.abs(d[r + 1] - d[l + 1]) + Math.abs(d[r + 2] - d[l + 2]) + Math.abs(d[dn] - d[u]) + Math.abs(d[dn + 1] - d[u + 1]) + Math.abs(d[dn + 2] - d[u + 2]);
   };
@@ -316,7 +376,8 @@ function quantize(imgd, pal) {
   while (head < qn && steps <= maxSteps) {
     const i = q1[head], l = q2[head]; head++;
     const x = i % w, y = (i - x) / w;
-    for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1]) {
+    for (let q = 0; q < 4; q++) {
+      const j = q === 0 ? (x > 0 ? i - 1 : -1) : q === 1 ? (x < w - 1 ? i + 1 : -1) : q === 2 ? (y > 0 ? i - w : -1) : (y < h - 1 ? i + w : -1);
       if (j < 0 || lab[j] !== -2) continue;
       const c0 = cand[j * 2], c1 = cand[j * 2 + 1];
       if (c0 === l || c1 === l) continue;
@@ -356,7 +417,8 @@ function quantize(imgd, pal) {
     while (top) {
       const i = stack[--top]; members.push(i);
       const x = i % w, y = (i - x) / w;
-      for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1]) {
+      for (let q = 0; q < 4; q++) {
+        const j = q === 0 ? (x > 0 ? i - 1 : -1) : q === 1 ? (x < w - 1 ? i + 1 : -1) : q === 2 ? (y > 0 ? i - w : -1) : (y < h - 1 ? i + w : -1);
         if (j < 0) continue;
         if (lab[j] === me) { if (comp[j] === -1) { comp[j] = s0; stack[top++] = j; } }
         else nb.set(lab[j], (nb.get(lab[j]) || 0) + 1);
@@ -376,7 +438,8 @@ function quantize(imgd, pal) {
     while (top) {
       const i = stack[--top]; members.push(i); if (!core && solid(i)) core = 1;
       const x = i % w, y = (i - x) / w;
-      for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1]) {
+      for (let q = 0; q < 4; q++) {
+        const j = q === 0 ? (x > 0 ? i - 1 : -1) : q === 1 ? (x < w - 1 ? i + 1 : -1) : q === 2 ? (y > 0 ? i - w : -1) : (y < h - 1 ? i + w : -1);
         if (j < 0) continue;
         if (lab[j] === me) { if (!seen2[j]) { seen2[j] = 1; stack[top++] = j; } }
         else nb.set(lab[j], (nb.get(lab[j]) || 0) + 1);
@@ -387,6 +450,43 @@ function quantize(imgd, pal) {
     if (big.length < 2) continue;
     let best = null, bc = -1; for (const [l, c] of nb) if (l >= 0 && c > bc) { bc = c; best = l; }
     if (best !== null) for (const i of members) lab[i] = best;
+  }
+  // Fringes: JPEG ringing and sharpening halos leave a thin band of a slightly different shade along edges
+  // (dark red around red on white). A band no thicker than about 4 source pixels, touching two or more colors,
+  // whose color is within a small distance of one of them, joins that color; one whose pixels are blends of two
+  // of them is split between those two. Real outlines differ clearly from the shape they outline, so they stay.
+  {
+    const D = new Float32Array(n).fill(1e9);
+    for (let i = 0; i < n; i++) { const x = i % w, y = (i - x) / w, l = lab[i]; if ((x > 0 && lab[i - 1] !== l) || (x < w - 1 && lab[i + 1] !== l) || (y > 0 && lab[i - w] !== l) || (y < h - 1 && lab[i + w] !== l)) D[i] = 0.5; }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * w + x, l = lab[i]; let v = D[i]; if (x && lab[i - 1] === l) v = Math.min(v, D[i - 1] + 1); if (y && lab[i - w] === l) v = Math.min(v, D[i - w] + 1); D[i] = v; }
+    for (let y = h - 1; y >= 0; y--) for (let x = w - 1; x >= 0; x--) { const i = y * w + x, l = lab[i]; let v = D[i]; if (x < w - 1 && lab[i + 1] === l) v = Math.min(v, D[i + 1] + 1); if (y < h - 1 && lab[i + w] === l) v = Math.min(v, D[i + w] + 1); D[i] = v; }
+    const maxHalf = 2.2 * Math.max(job.scale, 1), seen3 = new Uint8Array(n);
+    for (let s0 = 0; s0 < n; s0++) {
+      if (seen3[s0] || lab[s0] < 0) continue;
+      const me = lab[s0]; let top = 0, thick = 0; stack[top++] = s0; seen3[s0] = 1; const members = [], nb = new Map();
+      while (top) {
+        const i = stack[--top]; members.push(i); if (D[i] > thick) thick = D[i];
+        const x = i % w, y = (i - x) / w;
+        for (let q = 0; q < 4; q++) {
+          const j = q === 0 ? (x > 0 ? i - 1 : -1) : q === 1 ? (x < w - 1 ? i + 1 : -1) : q === 2 ? (y > 0 ? i - w : -1) : (y < h - 1 ? i + w : -1);
+          if (j < 0) continue;
+          if (lab[j] === me) { if (!seen3[j]) { seen3[j] = 1; stack[top++] = j; } } else nb.set(lab[j], (nb.get(lab[j]) || 0) + 1);
+        }
+      }
+      if (thick > maxHalf || nb.size < 2) continue;
+      // It joins the neighbor whose color it's close to (the shade it is), not just the one it touches most.
+      let best = -1, bc = -1; for (const [l, c] of nb) if (l >= 0 && c > bc && d2(labs[me], labs[l]) < 28 * 28) { bc = c; best = l; }
+      if (best >= 0) { for (const i of members) lab[i] = best; continue; }
+      // A blend between two of its neighbors that took a third color (gray-green between navy and cream): each
+      // pixel goes to the side of the blend it's nearer.
+      const two = [...nb].filter(([l]) => l >= 0).sort((a, b) => b[1] - a[1]).slice(0, 2).map(e => e[0]);
+      if (two.length < 2) continue;
+      const A = labs[two[0]], B = labs[two[1]], AB = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], ab2 = AB[0] ** 2 + AB[1] ** 2 + AB[2] ** 2;
+      if (ab2 < 1) continue;
+      let off = 0; const ts = members.map(i => { const L = pixLab(i * 4), t = Math.max(0, Math.min(1, ((L[0] - A[0]) * AB[0] + (L[1] - A[1]) * AB[1] + (L[2] - A[2]) * AB[2]) / ab2));
+        off += Math.sqrt((L[0] - A[0] - t * AB[0]) ** 2 + (L[1] - A[1] - t * AB[1]) ** 2 + (L[2] - A[2] - t * AB[2]) ** 2); return t; });
+      if (off / members.length < 10) members.forEach((i, q) => { lab[i] = ts[q] < 0.5 ? two[0] : two[1]; });
+    }
   }
   return lab;
 }
@@ -415,14 +515,16 @@ function borderLabel(lab, w, h) {
 //   Grow or shrink: how far every edge moves out or in.
 // lo at 0, 1 at the middle, hi at 100, geometric in between.
 function dialMul(v, mid, lo, hi) { return v <= mid ? lo ** ((mid - v) / mid) : hi ** ((v - mid) / (1 - mid)); }
-const speckFor = (detail, sc) => 9.68 * dialMul(detail, 0.7, 60, 0.1) * sc;   // 9.68 px² is the default at 70
+// Speck size, in work pixels: 9.68 px² at the default (70) when images were traced at about 1,600 px, held to the
+// same size in the original's pixels at today's larger working size.
+const speckFor = (detail, sc) => 9.68 * dialMul(detail, 0.7, 60, 0.1) * sc * sc / Math.max(1e-6, oldScale(sc));
 function tuneParams(T, sc) {
   const smooth = (T.smooth ?? 50) / 100, detail = (T.detail ?? 70) / 100, straight = (T.straight ?? 50) / 100, corners = (T.corners ?? 50) / 100;
   const sm = dialMul(smooth, 0.5, 0.35, 3), st = dialMul(straight, 0.5, 0.15, 5);
   return {
     // Raising Small details past its middle also blurs less, so hairlines (a 1 px crossbar) survive.
     sigma: Math.max(smooth < 0.5 || detail > 0.7 ? 0.4 : 0.8, sc * 0.45 * sm * dialMul(detail, 0.7, 1, 0.35)),
-    fitSigma: 1.6 * dialMul(smooth, 0.5, 0.4, 3),
+    fitSigma: Math.max(1.6, 0.5 * sc) * dialMul(smooth, 0.5, 0.4, 3),   // in work pixels: about half a source pixel
     speckArea: speckFor(detail, sc),
     lineSrc: 1.2 * st, lineMin: dialMul(straight, 0.5, 2, 0.5),
     snapDeg: 3 * dialMul(straight, 0.5, 0.2, 3), cornerDeg: 40 * dialMul(corners, 0.5, 2, 0.3), grow: (T.grow || 0) * sc,
@@ -446,9 +548,45 @@ function offsetContour(q, d) {
 function blurMask(mask, w, h, sigma) {
   const r = Math.ceil(3 * sigma), k = []; let s = 0; for (let i = -r; i <= r; i++) { const v = Math.exp(-0.5 * (i / sigma) ** 2); k.push(v); s += v; } for (let i = 0; i < k.length; i++) k[i] /= s;
   const tmp = new Float32Array(w * h), out = new Float32Array(w * h);
-  for (let y = 0; y < h; y++) { const row = y * w; for (let x = 0; x < w; x++) { let a = 0; for (let j = -r; j <= r; j++) { const xx = x + j; if (xx >= 0 && xx < w) a += mask[row + xx] * k[j + r]; } tmp[row + x] = a; } }
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let a = 0; for (let j = -r; j <= r; j++) { const yy = y + j; if (yy >= 0 && yy < h) a += tmp[yy * w + x] * k[j + r]; } out[y * w + x] = a; }
+  // Only the part of the image the mask covers (plus the blur's reach) can change.
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) { const row = y * w; for (let x = 0; x < w; x++) if (mask[row + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; y1 = y; } }
+  if (x1 < 0) return out;
+  x0 = Math.max(0, x0 - r); x1 = Math.min(w - 1, x1 + r); y0 = Math.max(0, y0 - r); y1 = Math.min(h - 1, y1 + r);
+  for (let y = y0; y <= y1; y++) { const row = y * w; for (let x = x0; x <= x1; x++) { let a = 0; for (let j = -r; j <= r; j++) { const xx = x + j; if (xx >= 0 && xx < w) a += mask[row + xx] * k[j + r]; } tmp[row + x] = a; } }
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { let a = 0; for (let j = -r; j <= r; j++) { const yy = y + j; if (yy >= 0 && yy < h) a += tmp[yy * w + x] * k[j + r]; } out[y * w + x] = a; }
   return out;
+}
+// How much blur is left once edges are soft (a share of the dial's blur): enough to even out noise only.
+const SOFT_BLUR = 0.5;
+// A layer's mask with its edge pixels made fractional. For a pixel on the edge, the inside color is the layer's
+// color there and the outside color is its neighbor's; the pixel's own color, projected between the two, is the
+// share of the pixel that's inside. Edges against colors stacked above this layer (where it tucks under them)
+// stay hard, and so do edges between two very similar colors.
+function softEdges(mask, w, h, lab, upper, labRGB, srcImg, bgRGB) {
+  const f = new Float32Array(w * h), d = srcImg.data;
+  for (let i = 0; i < f.length; i++) f[i] = mask[i];
+  const share = (i, A, B) => {
+    const a = A >= 0 ? labRGB[A] : null; if (!a) return -1;
+    const o = i * 4;
+    if (B < 0 && !bgRGB) return d[o + 3] / 255;                     // transparent outside: alpha is the share
+    const b = B >= 0 ? labRGB[B] : bgRGB; if (!b) return -1;
+    const vx = a[0] - b[0], vy = a[1] - b[1], vz = a[2] - b[2], n2 = vx * vx + vy * vy + vz * vz; if (n2 < 900) return -1;
+    const t = ((d[o] - b[0]) * vx + (d[o + 1] - b[1]) * vy + (d[o + 2] - b[2]) * vz) / n2;
+    return Math.max(0, Math.min(1, t)) * (d[o + 3] / 255);
+  };
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, m = mask[i];
+    let other = -1;
+    if (x > 0 && mask[i - 1] !== m) other = i - 1; else if (x < w - 1 && mask[i + 1] !== m) other = i + 1;
+    else if (y > 0 && mask[i - w] !== m) other = i - w; else if (y < h - 1 && mask[i + w] !== m) other = i + w;
+    if (other < 0) continue;
+    const inside = m ? i : other, outside = m ? other : i, A = lab[inside], B = lab[outside];
+    if (B >= 0 && upper.has(B)) continue;                             // tucked under a higher layer: keep it hard
+    const t = share(i, A, B);
+    if (t >= 0) f[i] = m ? Math.max(t, 0.5) : Math.min(t, 0.5);       // a pixel never crosses to the other side
+  }
+  return f;
 }
 function components8(mask, w, h) {
   const cc = new Int32Array(w * h), stack = new Int32Array(w * h); let next = 0;
@@ -474,14 +612,16 @@ function fillMaskHoles(mask, w, h) {
   for (let i = 0; i < w * h; i++) if (!out[i]) mask[i] = 1;
   return mask;
 }
+// Shrinks a mask by r pixels (a disc), in time that doesn't grow with r: a two-pass chamfer distance from the
+// outside, then keep what's farther than r.
 function erodeDisc(mask, w, h, r) {
-  const offs = []; for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (dx * dx + dy * dy <= r * r + r) offs.push([dx, dy]);
-  const out = new Uint8Array(w * h);
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const i = y * w + x; if (!mask[i]) continue; let ok = 1;
-    for (const [dx, dy] of offs) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= w || yy >= h || !mask[yy * w + xx]) { ok = 0; break; } }
-    out[i] = ok;
-  }
+  const D = new Float32Array(w * h), BIG = 1e9;
+  for (let i = 0; i < D.length; i++) D[i] = mask[i] ? BIG : 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * w + x; if (!D[i]) continue; let v = D[i];
+    v = Math.min(v, x ? D[i - 1] + 1 : 1, y ? D[i - w] + 1 : 1, x && y ? D[i - w - 1] + 1.4142 : 1.4142, x < w - 1 && y ? D[i - w + 1] + 1.4142 : 1.4142); D[i] = v; }
+  for (let y = h - 1; y >= 0; y--) for (let x = w - 1; x >= 0; x--) { const i = y * w + x; if (!D[i]) continue; let v = D[i];
+    v = Math.min(v, x < w - 1 ? D[i + 1] + 1 : 1, y < h - 1 ? D[i + w] + 1 : 1, x < w - 1 && y < h - 1 ? D[i + w + 1] + 1.4142 : 1.4142, x && y < h - 1 ? D[i + w - 1] + 1.4142 : 1.4142); D[i] = v; }
+  const out = new Uint8Array(w * h); for (let i = 0; i < out.length; i++) out[i] = D[i] > r + 0.5 ? 1 : 0;
   return out;
 }
 
@@ -552,6 +692,7 @@ function traceNow(cancelled = () => false) {
       }
       const colors = pal.map((p, l) => (p.lock || S.cmode === "bw" || sums[l][3] < 20) ? toHex(...p.rgb) : toHex(Math.round(sums[l][0] / sums[l][3]), Math.round(sums[l][1] / sums[l][3]), Math.round(sums[l][2] / sums[l][3])));
 
+      const labRGB = colors.map(fromHex), srcPx = sourcePixels(), bgRGB = bgl >= 0 ? labRGB[bgl] : null;
       // Stack order: largest area at the bottom.
       const areas = new Array(pal.length).fill(0); for (let i = 0; i < N; i++) if (lab[i] >= 0) areas[lab[i]]++;
       const order = areas.map((a, l) => l).filter(l => areas[l] > 0).sort((a, b) => areas[b] - areas[a]);
@@ -585,7 +726,9 @@ function traceNow(cancelled = () => false) {
           for (let i = 0; i < N; i++) mask[i] = (lab[i] === c || (mask[i] && inner[i])) ? 1 : 0;
         }
         if (S.fillHoles) fillMaskHoles(mask, W, H);
-        const f = blurMask(mask, W, H, sigma);
+        // Edges at sub-pixel accuracy: each edge pixel's color says how much of it is this layer. The blur that
+        // follows only evens out noise, so corners stay sharp and thin gaps stay open.
+        const f = blurMask(softEdges(mask, W, H, lab, upper, labRGB, srcPx, bgRGB), W, H, sigma * SOFT_BLUR);
         const minSpeck = Math.min(speckArea, ...partTunes.map(t => tuneParams({ ...LS, ...t.set }, sc).speckArea));
         const contours = VZ.maskContours(f, W, H).filter(q => Math.abs(VZ.area(q)) >= minSpeck).filter(q => Math.abs(VZ.area(q)) >= paramsFor(q).speckArea);
         if (!contours.length) return;
@@ -598,7 +741,7 @@ function traceNow(cancelled = () => false) {
         const recs = contours.map((q, ci) => {
           const { tol, k, cornerDeg, lineSrc, lineMin, fitSigma } = cp[ci];
           // Up to 0.6 source pixels of stray is pixel noise; past that a run must also be two-sided to be straight.
-          const ol = VZ.fitOutline(q, tol, k, cornerDeg, lineSrc * sc, Math.max(16 * lineMin, Math.round(12 * sc * lineMin)), fitSigma, 0.6 * sc);
+          const ol = VZ.fitOutline(q, tol, k, cornerDeg, lineSrc * sc, Math.max(16 * lineMin, Math.round(12 * sc * lineMin)), fitSigma, 0.6 * sc, 2.5 * sc * (cornerDeg <= 40 ? 1 : 0.5));
           allOutlines.push(ol); pieces += ol.segs.length;
           const rec = { outline: ol, shape: null, q };
           if (matching && budget-- > 0) {
@@ -779,6 +922,27 @@ function render() {
 /* ---------- Select an outline and snap it to a shape ---------- */
 let sel = null, manualN = 0, manualSnaps = [];
 const SNAPS = [["circle", "Circle"], ["ellipse", "Ellipse"], ["rect", "Rectangle"], ["rounded_rect", "Rounded"], ["pill", "Pill"], ["polygon", "Polygon"], ["star", "Star"], ["heart", "Heart"], ["arrow", "Arrow"], ["arc", "Arc"], ["ring", "Ring"]];
+// Points along a fitted outline, curves included (a curve can bulge past its end points), for bounding boxes.
+function outlinePoints(o, per = 6) {
+  const out = [], n = o.V.length;
+  o.segs.forEach((sg, i) => {
+    const a = o.V[i], b = o.V[(i + 1) % n]; out.push(a);
+    if (sg[0] === "C") {
+      const c1 = [a[0] + sg[1][0], a[1] + sg[1][1]], c2 = [b[0] + sg[2][0], b[1] + sg[2][1]];
+      for (let k = 1; k < per; k++) { const t = k / per, u = 1 - t, w0 = u * u * u, w1 = 3 * u * u * t, w2 = 3 * u * t * t, w3 = t * t * t;
+        out.push([w0 * a[0] + w1 * c1[0] + w2 * c2[0] + w3 * b[0], w0 * a[1] + w1 * c1[1] + w2 * c2[1] + w3 * b[1]]); }
+    } else if (sg[0] === "A") {
+      // SVG arc from a to b: radius sg[1], large-arc flag sg[2], sweep flag sg[3] (1 = clockwise on screen).
+      const r = sg[1], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy); if (!(L > 0)) return;
+      const R = Math.max(r, L / 2), h = Math.sqrt(Math.max(0, R * R - L * L / 4)), sgn = sg[2] === sg[3] ? -1 : 1;
+      const cx = (a[0] + b[0]) / 2 - sgn * h * dy / L, cy = (a[1] + b[1]) / 2 + sgn * h * dx / L;
+      const t0 = Math.atan2(a[1] - cy, a[0] - cx); let t1 = Math.atan2(b[1] - cy, b[0] - cx), d = t1 - t0;
+      if (sg[3]) { while (d < 0) d += 2 * Math.PI; } else { while (d > 0) d -= 2 * Math.PI; }
+      for (let k = 1; k < 4 * per; k++) { const t = t0 + d * k / (4 * per); out.push([cx + R * Math.cos(t), cy + R * Math.sin(t)]); }
+    }
+  });
+  return out;
+}
 function bboxOf(pts) { let a = [Infinity, Infinity, -Infinity, -Infinity]; for (const q of pts) { a[0] = Math.min(a[0], q[0]); a[1] = Math.min(a[1], q[1]); a[2] = Math.max(a[2], q[0]); a[3] = Math.max(a[3], q[1]); } return a; }
 function selItem() { return sel && result && result.layers[sel.li] && result.layers[sel.li].items[sel.ii]; }
 $("#snapChips").addEventListener("click", e => { const b = e.target.closest("[data-snap]"); if (b) snapSelected(b.dataset.snap); });
@@ -1073,6 +1237,23 @@ function setupText() {
   }
   // Re-apply chosen fonts (fonts load in the background).
   for (const T of result.texts) { const m = memFor(T); if (m && m.mode === "font" && m.pick && m.text) applyFontPick(T, m.pick, true); }
+  for (const T of result.texts) if (!T.removed) refitLetters(T);
+}
+// Letters share a baseline, a cap height, and stem positions. A word's near-level and near-upright straight
+// edges (within 5 degrees) are made exactly level and upright, and edges that nearly line up across its letters
+// are moved onto one line. Curves and corners are left as traced: re-fitting letters with heavier smoothing
+// measured worse on the test logos (serif brackets and script joins lost their shape).
+function refitLetters(T) {
+  if (S.letterFit === false || S.snap === false || T.arc) return;
+  const sc = Math.max(job.scale, 1), h = T.box[3] - T.box[1]; if (!(h > 0)) return;
+  const outs = [];
+  for (const p of wordParts(T)) {
+    const it = result.layers[p.li] && result.layers[p.li].items[p.ii]; if (!it || it.lfit) continue;
+    for (const rec of [it.outer, ...it.holes]) if (!(rec.shape && useShape[rec.shape.id])) outs.push(rec.outline);
+    it.lfit = true;
+  }
+  // Only long edges (a fifth of the letter height): a short straight piece of a curve, snapped, makes a kink.
+  if (outs.length) VZ.snapOutlines(outs, 5, Math.max(0.75 * sc, 0.012 * h), 0.2 * h);
 }
 function manualRun(box) {
   // Every outline on any layer whose center is inside the box joins; the layer with the most wins.

@@ -81,9 +81,13 @@ const VZ = (() => {
   function turning(p, k) { const n = p.length, out = new Float64Array(n); for (let i = 0; i < n; i++) { const a = sub(p[i], p[(i - k + n * 4) % n]), b = sub(p[(i + k) % n], p[i]); out[i] = Math.abs(Math.atan2(cross(a, b), dot(a, b))) / DEG; } return out; }
   function detectCorners(p, k, thresh) {
     const n = p.length; if (n < 4 * k + 4) return [];
-    const t1 = turning(p, k), t2 = turning(p, 2 * k), out = [];
+    const t1 = turning(p, k), t2 = turning(p, 2 * k), th = turning(p, Math.max(2, Math.round(k / 2))), out = [];
     for (let i = 0; i < n; i++) {
-      if (!(t1[i] > thresh && t2[i] < 1.6 * t1[i] + 5)) continue;
+      // A smooth curve turns about twice as much over twice the distance, so a large t2 rules a curve out. Two
+      // corners close together (the ends of a thin stem, a small serif) also raise t2, so a sharp turn within
+      // the window (more than 65 degrees) is a corner either way. Either way, most of a corner's turn happens
+      // within half the window; a small round end (a stroke's cap, a dot) turns evenly along its whole length.
+      if (!(t1[i] > thresh && th[i] > 0.6 * t1[i] && (t2[i] < 1.6 * t1[i] + 5 || t1[i] > 65))) continue;
       let mx = -1; for (let j = i - k; j <= i + k; j++) mx = Math.max(mx, t1[(j + n) % n]);
       if (t1[i] >= mx - 1e-9 && (!out.length || i - out[out.length - 1] > k)) out.push(i);
     }
@@ -136,7 +140,7 @@ const VZ = (() => {
     const n = p.length; return p.map((_, i) => { let x = 0, y = 0; for (let j = -r; j <= r; j++) { const q = p[(i + j + n * 8) % n], w = ker[j + r] / s; x += q[0] * w; y += q[1] * w; } return [x, y]; });
   }
 
-  function fitOutline(pts, tol, k, cornerDeg, lineTol, lineMin, smoothSigma = 1.6, straightFloor = Infinity) {
+  function fitOutline(pts, tol, k, cornerDeg, lineTol, lineMin, smoothSigma = 1.6, straightFloor = Infinity, blurCorner = 0) {
     let p = resampleClosed(pts, 1); const n = p.length;
     if (n < 10) { const V = p.filter((_, i) => i % Math.max(1, n >> 2) === 0); return { V, segs: V.map(() => ["L"]) }; }
     let corners = detectCorners(p, k, cornerDeg);
@@ -154,13 +158,28 @@ const VZ = (() => {
     for (let pi = 0; pi < pieces.length - 1; pi++) {
       const piece = pc.slice(pieces[pi], pieces[pi + 1] + 1);
       let runs;
-      if (corners.length && piece.length >= 4 && isStraight(piece, 0, piece.length - 1, lineTol, straightFloor)) runs = [[0, piece.length - 1]];
+      // A short edge between two corners (the top of a stem, a serif's face) is straight when it stays within
+      // tolerance, even if it bows to one side: blur rounds both of its ends toward the same side.
+      // A short piece that bows by a fifth of its length or more is a rounded end (a stroke's cap, a dot), not an edge.
+      const chordLen = hyp(piece[piece.length - 1][0] - piece[0][0], piece[piece.length - 1][1] - piece[0][1]);
+      const shortEdge = piece.length <= Math.max(1.25 * lineMin, 3 * k) && maxLineDist(piece, 0, piece.length - 1, piece[0], piece[piece.length - 1]) <= Math.max(lineTol, 0.2 * chordLen);
+      // Blur rounds both ends of a short edge, so its test skips the first and last half-window of points, and
+      // holds the rest to half the usual tolerance (it doesn't need to stray to both sides).
+      const m = shortEdge ? Math.min(Math.round(k / 2), Math.floor(piece.length / 4)) : 0;
+      if (corners.length && piece.length >= 4 && isStraight(piece, m, piece.length - 1 - m, shortEdge ? 0.5 * lineTol : lineTol, shortEdge ? Infinity : straightFloor)) runs = [[0, piece.length - 1]];
       else runs = straightRuns(piece, lineTol * 0.5, lineMin, straightFloor * 0.5);
       let marks = [], cur = 0;
       for (const [a, b] of runs) { if (a > cur) marks.push([cur, a, "curve"]); marks.push([a, b, "line"]); cur = b; }
       if (cur < piece.length - 1) marks.push([cur, piece.length - 1, "curve"]);
       const merged = []; for (const m of marks) { if (m[2] === "curve" && m[1] - m[0] < 3 && merged.length) merged[merged.length - 1][1] = m[1]; else merged.push(m.slice()); }
       marks = merged;
+      // Neighboring straight runs that together are still straight are one edge (noise can split a long stem).
+      for (let j = 0; j + 1 < marks.length; ) {
+        const a = marks[j], b = marks[j + 1];
+        if (a[2] === "line" && b[2] === "line" && isStraight(piece, a[0], b[1], lineTol, straightFloor)) { a[1] = b[1]; marks.splice(j + 1, 1); }
+        else if (a[2] === "line" && b[2] === "curve" && j + 2 < marks.length && marks[j + 2][2] === "line" && b[1] - b[0] <= Math.max(4, k) && isStraight(piece, a[0], marks[j + 2][1], lineTol, straightFloor)) { a[1] = marks[j + 2][1]; marks.splice(j + 1, 2); }
+        else j++;
+      }
       // Straight runs that meet at a shallow bend are facets of one gentle curve, not two edges:
       // real straight edges either continue (almost no bend) or meet at a corner.
       const shallow = VZ_BOW.shallow != null ? VZ_BOW.shallow : 35;
@@ -172,13 +191,22 @@ const VZ = (() => {
           const a = lineIdx[q], b = lineIdx[q + 1];
           if (b - a > 2 || (b - a === 2 && marks[a + 1][1] - marks[a + 1][0] > lineMin)) continue;
           const ang = Math.acos(Math.max(-1, Math.min(1, dot(dir(marks[a]), dir(marks[b]))))) / DEG;
-          if (ang > 4 && ang < shallow) { demote.add(a); demote.add(b); }
+          // Only short runs are facets of a curve; a long straight run next to a curve (a stem running into a bowl) stays.
+          const long = m => m[1] - m[0] >= 2.5 * lineMin;
+          if (ang > 4 && ang < shallow) { if (!long(marks[a])) demote.add(a); if (!long(marks[b])) demote.add(b); }
         }
         if (demote.size) {
           const out = [];
           marks.forEach((m, j) => { const kind = demote.has(j) ? "curve" : m[2]; if (out.length && kind === "curve" && out[out.length - 1][2] === "curve") out[out.length - 1][1] = m[1]; else out.push([m[0], m[1], kind]); });
           marks = out;
         }
+      }
+      // A short straight run with curve on both sides (no corner at either end) is a flat spot on a curve:
+      // drawn as a line, it shows as a kink.
+      {
+        let changed = false;
+        for (let j = 1; j + 1 < marks.length; j++) if (marks[j][2] === "line" && marks[j - 1][2] === "curve" && marks[j + 1][2] === "curve" && marks[j][1] - marks[j][0] < 2.5 * lineMin) { marks[j][2] = "curve"; changed = true; }
+        if (changed) { const out = []; for (const m of marks) { if (out.length && m[2] === "curve" && out[out.length - 1][2] === "curve") out[out.length - 1][1] = m[1]; else out.push(m.slice()); } marks = out; }
       }
       const smoothLoop = !corners.length;
       marks.forEach(([a, b, kind], j) => {
@@ -192,11 +220,27 @@ const VZ = (() => {
           if (j === 0 && marks[marks.length - 1][2] === "line") tS = unit(sub(piece[marks[marks.length - 1][1]], piece[marks[marks.length - 1][0]]));
           if (j === marks.length - 1 && marks[0][2] === "line") tE = unit(sub(piece[marks[0][1]], piece[marks[0][0]]));
         }
+        // A curve that meets a straight edge at a visible angle (a soft corner, below the corner threshold) keeps
+        // its own end direction: forced tangent to the edge, it bends back in an S just before the join.
+        const agrees = (t, atStart) => { if (!t || seg.length < 2 * k) return t; const e = endTangent(seg, atStart, k), c = atStart ? dot(e, t) : -dot(e, t); return c >= Math.cos(12 * DEG) ? t : null; };
+        tS = agrees(tS, true); tE = agrees(tE, false);
         const fitted = fitPiece(seg, tol, tS, tE, k);
         fitted.forEach(([endp, sg], q) => { segs.push(sg); if (q < fitted.length - 1) V.push(endp.slice()); });
       });
     }
+    // Where a straight edge runs into a curve, the shared point sits on the edge's fitted line: a raw outline
+    // point there can be a pixel off it, which shows as a step where the curve leaves the edge.
+    for (let i = 0, nV = V.length; i < nV; i++) {
+      const ip = (i - 1 + nV) % nV, A = segs[ip][0] === "L" ? fits[ip] : null, B = segs[i][0] === "L" ? fits[i] : null;
+      if (!!A === !!B) continue;
+      if (segs[ip][0] === "A" || segs[i][0] === "A") continue;
+      const F = A || B, t = dot(sub(V[i], F.c), F.d); V[i] = [F.c[0] + F.d[0] * t, F.c[1] + F.d[1] * t];
+      // The curve's handle at the join follows the fitted line too (handles are stored relative to their point).
+      const sg = A ? segs[i] : segs[ip], hi = A ? 1 : 2;
+      if (sg[0] === "C") { const h = sg[hi], L = hyp(h[0], h[1]), sgn = dot(h, F.d) < 0 ? -1 : 1; if (L > 0 && Math.abs(dot(h, F.d)) > 0.97 * L) sg[hi] = [F.d[0] * sgn * L, F.d[1] * sgn * L]; }
+    }
     if (VZ_BOW.x !== false) intersectCorners(V, segs, fits, k);
+    if (blurCorner > 0) collapseBlurCorners(V, segs, fits, blurCorner);
     return { V, segs };
   }
   // Total least squares line through the middle of a straight run (its ends are rounded by blur).
@@ -219,6 +263,27 @@ const VZ = (() => {
       const t = cross(sub(B.c, A.c), B.d) / den, X = [A.c[0] + A.d[0] * t, A.c[1] + A.d[1] * t];
       const move = hyp(X[0] - V[i][0], X[1] - V[i][1]);
       if (move <= Math.max(1.5, 1.2 * k) && move <= 0.35 * Math.min(A.len, B.len)) V[i] = X;
+    }
+  }
+  // A tiny curve between two straight edges that meet at an angle is a sharp corner the image's blur rounded off
+  // (chord up to maxChord, edges at least twice as long): the curve goes and the edges meet where they cross.
+  // Designed rounded corners are larger than the blur, so they stay.
+  function collapseBlurCorners(V, segs, fits, maxChord) {
+    for (let guard = 0; guard < 400; guard++) {
+      const n = V.length; if (n < 4) return; let done = true;
+      for (let i = 0; i < n; i++) {
+        const ip = (i - 1 + n) % n, inx = (i + 1) % n, A = fits[ip], B = fits[inx];
+        if (segs[i][0] === "L" || segs[ip][0] !== "L" || segs[inx][0] !== "L" || !A || !B) continue;
+        const a = V[i], b = V[inx], chord = hyp(b[0] - a[0], b[1] - a[1]);
+        if (chord > maxChord || A.len < 2 * chord || B.len < 2 * chord) continue;
+        const den = cross(A.d, B.d); if (Math.abs(den) < Math.sin(30 * DEG)) continue;
+        const t = cross(sub(B.c, A.c), B.d) / den, X = [A.c[0] + A.d[0] * t, A.c[1] + A.d[1] * t];
+        if (hyp(X[0] - (a[0] + b[0]) / 2, X[1] - (a[1] + b[1]) / 2) > 1.5 * chord) continue;
+        V[i] = X; V.splice(inx, 1); segs.splice(i, 1); fits.splice(i, 1);
+        if (inx === 0) V.unshift(V.pop());   // the corner was the last point; segments still line up from it
+        done = false; break;
+      }
+      if (done) return;
     }
   }
   const fmt = v => { const r = Math.round(v * 100) / 100; return Object.is(r, -0) ? "0" : String(r); };
@@ -438,14 +503,14 @@ const VZ = (() => {
     for (const i of order) { if (grp.length && values[i] - values[grp[grp.length - 1]] > tol) { flush(); grp = []; } grp.push(i); }
     if (grp.length) flush(); return out;
   }
-  function snapOutlines(outlines, snapDeg, tol) {
+  function snapOutlines(outlines, snapDeg, tol, minLen = 2) {
     const refs = { x: [], y: [] };
     outlines.forEach((o, oi) => {
       const n = o.V.length; if (n < 2) return;
       for (const [axis, target] of [["y", 0], ["x", 90]]) {
         const parent = o.V.map((_, i) => i), find = a => { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; };
         o.segs.forEach((sg, i) => {
-          if (sg[0] !== "L") return; const a = o.V[i], b = o.V[(i + 1) % n], d = sub(b, a); if (hyp(d[0], d[1]) < 2) return;
+          if (sg[0] !== "L") return; const a = o.V[i], b = o.V[(i + 1) % n], d = sub(b, a); if (hyp(d[0], d[1]) < minLen) return;
           const ang = mod(Math.abs(Math.atan2(d[1], d[0]) / DEG), 180);
           if (Math.abs(ang - target) <= snapDeg || Math.abs(ang - (target ? 180 - target : 180)) <= snapDeg) parent[find(i)] = find((i + 1) % n);
         });

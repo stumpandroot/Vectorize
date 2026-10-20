@@ -43,55 +43,70 @@ function findArcRuns(res) {
   const W = res.w, H = res.h, sc = Math.max(job.scale, 1), out = [];
   res.layers.forEach((L, li) => {
     if (hidden.has(L.hex) || deletedLayers.has(L.hex)) return;
-    let pool = [];
+    const pool = [];
     L.items.forEach((it, ii) => { if (it.off) return; const b = bboxOf(it.outer.q), s = Math.max(b[2] - b[0], b[3] - b[1]); if (s >= 5 * sc && s <= 0.2 * Math.min(W, H)) pool.push({ ii, c: [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2], s, b }); });
-    const rnd = arcRand(li + 7);
-    for (let pass = 0; pass < 4 && pool.length >= 4; pass++) {
-      const sMed = pool.map(p => p.s).sort((a, b) => a - b)[pool.length >> 1];
-      let best = null;
-      for (let t = 0; t < 600; t++) {
-        const a = pool[(rnd() * pool.length) | 0], b = pool[(rnd() * pool.length) | 0], c = pool[(rnd() * pool.length) | 0];
-        if (a === b || b === c || a === c) continue;
-        const C = circle3(a.c, b.c, c.c); if (!C || C.r < 1.5 * sMed || C.r > 40 * sMed) continue;
-        const inl = pool.filter(p => Math.abs(Math.hypot(p.c[0] - C.cx, p.c[1] - C.cy) - C.r) < 0.45 * Math.max(p.s, sMed) && p.s < 2.2 * sMed && p.s > 0.35 * sMed);
-        if (inl.length >= 4 && (!best || inl.length > best.inl.length)) best = { C, inl };
-      }
-      if (!best) break;
-      const C = circleFit(best.inl.map(p => p.c)) || best.C;
-      const inl = pool.filter(p => Math.abs(Math.hypot(p.c[0] - C.cx, p.c[1] - C.cy) - C.r) < 0.45 * Math.max(p.s, sMed) && p.s < 2.2 * sMed && p.s > 0.35 * sMed);
-      pool = pool.filter(p => !inl.includes(p));
-      if (inl.length < 4) continue;
-      // Split into runs at wide gaps along the circle (the circle's two sides, top and bottom, are separate runs).
-      inl.forEach(p => { p.a = arcAngle(C, p.c[0], p.c[1]); });
-      inl.sort((a, b) => a.a - b.a);
-      let cut = 0, gmax = -1;
-      for (let i = 0; i < inl.length; i++) { const g = i === 0 ? inl[0].a + 2 * Math.PI - inl[inl.length - 1].a : inl[i].a - inl[i - 1].a; if (g > gmax) { gmax = g; cut = i; } }
-      const ring = inl.slice(cut).concat(inl.slice(0, cut)), runs = [[ring[0]]];
-      for (let i = 1; i < ring.length; i++) { const gap = wrapPI(ring[i].a - ring[i - 1].a) * C.r; if (Math.abs(gap) > 2.6 * sMed) runs.push([]); runs[runs.length - 1].push(ring[i]); }
-      for (const run of runs) {
-        if (run.length < 3) continue;
-        // Angles relative to the run's own middle, so a run across the bottom (angle ±π) doesn't wrap.
-        const phi0 = Math.atan2(run.reduce((s, p) => s + Math.sin(p.a), 0), run.reduce((s, p) => s + Math.cos(p.a), 0));
-        run.forEach(p => { p.d = wrapPI(p.a - phi0); }); run.sort((a, b) => a.d - b.d);
-        const span = (run[run.length - 1].d - run[0].d);
-        // Real curvature: the arc bows by at least half a letter (a straight row fits a huge circle too), and the
-        // letters' baselines follow the circle better than any straight line (mixed-case straight text can fit a
-        // circle through its centers, but its baselines sit on a line).
-        if (C.r * (1 - Math.cos(span / 2)) < 0.5 * sMed) continue;
-        if (!baselinesCurve(run.map(p => L.items[p.ii].outer.q), C, sMed)) continue;
-        // Inner and outer radius of the ink, and its angular extent.
-        const rs = [], ds = [];
-        for (const p of run) for (const q of L.items[p.ii].outer.q) { rs.push(Math.hypot(q[0] - C.cx, q[1] - C.cy)); ds.push(wrapPI(arcAngle(C, q[0], q[1]) - phi0)); }
-        rs.sort((a, b) => a - b);
-        const rIn = rs[Math.floor(0.01 * (rs.length - 1))], rOut = rs[Math.ceil(0.99 * (rs.length - 1))];
-        const dmin = Math.min(...ds), dmax = Math.max(...ds), mid = phi0 + (dmin + dmax) / 2;
-        // Over the top (center below the letters) reads clockwise; along the bottom reads the other way.
-        const upper = Math.cos(mid) > 0;
-        out.push({ li, items: run.map(p => p.ii), cx: C.cx, cy: C.cy, upper, theta: wrapPI(mid), span: dmax - dmin, rIn, rOut });
-      }
+    if (pool.length < 4) return;
+    // Each piece's nearest neighbors of a similar size: the letters next to it in a line, straight or curved.
+    const near = pool.map(p => pool.filter(q => q !== p && q.s < 1.8 * p.s && p.s < 1.8 * q.s && Math.hypot(q.c[0] - p.c[0], q.c[1] - p.c[1]) < 2.2 * Math.max(p.s, q.s))
+      .sort((q1, q2) => Math.hypot(q1.c[0] - p.c[0], q1.c[1] - p.c[1]) - Math.hypot(q2.c[0] - p.c[0], q2.c[1] - p.c[1])).slice(0, 6));
+    const rnd = arcRand(li + 7), cands = [];
+    // Candidate circles through a piece and two of its neighbors' neighbors, so the three are spread along a line
+    // of letters rather than bunched. Each is scored by the longest unbroken run of similar letters on it.
+    for (let t = 0; t < 900; t++) {
+      const ai = (rnd() * pool.length) | 0, a = pool[ai]; if (near[ai].length < 1) continue;
+      const b = near[ai][(rnd() * near[ai].length) | 0], bi = pool.indexOf(b), far = near[bi].filter(q => q !== a && !near[ai].includes(q)); if (!far.length) continue;
+      const c = far[(rnd() * far.length) | 0], s0 = (a.s + b.s + c.s) / 3;
+      const C = circle3(a.c, b.c, c.c); if (!C || C.r < 1.5 * s0 || C.r > 40 * s0) continue;
+      const run = runOn(pool, C, s0, a); if (run.length >= 4) cands.push({ C, run, s0 });
+    }
+    cands.sort((x, y) => y.run.length - x.run.length);
+    const used = new Set();
+    for (const cd of cands) {
+      if (cd.run.some(p => used.has(p))) continue;
+      // Refit the circle to the run's letters and collect the run again on it.
+      const C = circleFit(cd.run.map(p => p.c)) || cd.C, run = runOn(pool, C, cd.s0, cd.run[cd.run.length >> 1]).filter(p => !used.has(p));
+      if (run.length < 4) continue;
+      const A = checkArc(L, run, C, cd.s0); if (!A) continue;
+      for (const p of run) used.add(p);
+      out.push({ li, items: run.map(p => p.ii), ...A });
     }
   });
   return out;
+}
+// The unbroken run of similar-size pieces on circle C that contains piece p0 (gaps up to 2.6 letters).
+function runOn(pool, C, s0, p0) {
+  const on = pool.filter(p => Math.abs(Math.hypot(p.c[0] - C.cx, p.c[1] - C.cy) - C.r) < 0.45 * Math.max(p.s, s0) && p.s < 1.9 * s0 && p.s > 0.45 * s0);
+  if (!on.includes(p0)) return [];
+  const a0 = arcAngle(C, p0.c[0], p0.c[1]);
+  on.forEach(p => { p.d = wrapPI(arcAngle(C, p.c[0], p.c[1]) - a0); }); on.sort((x, y) => x.d - y.d);
+  let k = on.indexOf(p0), lo = k, hi = k;
+  while (lo > 0 && (on[lo].d - on[lo - 1].d) * C.r <= 2.6 * s0) lo--;
+  while (hi < on.length - 1 && (on[hi + 1].d - on[hi].d) * C.r <= 2.6 * s0) hi++;
+  return on.slice(lo, hi + 1);
+}
+// Whether a run of pieces on circle C is a line of letters on a curve; if so, its ring and angles.
+function checkArc(L, run, C, sMed) {
+  run.forEach(p => { p.a = arcAngle(C, p.c[0], p.c[1]); });
+  // Angles relative to the run's own middle, so a run across the bottom (angle ±π) doesn't wrap.
+  const phi0 = Math.atan2(run.reduce((s, p) => s + Math.sin(p.a), 0), run.reduce((s, p) => s + Math.cos(p.a), 0));
+  run.forEach(p => { p.d = wrapPI(p.a - phi0); }); run.sort((a, b) => a.d - b.d);
+  const span = run[run.length - 1].d - run[0].d;
+  // Real curvature: the arc bows by at least half a letter (a straight row fits a huge circle too), and the
+  // letters' baselines follow the circle better than any straight line (mixed-case straight text can fit a
+  // circle through its centers, but its baselines sit on a line).
+  if (C.r * (1 - Math.cos(span / 2)) < 0.5 * sMed) return null;
+  if (!baselinesCurve(run.map(p => L.items[p.ii].outer.q), C, sMed)) return null;
+  const rs = [], ds = [];
+  for (const p of run) for (const q of L.items[p.ii].outer.q) { rs.push(Math.hypot(q[0] - C.cx, q[1] - C.cy)); ds.push(wrapPI(arcAngle(C, q[0], q[1]) - phi0)); }
+  rs.sort((a, b) => a - b);
+  const rIn = rs[Math.floor(0.01 * (rs.length - 1))], rOut = rs[Math.ceil(0.99 * (rs.length - 1))];
+  // One line of letters: the ring the run occupies is about one letter deep. Letters from stacked lines can sit
+  // on a shared circle by chance, but their ring is two or more letters deep.
+  const depth = run.map(p => { const r = L.items[p.ii].outer.q.map(q => Math.hypot(q[0] - C.cx, q[1] - C.cy)); return Math.max(...r) - Math.min(...r); }).sort((a, b) => a - b);
+  if (rOut - rIn > 1.45 * depth[depth.length >> 1]) return null;
+  const dmin = Math.min(...ds), dmax = Math.max(...ds), mid = phi0 + (dmin + dmax) / 2;
+  // Over the top (center below the letters) reads clockwise; along the bottom reads the other way.
+  return { cx: C.cx, cy: C.cy, upper: Math.cos(mid) > 0, theta: wrapPI(mid), span: dmax - dmin, rIn, rOut };
 }
 
 // The run straightened into a strip, letters upright, reading left to right. Returns a canvas and the ink mask.
@@ -144,8 +159,18 @@ async function addArcWords(res) {
   for (const A of runs) {
     const L = res.layers[A.li], strip = await arcStrip(A, L.hex);
     const lines = await readStrip(strip.canvas), text = lines.map(l => l.text).join(" ").replace(/\s+/g, " ").trim();
+    // A real arc of letters reads as words once straightened. Letters that only happen to sit on a circle
+    // (the ends of two stacked words) read as nothing, or as a few stray characters: leave them alone.
+    if (text.replace(/[^\p{L}\p{N}&]/gu, "").length < 0.6 * A.items.length) continue;
+    // Letters the reader already read as straight words keep that reading unless the straightened strip reads
+    // more of them: a gently curved line reads fine straight, and a false arc must not take a word apart. A tie goes
+    // to the strip: the run has passed every curve check, and a reader guesses more on a curved line.
+    const letters = s => (s || "").replace(/[^\p{L}\p{N}&]/gu, "").length;
+    const over = res.texts.filter(T => !T.removed && !T.arc && wordParts(T).some(p => p.li === A.li && A.items.includes(p.ii)));
+    if (over.some(T => memFor(T))) continue;
+    if (letters(text) < over.reduce((n, T) => n + letters(T.ocrText), 0)) continue;
     let box = [Infinity, Infinity, -Infinity, -Infinity]; for (const ii of A.items) { const b = bboxOf(L.items[ii].outer.q); box = [Math.min(box[0], b[0]), Math.min(box[1], b[1]), Math.max(box[2], b[2]), Math.max(box[3], b[3])]; }
-    for (const T of res.texts) if (!T.removed && !T.arc && wordParts(T).some(p => p.li === A.li && A.items.includes(p.ii))) { if (memFor(T)) continue; T.removed = true; T.merged = true; }
+    for (const T of over) { T.removed = true; T.merged = true; }
     const T = { li: A.li, items: A.items.slice(), box, id: res.texts.length, text: "", mode: "original", repl: null, src: "arc", ocrText: text || null,
       arc: { cx: A.cx, cy: A.cy, upper: A.upper, theta: A.theta, span: A.span, rIn: A.rIn, rOut: A.rOut, r: (A.rIn + A.rOut) / 2 } };
     ARC_STRIPS.set(T, { tgt: strip.mask, W: strip.W, H: strip.H, S: 1, ox: 0, oy: 0 });

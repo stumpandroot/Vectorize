@@ -43,7 +43,14 @@ async function ocrCanvas(j) {
 // Same shape as the Mac app's reader: [{ text, box: [x, y, w, h], words: [{ text, box, chars: [{ text, box }] }] }],
 // boxes as fractions of the image. Words under 45% confidence, or with no letter or digit, are left out.
 // opts.line: the image is one line of text (a straightened arc), read as such.
-async function webReadText(j, opts = {}) {
+// One read at a time: reads change the worker's page-segmentation mode, so two at once could mix them up.
+let ocrQueue = Promise.resolve();
+function webReadText(j, opts = {}) {
+  const run = ocrQueue.then(() => webReadTextNow(j, opts));
+  ocrQueue = run.catch(() => {});
+  return run;
+}
+async function webReadTextNow(j, opts = {}) {
   const w = await ocrWorker(); if (!w) return [];
   const c = await ocrCanvas(j);
   let out;

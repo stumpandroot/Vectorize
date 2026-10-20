@@ -300,6 +300,9 @@ async function letterCheck(T, run, P) {
   const F = await fitFrame(T, true), rm = rasterWord(run, P, F.S, F.ox, F.oy, F.W, F.H), sc = Math.max(job.scale, 1), px = F.S * sc;   // canvas px per source px
   const dT = chamfer(F.tgt, F.W, F.H), dR = chamfer(rm, F.W, F.H);
   const letters = [];
+  // The tips of pointed letters (the apex and feet of an A) are thin for a pixel or two too; only a letter with
+  // thin strokes adding up to at least 40% of the cap height is held to the thin check.
+  const minThin = 0.4 * (T.box[3] - T.box[1]) * F.S;
   run.glyphs.forEach((g, i) => {
     if (!g.ink) return;
     const b = glyphBox(run, i, P), pad = 2;
@@ -319,15 +322,16 @@ async function letterCheck(T, run, P) {
       thin++; if (rm[k] || dR[k] <= 0.5 * px) thinKept++;
     }
     ds.sort((a, c) => a - c);
-    letters.push({ i, ch: g.ch, iou: uni ? inter / uni : 1, p95: ds.length ? ds[Math.floor(0.95 * (ds.length - 1))] : 0, holesT: holesIn(F.tgt, F.W, F.H, r), holesF: holesIn(rm, F.W, F.H, r), thin: thin > 3 * px ? thinKept / thin : null });
+    letters.push({ i, ch: g.ch, iou: uni ? inter / uni : 1, p95: ds.length ? ds[Math.floor(0.95 * (ds.length - 1))] : 0, holesT: holesIn(F.tgt, F.W, F.H, r), holesF: holesIn(rm, F.W, F.H, r), thin: thin > Math.max(3 * px, minThin) ? thinKept / thin : null });
   });
   const word = iouMasks(F.tgt, rm), capPx = (T.box[3] - T.box[1]) / sc;
   // A font that had to be stretched or slanted to fit has more freedom to look right, so it gets no allowance.
   const distorted = Math.abs((P.sx || 1) - 1) > 0.03 || Math.abs(P.skew || 0) > 0.03;
   return { word, letters, capPx, distorted };
 }
-// The gate: every letter must match on overlap, edges, counters, and thin strokes.
-const GATE = { word: 0.86, wordTight: 0.80, letter: 0.74, edge: 1.6, edgeFrac: 0.07, thin: 0.6, minCap: 9 };
+// The gate: every letter must match on overlap, edges, counters, and thin strokes. Lettering under 14 px tall
+// (cap height in the original) is too small to tell similar fonts apart, so it's never swapped automatically.
+const GATE = { word: 0.86, wordTight: 0.80, letter: 0.74, edge: 1.6, edgeFrac: 0.07, thin: 0.6, minCap: 14 };
 function gateVerdict(check) {
   const bad = [];
   if (check.capPx < GATE.minCap) bad.push({ why: "small" });
@@ -512,23 +516,94 @@ function canReadText() { return !!((NATIVE && APP && APP.ocr) || (typeof webOCRR
 // Words the user typed or confirmed for this image's lettering: the native reader expects them.
 function expectedWords() { return [...new Set(textMemory.flatMap(m => (m.text || "").split(/\s+/)).filter(w => w.length > 1))].slice(0, 50); }
 // [{ text, box: [x, y, w, h] fractions, words: [{ text, box, chars?: [{ text, box }] }] }]
-async function readImageText(j) {
-  try {
-    if (NATIVE && APP && APP.ocr) { const r = await NATIVE.recognize_text(j.srcURL, expectedWords()); return r && r.lines ? r.lines : []; }
-    if (typeof webReadText === "function") return await webReadText(j);
-  } catch (e) { console.error(e); }
+async function readOne(url) {
+  if (NATIVE && APP && APP.ocr) { const r = await NATIVE.recognize_text(url, expectedWords()); return r && r.lines ? r.lines : []; }
+  if (typeof webReadText === "function") return await webReadText({ srcURL: url });
   return [];
+}
+// The traced colors drawn black on white, from each color's own pixels (not its stacked shapes, which also
+// cover the colors above it): all the colors together, and each on its own when there are several. Readers do
+// much better on these than on the original when it has film grain, texture, a colored or busy background, or
+// a 3D shadow behind the letters.
+function layerImages(res) {
+  const layers = res.layers.filter(L => !hidden.has(L.hex) && !deletedLayers.has(L.hex) && L.items.length);
+  if (!layers.length || !res.lab) return [];
+  const W = res.w, H = res.h, pad = Math.round(0.04 * Math.max(W, H)), k = Math.min(2, 2000 / Math.max(W, H));
+  const draw = labels => {
+    const c = document.createElement("canvas"); c.width = W + 2 * pad; c.height = H + 2 * pad;
+    const g = c.getContext("2d"), im = g.createImageData(c.width, c.height), d = im.data; d.fill(255);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (labels.has(res.lab[y * W + x])) { const o = ((y + pad) * c.width + x + pad) * 4; d[o] = d[o + 1] = d[o + 2] = 0; }
+    g.putImageData(im, 0, 0);
+    // Scale to about 2,000 px on the long side with smoothing, so stair steps don't read as serifs.
+    const c2 = document.createElement("canvas"); c2.width = Math.round(c.width * k); c2.height = Math.round(c.height * k);
+    const g2 = c2.getContext("2d"); g2.imageSmoothingQuality = "high"; g2.drawImage(c, 0, 0, c2.width, c2.height);
+    return { url: c2.toDataURL("image/png"), k, pad: pad * k, W: c2.width, H: c2.height };
+  };
+  const out = [draw(new Set(layers.map(L => L.label)))];
+  if (layers.length > 1) for (const L of layers.slice(0, 5)) out.push(draw(new Set([L.label])));
+  return out;
+}
+// [{ text, box: [x, y, w, h] fractions, words: [{ text, box, chars? }] }]: the original and the layer drawings,
+// read separately and merged (a word found in several places is kept once, from the read with more letters).
+async function readImageText(j, res) {
+  const all = [];
+  try { all.push(...(await readOne(j.srcURL))); } catch (e) { console.error(e); }
+  if (res) for (const im of layerImages(res)) {
+    let lines = []; try { lines = await readOne(im.url); } catch (e) { console.warn(e); continue; }
+    // Back to fractions of the original image.
+    const fx = b => [((b[0] * im.W) - im.pad) / im.k / res.w, ((b[1] * im.H) - im.pad) / im.k / res.h, b[2] * im.W / im.k / res.w, b[3] * im.H / im.k / res.h];
+    for (const l of lines) all.push({ ...l, box: fx(l.box), words: (l.words || []).map(w => ({ ...w, box: fx(w.box), chars: w.chars && w.chars.map(c => ({ ...c, box: fx(c.box) })) })) });
+  }
+  return mergeReads(all);
+}
+function mergeReads(lines) {
+  const iou = (a, b) => { const ix = Math.max(0, Math.min(a[0] + a[2], b[0] + b[2]) - Math.max(a[0], b[0])), iy = Math.max(0, Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1])), I = ix * iy; return I / (a[2] * a[3] + b[2] * b[3] - I || 1); };
+  const len = l => (l.text || "").replace(/[^\p{L}\p{N}]/gu, "").length;
+  // One- and two-character reads much smaller than the real words are usually artwork read as letters (an X
+  // mark, a lightning bolt as 4, sprocket holes as "re"); a lone big letter or monogram is kept.
+  const real = lines.filter(l => len(l) >= 3), tall = Math.max(0, ...real.map(l => l.box[3]));
+  lines = lines.filter(l => len(l) >= 3 || !tall || l.box[3] >= 0.6 * tall);
+  // Beside real words, a lone digit or a lowercase scrap in all-capital lettering is artwork too (a whisk or a
+  // star read as 4).
+  const caps = real.length && real.every(l => !/\p{Ll}/u.test(l.text));
+  lines = lines.filter(l => len(l) >= 3 || !real.length || !(/^[\p{N}\p{P}\p{S}\s]+$/u.test(l.text) || (caps && /^[\p{Ll}\p{P}\s]+$/u.test(l.text))));
+  const kept = [];
+  for (const l of lines.filter(l => len(l)).sort((a, b) => len(b) - len(a))) {
+    // A line overlapping one already kept is the same text read twice; keep the fuller one (sorted first).
+    if (kept.some(k => iou(k.box, l.box) > 0.3)) continue;
+    kept.push(l);
+  }
+  return kept;
 }
 // Adds the reader's words to res.texts: matches them to detected words, and makes new words for the ones the
 // outline grouping missed (one or two letters, stacked lines, letters in different colors).
+// Overlap of two [x0, y0, x1, y1] boxes as a share of the smaller one.
+function boxOverlap(a, b) { const ix = Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0])), iy = Math.max(0, Math.min(a[3], b[3]) - Math.max(a[1], b[1])); return ix * iy / Math.max(1e-9, Math.min((a[2] - a[0]) * (a[3] - a[1]), (b[2] - b[0]) * (b[3] - b[1]))); }
 function mergeReadWords(res, lines) {
   if (!lines || !lines.length) return;
   const W = res.w, H = res.h, used = new Set();
   for (const T of res.texts) if (!T.removed) for (const p of wordParts(T)) used.add(p.li + ":" + p.ii);
-  const words = lines.flatMap((l, ln) => (l.words && l.words.length ? l.words : [{ text: l.text, box: l.box }]).map(w => ({ ln, text: w.text, chars: w.chars, b: [w.box[0] * W, w.box[1] * H, (w.box[0] + w.box[2]) * W, (w.box[1] + w.box[3]) * H] })));
+  // A word's box is the union of its letters' boxes when the reader gave them: a word box alone can stretch to
+  // take in artwork next to it. Quote marks and periods at either end come off (a star in a C reads as a quote).
+  const toPx = b => [b[0] * W, b[1] * H, (b[0] + b[2]) * W, (b[1] + b[3]) * H];
+  const words = lines.flatMap((l, ln) => (l.words && l.words.length ? l.words : [{ text: l.text, box: l.box }]).map(w => {
+    const chars = (w.chars || []).filter(c => /[\p{L}\p{N}&]/u.test(c.text));
+    // Letters' boxes, ignoring one that's much taller than the rest (a letter box can swallow a nearby icon).
+    const cb = chars.map(c => toPx(c.box)), med = v => v.slice().sort((a, c) => a - c)[v.length >> 1];
+    const hm = cb.length ? med(cb.map(c => c[3] - c[1])) : 0, ok = cb.filter(c => c[3] - c[1] <= 1.5 * hm);
+    const b = ok.length ? [Math.min(...ok.map(c => c[0])), Math.min(...ok.map(c => c[1])), Math.max(...ok.map(c => c[2])), Math.max(...ok.map(c => c[3]))] : toPx(w.box);
+    return { ln, text: w.text.replace(/^[^\p{L}\p{N}&]+|[^\p{L}\p{N}&]+$/gu, ""), chars: chars.length ? chars : w.chars, b };
+  })).filter(w => w.text).filter((w, i, all) => !all.some((v, j) => j < i && boxOverlap(v.b, w.b) > 0.5));
   // Each detected word collects the reader's words over it: centered on it and about its height (a small tagline
   // under a big name stays its own word).
-  for (const T of res.texts) { if (T.removed || T.arc) continue; const mine = words.filter(w => { const cx = (w.b[0] + w.b[2]) / 2, cy = (w.b[1] + w.b[3]) / 2, th = T.box[3] - T.box[1], pad = 0.35 * th, wh = w.b[3] - w.b[1]; return wh >= 0.4 * th && wh <= 2.5 * th && cx >= T.box[0] - pad && cx <= T.box[2] + pad && cy >= T.box[1] - 0.2 * th && cy <= T.box[3] + 0.2 * th; }).sort((a, b) => a.b[0] - b.b[0]); if (mine.length) { T.ocrText = mine.map(w => w.text).join(" "); T.chars = mine.every(w => w.chars && w.chars.length) ? mine.flatMap(w => w.chars) : null; mine.forEach(w => w.taken = T); } }
+  for (const T of res.texts) { if (T.removed || T.arc) continue; const mine = words.filter(w => { const cx = (w.b[0] + w.b[2]) / 2, cy = (w.b[1] + w.b[3]) / 2, th = T.box[3] - T.box[1], pad = 0.35 * th, wh = w.b[3] - w.b[1]; return wh >= 0.4 * th && wh <= 2.5 * th && cx >= T.box[0] - pad && cx <= T.box[2] + pad && cy >= T.box[1] - 0.2 * th && cy <= T.box[3] + 0.2 * th; }).sort((a, b) => a.b[0] - b.b[0]); if (mine.length) {
+    // Words on different lines: the outline grouping joined stacked lines (a name over a tagline). Drop the
+    // grouping; each line becomes its own word below.
+    const lineOf = w => mine.findIndex(v => Math.min(v.b[3], w.b[3]) - Math.max(v.b[1], w.b[1]) > 0.5 * Math.min(v.b[3] - v.b[1], w.b[3] - w.b[1]));
+    const y0 = Math.min(...mine.map(w => w.b[1])), y1 = Math.max(...mine.map(w => w.b[3])), mh = y1 - y0;
+    const outside = wordParts(T).some(p => { const it = res.layers[p.li].items[p.ii]; if (!it) return false; const b = bboxOf(it.outer.q), cy = (b[1] + b[3]) / 2; return cy < y0 - 0.25 * mh || cy > y1 + 0.25 * mh; });
+    if ((new Set(mine.map(lineOf)).size > 1 || outside) && !memFor(T)) { T.removed = true; T.merged = true; continue; }
+    T.ocrText = mine.map(w => w.text).join(" "); T.chars = mine.every(w => w.chars && w.chars.length) ? mine.flatMap(w => w.chars) : null; mine.forEach(w => w.taken = T); } }
   // A line the reader saw as one (a tagline) that the outline grouping split into words becomes one word, so
   // the font is fitted to the whole line with one spacing.
   lines.forEach((l, ln) => {
@@ -548,6 +623,10 @@ function mergeReadWords(res, lines) {
     if (!parts.length) continue;
     const layers = new Set(parts.map(p => p.li));
     if (w.taken && layers.size === 1) continue;
+    // A lone digit or symbol beside words in another color is artwork the reader took for a character (a
+    // lightning bolt read as 4).
+    const sibs = words.filter(v => v !== w && v.ln === w.ln && v.taken).map(v => v.taken.li);
+    if (/^[\p{N}\p{P}\p{S}]{1,2}$/u.test(w.text) && sibs.length && !sibs.some(li => layers.has(li))) continue;
     // Replace detected words that held only some of these letters.
     const over = res.texts.filter(T => !T.removed && wordParts(T).some(p => parts.some(q => q.li === p.li && q.ii === p.ii)));
     if (over.some(T => T.arc)) continue;   // letters on a circle are read from their own strip

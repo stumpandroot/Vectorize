@@ -71,11 +71,12 @@ async function autoFonts() {
 // Reads the words in job j and sets each in its matching font when every letter checks out. Words you've
 // already changed are left alone. Returns what it swapped, or null when cancelled.
 async function matchWords(res, j, stale = () => false) {
-  if (!j.ocr) { j.ocr = await readImageText(j); }
-  if (stale()) return null;
-  if (typeof addArcWords === "function") await addArcWords(res);   // letters on a circle, read from a straightened strip
+  if (!j.ocr) { j.ocr = await readImageText(j, res); }
   if (stale()) return null;
   mergeReadWords(res, j.ocr);           // words the reader found, including ones the outline grouping missed
+  if (typeof addArcWords === "function") await addArcWords(res);   // letters on a circle, read from a straightened strip
+  if (stale()) return null;
+  for (const T of res.texts) if (!T.removed) refitLetters(T);   // words the reader added get the letter fit too
   const todo = (res.texts || []).filter(T => !T.removed && !memFor(T) && T.ocrText);
   const swapped = [];
   for (const T of todo) {
@@ -87,6 +88,15 @@ async function matchWords(res, j, stale = () => false) {
       else if (d.best) T.suggest = `${d.best.label || d.best.fam} ${WEIGHT_NAME[d.best.w] || d.best.w} (${verdictLabel(d.best.verdict).toLowerCase() || "close"})`;
     } catch (e) { console.error(e); }
     remember(T);
+  }
+  // A logo usually sets several words in one family. A word whose closest font is a family already swapped in
+  // elsewhere in this logo, failing the check on at most one letter (and not on the whole word), swaps too.
+  const fams = new Set(todo.filter(T => T.auto && T.pick).map(T => T.pick.fam));
+  for (const T of todo) {
+    const b = T.results && T.results[0], v = b && b.verdict;
+    if (T.auto || !b || !v || !fams.has(b.fam) || T.mode !== "original") continue;
+    if (v.bad.some(x => !x.ch) || new Set(v.bad.map(x => x.i)).size > 1) continue;
+    useFontResult(T, b); T.auto = true; T.suggest = null; swapped.push(`${T.text} in ${fontLabel(b)}`); remember(T);
   }
   if (typeof renderTexts === "function" && res === result) renderTexts();
   return swapped;
@@ -889,7 +899,7 @@ async function buildSticker() {
     return outers.map(q => mapOutline(VZ.fitOutline(q, 0.6, 6, 150, 0.5, 40, 2.5), s, bx[0], bx[1]));
   };
   const cut = trace(cutU), border = trace(outU);
-  const pts = border.flatMap(o => o.V); const ext = pts.length ? bboxOf(pts) : null;
+  const pts = border.flatMap(o => outlinePoints(o)); const ext = pts.length ? bboxOf(pts) : null;
   const mm = toIn(1, "mm") * per;   // 1 mm of page around the border
   stickerCache = { key, cut, border, extent: ext && [ext[0] - mm, ext[1] - mm, ext[2] + mm, ext[3] + mm] };
   return stickerCache;
