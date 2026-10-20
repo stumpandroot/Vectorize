@@ -93,8 +93,10 @@ async def main():
             await pg.click(f'[data-tmode="original"][data-t="{tid}"]'); await pg.wait_for_timeout(200)
             await pg.evaluate("convert()"); await pg.wait_for_function("document.querySelector('#status').dataset.s==='done'", timeout=60000); await pg.wait_for_timeout(800)
             check("Traced sticks after a retrace", await pg.evaluate("result.texts.find(t => !t.removed).mode") == "original")
+        # One reading pass per image: the original plus each color of the trace on its own; a retrace doesn't read again.
         n = await pg.evaluate("window.__calls.filter(c => c.name === 'recognize_text').length")
-        check("text is read once per image", n == 1, f"{n} calls")
+        want = await pg.evaluate("1 + layerImages(result).length")
+        check("text is read once per image", n == want, f"{n} calls, {want} images")
         check("no page errors", not errs, errs)
         await b.close()
     print(f"{sum(OK)}/{len(OK)} passed")
