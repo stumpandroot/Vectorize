@@ -1295,7 +1295,12 @@ window.addEventListener("pywebviewready", initNative);
 /* ---------- Start ---------- */
 (async function start() {
   syncControls(); applyView(); setTool("select");
-  openImage(await makeSample(), "Sample logo", "Example image · 360 × 360 JPEG");
+  // The welcome tour and the first paint's rise-in come first: tracing the sample keeps the page busy for a few
+  // seconds, which would stall both.
   initNative();
+  setStatus("working", "Opening");
+  const sample = await makeSample();
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) await new Promise(r => setTimeout(r, 950));
+  openImage(sample, "Sample logo", "Example image · 360 × 360 JPEG");
   if (!NATIVE) { try { downloads = await window.claude?.use?.("downloads"); } catch { downloads = null; } }
 })();

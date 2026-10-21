@@ -12,6 +12,7 @@ Cleaner tracing and lettering, tuned on real logos.
 - **Straighter edges and truer corners.** Short edges between corners stay straight, long stems stay straight where they run into a curve, a curve that meets an edge at a slight angle no longer kinks just before the join, and small round ends (a stroke's cap, a dot) stay round instead of becoming points. Corners that the image's blur rounded off are drawn sharp.
 - **More words found.** Words are also read from each color of the trace on its own, so lettering over a busy background or in an extruded style reads. Stray reads of artwork (a lightning bolt read as 4) are dropped, and lettering on a circle is found even when the straight read got some of it.
 - **Fonts checked more carefully.** Words in a family the app has already matched in the logo use it too when they nearly pass. Pointed letters (the A's apex) no longer fail the thin-stroke check. Lettering under 14 px tall is never swapped on its own: at that size similar fonts can't be told apart.
+- **The window opens smoothly.** The sample logo is traced after the opening animation and the welcome tour appear, so neither stalls.
 - **Sticker borders** size the page from the border's curves, not just its end points, so the border is never clipped.
 
 Under the hood: the tracing test set scores better than 1.9.0 on shape, edge, and worst-edge error, and the lettering score passes its baseline.
