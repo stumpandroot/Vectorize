@@ -530,6 +530,17 @@ input[type=checkbox]{accent-color:var(--switch-on)}
 .zoombar button{height:28px;border-radius:8px;font:500 12px var(--mono);color:var(--ink)}
 .zoombar button:hover{background:var(--track)}
 .float-zoom .tog-btn{min-height:28px;padding:0 10px;font-size:12.5px}
+/* Canvas background: what shows behind transparent art. It changes the view only, never the export. */
+.float-zoom .bgseg{background:transparent;box-shadow:none;padding:0}
+.bgseg button{width:30px;min-width:30px;padding:0;display:grid;place-items:center}
+.bgseg .sw{width:14px;height:14px;border-radius:4px;box-shadow:inset 0 0 0 1px var(--outline-strong)}
+.bgseg .sw-checks{background:#fff conic-gradient(#C8C8C8 25%,transparent 0 50%,#C8C8C8 0 75%,transparent 0) 0 0/7px 7px}
+.bgseg .sw-white{background:#fff}
+.bgseg .sw-black{background:#000}
+/* The sliding selection is a ring here, so the black swatch stays visible when chosen. */
+html .float-zoom .bgseg .seg-pill{background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.sheet.clear.bg-white,.sheet.bg-white{background-color:#fff;background-image:none}
+.sheet.clear.bg-black,.sheet.bg-black{background-color:#000;background-image:none}
 .snapbar{bottom:56px}
 .snapbar,.menu,.modal-card{background:var(--card);box-shadow:inset 0 0 0 1px var(--hairline),var(--shadow-high);border-radius:var(--r-lg)}
 /* Menus hold paragraphs of text, so they're opaque popovers with shadow.high, not glass (no blur behind text). */
@@ -809,6 +820,11 @@ html.limit .export-split.celebrate::after{animation:fade-out .3s ease-out both}
             <button type="button" id="zoomFit" title="Zoom to fit (⌘0)">Fit</button>
           </div>
           <button type="button" class="tog-btn" id="outlinesBtn" aria-pressed="false" title="See every path as a thin line">Outlines</button>
+          <div class="seg mini bgseg" role="group" aria-label="Canvas background">
+            <button type="button" data-canvasbg="checks" aria-pressed="true" aria-label="Checkerboard background" title="Checkerboard background"><span class="sw sw-checks"></span></button>
+            <button type="button" data-canvasbg="white" aria-pressed="false" aria-label="White background" title="White background"><span class="sw sw-white"></span></button>
+            <button type="button" data-canvasbg="black" aria-pressed="false" aria-label="Black background" title="Black background"><span class="sw sw-black"></span></button>
+          </div>
         </div>
         <div class="pick-hint" id="pickHint" hidden>Click a color in the image <button id="pickCancel">Cancel</button></div>
         <div class="loupe" id="loupe" hidden><b id="loupeHex">#000000</b></div>
@@ -4048,6 +4064,22 @@ document.querySelectorAll("[data-tool]").forEach(b => b.addEventListener("click"
 function toggleOutlines() { outlines = !outlines; $("#vec").classList.toggle("outlines", outlines); if (outlines && view === "original") setView("vector"); syncEditorControls(); }
 $("#outlinesBtn").onclick = toggleOutlines;
 
+/* ---------- Canvas background ---------- */
+// What shows behind transparent art: the checkerboard, white, or black. View only; exports stay transparent.
+const CANVAS_BGS = ["checks", "white", "black"];
+let canvasBg = "checks";
+try { const v = localStorage.getItem("vz-canvas-bg"); if (CANVAS_BGS.includes(v)) canvasBg = v; } catch { /* storage off */ }
+function setCanvasBg(v, quiet) {
+  if (!CANVAS_BGS.includes(v)) return;
+  canvasBg = v;
+  const sh = $("#sheet"); sh.classList.toggle("bg-white", v === "white"); sh.classList.toggle("bg-black", v === "black");
+  document.querySelectorAll("[data-canvasbg]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.canvasbg === v)));
+  if (quiet) return;
+  try { if (NATIVE) { NATIVE.remember("canvasBg", v); if (APP && APP.settings) APP.settings.canvasBg = v; } else localStorage.setItem("vz-canvas-bg", v); } catch { /* storage off */ }
+}
+document.querySelectorAll("[data-canvasbg]").forEach(b => b.onclick = () => setCanvasBg(b.dataset.canvasbg));
+setCanvasBg(canvasBg, true);
+
 /* ---------- Export ---------- */
 const FORMATS = { svg: "SVG", pdf: "PDF", eps: "EPS", png: "PNG" };
 const fmtNow = () => (!NATIVE && (S.exportFormat === "pdf" || S.exportFormat === "eps")) ? "svg" : (FORMATS[S.exportFormat] ? S.exportFormat : "svg");
@@ -4794,6 +4826,9 @@ function runCommand(cmd) {
     case "delete": selAct("delete"); break;
     case "view:compare": case "view:original": case "view:vector": case "view:align": if (picking) endPick(); setView(cmd.slice(5)); break;
     case "outlines": toggleOutlines(); break;
+    case "bgChecks": setCanvasBg("checks"); break;
+    case "bgWhite": setCanvasBg("white"); break;
+    case "bgBlack": setCanvasBg("black"); break;
     case "fit": fitView(); break;
     case "zoomIn": zoomAt(1.5); break;
     case "zoomOut": zoomAt(1 / 1.5); break;
@@ -4901,6 +4936,7 @@ async function initNative() {
   $("#file").removeAttribute("accept");
   const st = APP.settings || {};
   setLimitMotion(!!st.limitMotion, true);
+  if (CANVAS_BGS.includes(st.canvasBg)) setCanvasBg(st.canvasBg, true);
   if (FORMATS[st.exportFormat]) S.exportFormat = st.exportFormat;
   if (OUTPUTS[st.lastPreset] && !S.output) applyOutput(st.lastPreset, true);
   syncControls(); if (result) renderTexts();

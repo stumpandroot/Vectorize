@@ -430,6 +430,22 @@ document.querySelectorAll("[data-tool]").forEach(b => b.addEventListener("click"
 function toggleOutlines() { outlines = !outlines; $("#vec").classList.toggle("outlines", outlines); if (outlines && view === "original") setView("vector"); syncEditorControls(); }
 $("#outlinesBtn").onclick = toggleOutlines;
 
+/* ---------- Canvas background ---------- */
+// What shows behind transparent art: the checkerboard, white, or black. View only; exports stay transparent.
+const CANVAS_BGS = ["checks", "white", "black"];
+let canvasBg = "checks";
+try { const v = localStorage.getItem("vz-canvas-bg"); if (CANVAS_BGS.includes(v)) canvasBg = v; } catch { /* storage off */ }
+function setCanvasBg(v, quiet) {
+  if (!CANVAS_BGS.includes(v)) return;
+  canvasBg = v;
+  const sh = $("#sheet"); sh.classList.toggle("bg-white", v === "white"); sh.classList.toggle("bg-black", v === "black");
+  document.querySelectorAll("[data-canvasbg]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.canvasbg === v)));
+  if (quiet) return;
+  try { if (NATIVE) { NATIVE.remember("canvasBg", v); if (APP && APP.settings) APP.settings.canvasBg = v; } else localStorage.setItem("vz-canvas-bg", v); } catch { /* storage off */ }
+}
+document.querySelectorAll("[data-canvasbg]").forEach(b => b.onclick = () => setCanvasBg(b.dataset.canvasbg));
+setCanvasBg(canvasBg, true);
+
 /* ---------- Export ---------- */
 const FORMATS = { svg: "SVG", pdf: "PDF", eps: "EPS", png: "PNG" };
 const fmtNow = () => (!NATIVE && (S.exportFormat === "pdf" || S.exportFormat === "eps")) ? "svg" : (FORMATS[S.exportFormat] ? S.exportFormat : "svg");
@@ -1176,6 +1192,9 @@ function runCommand(cmd) {
     case "delete": selAct("delete"); break;
     case "view:compare": case "view:original": case "view:vector": case "view:align": if (picking) endPick(); setView(cmd.slice(5)); break;
     case "outlines": toggleOutlines(); break;
+    case "bgChecks": setCanvasBg("checks"); break;
+    case "bgWhite": setCanvasBg("white"); break;
+    case "bgBlack": setCanvasBg("black"); break;
     case "fit": fitView(); break;
     case "zoomIn": zoomAt(1.5); break;
     case "zoomOut": zoomAt(1 / 1.5); break;
@@ -1283,6 +1302,7 @@ async function initNative() {
   $("#file").removeAttribute("accept");
   const st = APP.settings || {};
   setLimitMotion(!!st.limitMotion, true);
+  if (CANVAS_BGS.includes(st.canvasBg)) setCanvasBg(st.canvasBg, true);
   if (FORMATS[st.exportFormat]) S.exportFormat = st.exportFormat;
   if (OUTPUTS[st.lastPreset] && !S.output) applyOutput(st.lastPreset, true);
   syncControls(); if (result) renderTexts();

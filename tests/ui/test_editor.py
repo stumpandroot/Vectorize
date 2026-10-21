@@ -142,6 +142,17 @@ async def main():
         dl = await d.value; zf = zipfile.ZipFile(await dl.path())
         check("export all", sorted(n.split("/")[-1] for n in zf.namelist()) == ["lockup.svg", "shapes.svg"], f"{zf.namelist()}")
         await pg.screenshot(path=OUT + "/ed-batch.png")
+        # Canvas background: checkerboard, white, or black behind transparent art; the choice is kept, exports aren't changed.
+        svg0 = await pg.evaluate("buildSVG()")
+        seen = {}
+        for v in ("white", "black", "checks"):
+            await pg.click(f'[data-canvasbg="{v}"]'); await pg.wait_for_timeout(100)
+            seen[v] = await pg.evaluate("v => [getComputedStyle($('#sheet')).backgroundColor, getComputedStyle($('#sheet')).backgroundImage !== 'none', document.querySelector(`[data-canvasbg=${v}]`).getAttribute('aria-pressed')]", v)
+        check("background buttons switch the canvas", seen["white"] == ["rgb(255, 255, 255)", False, "true"] and seen["black"] == ["rgb(0, 0, 0)", False, "true"] and seen["checks"][1:] == [True, "true"], seen)
+        check("the background doesn't change the export", await pg.evaluate("buildSVG()") == svg0)
+        await pg.click('[data-canvasbg="black"]')
+        check("the background choice is kept", await pg.evaluate("localStorage.getItem('vz-canvas-bg')") == "black")
+        await pg.click('[data-canvasbg="checks"]')
         check("no page errors", not errs, f"{errs}")
         await b.close()
     print(f"{sum(OK)}/{len(OK)} passed")

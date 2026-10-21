@@ -2,6 +2,10 @@
 
 The app shows its version and build in the window title and the toolbar. Each GitHub build has a new build number; the version changes when features change.
 
+## 1.11.0
+
+- **Canvas background.** Three buttons beside Outlines show transparent art over the checkerboard, white, or black, so you can check light and dark artwork. The choice is kept between sessions and never changes what you export. On a Mac, the View menu has the same three choices.
+
 ## 1.10.0
 
 Cleaner tracing and lettering, tuned on real logos.
