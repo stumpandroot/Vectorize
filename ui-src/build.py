@@ -72,7 +72,10 @@ def main():
     if "--web" in sys.argv:
         W = Path(sys.argv[sys.argv.index("--web") + 1])
         W.mkdir(parents=True, exist_ok=True)
-        (W / "vectorize-web.html").write_text(out)
+        # The web page has no New York (Apple's system serif) off a Mac, so it loads Newsreader, the face the family's
+        # logo lockups use, for titles and the wordmark. The Mac app never loads fonts from the network.
+        serif = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400&display=swap">\n'
+        (W / "vectorize-web.html").write_text(serif + out)
         copy_side_files(W, web=True)
         (W / "test.html").write_text(page(out))
         # Test build: local fonts stand in for Google Fonts (the sandbox blocks fonts.googleapis.com).

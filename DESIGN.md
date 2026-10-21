@@ -12,21 +12,24 @@ The app is **Vectorize**. The family doc calls it "Vectorized"; Tim kept the shi
 |---|---|
 | Platforms | Mac (pywebview, WKWebView) and the web preview |
 | Sensibility | Pro creative tool: instant response, minimal motion, the canvas leads |
-| Signature accent | Butter, signed off by Tim (October 2026), used sparingly |
+| Signature accent | Sage, Tim's choice for the sibling redesign (October 21, 2026), where Verbatim has persimmon. Used sparingly |
 | Supporting | Ink |
-| Display face | None. SF Pro for UI, SF Mono for data |
+| Display face | New York, the system serif, as Verbatim: the wordmark, the file title, and the tour's titles. SF Pro for UI, SF Mono for data and kickers. The web preview loads Newsreader (the face in the logo lockups) because New York is only on Apple platforms |
 | Glass | Only the floating zoom controls over the canvas. The toolbar and inspector are flush paper with one hairline (Verbatim's sidebar change, October 18, 2026: glass panes read grey against the paper) |
 | Tactile emphasis | Inset canvas well, inset sliders and fields, the raised Export button, card motion on preset tiles and batch rows |
-| Character | None in the interface. The mascot lives only in the app icon, drawn as one ink glyph |
+| Character | None. The mark is the node ring (a circle with its four anchor points) on Verbatim's 120-unit grid; Pix is retired |
 | Celebrate moment | The first export: the Export button's label morphs to "Saved," and one ring pulses out from it |
 
-## Where butter goes
+## Where sage goes
 
-Butter is the 10%. Use it for:
+Sage is the 10%, and each screen gets one sage block (Verbatim's rule). Use it for:
 
-- The selected preset tile and the selected destination chip (butter wash, with an ink outline and a check, so selection never relies on color)
-- Counts on tabs, the fine-tune scope bar, and the "working" status
+- The selected preset tile: solid sage with ink, plus a check, so selection never relies on color alone
+- The selected destination chip: sage wash with a deep-sage outline and a check
+- The fine-tune scope bar, a changed dial's label, and the done status (`--accent-text`)
 - The app icon background
+
+Butter and petal stay in the family: the tour's Refine and Export cards, and the working status (`--butter-text`). Counts on tabs are plain mono text, with no badge.
 
 Everything else is neutral. Primary buttons and selected segments use `interactive` (ink), as the family doc specifies.
 
@@ -44,8 +47,10 @@ The tokens live in `ui-src/template.html`, in the `:root` block marked "Family t
 | `--text2` | `#545E56` | `#D4CDC0` |
 | `--text3` | `#606962` | `#A1A29A` |
 | `--interactive` / `--on-interactive` | `#26352E` / `#FFFDF9` | `#E9E3D6` / `#18241F` |
-| `--accent` (butter) | `#F4C76B` | `#D4AB55` |
-| `--accent-text` | `#8A6414` | `#E8C27A` |
+| `--accent` (sage) | `#AFC398` | `#93A87C` |
+| `--accent-text` | `#4F6440` | `#B9CDA3` |
+| `--butter-text` / `--butter-wash` | `#8A6414` / `#FCECCC` | `#E8C27A` / `#484A32` |
+| `--serif` | New York, then Newsreader | same |
 | `--warn-text` (persimmon text-safe) | `#B23F24` | `#FF8A6B` |
 | `--ok-text` (sage text-safe) | `#4F6440` | `#B9CDA3` |
 | `--danger` (system red, accessible variant) | `#D70015` | `#FF6961` |
@@ -56,7 +61,7 @@ The family doc names washes, a track fill, and hover and press states without gi
 
 | Derived token | Light | Dark | How |
 |---|---|---|---|
-| `--accent-wash` | `#FCECCC` | `#484A32` | Butter at 32% (dark: 22%) over `card` |
+| `--accent-wash` | `#E9EFE0` | `#26322A` | Sage at about 22% over `card` (Verbatim's `sageTint`) |
 | `--warn-wash` | `#FDE3D9` | `#463D30` | Persimmon at about 20% (dark: 18%) over `card` |
 | `--ok-wash` | `#E9EFE0` | `#394A3A` | Sage at about 22% over `card` |
 | `--track` / `--track-strong` | ink at 6.5% / 16% | paper at 7% / 20% | Segmented tracks and switch tracks |
@@ -108,12 +113,12 @@ Escape or Tab closes a menu and returns focus to the control that opened it.
 
 Verbatim's pattern: a paper sheet with a section-header strip (diamond, mono label, dotted rule, `01 / 04`), one idea per step, Back on the left, and one primary button on the right.
 
-1. **Welcome:** "Clean vectors from any logo." Three cards, Trace, Fine-tune, and Export, on butter, sage, and petal with ink text and fine-line glyphs.
+1. **Welcome:** "Drop an image. Get a vector." Three method cards, Trace, Refine, and Export, on sage, butter, and petal with ink text, serif titles, and fine-line glyphs.
 2. **What you're tracing:** pick a preset. The choice applies right away.
 3. **Fine-tune:** snap to true shapes, match the font, line it up, and right-click for options.
 4. **Last step:** pick the export format. PDF and EPS are marked "In the Mac app" in the web preview.
 
-It shows once (until `TOUR_VERSION` goes up), and again from Help › Welcome Tour or "Show the welcome tour" in Setup. Finishing, skipping, or pressing Escape marks it seen. Automated test browsers never see it. Titles use SF Pro at 28 pt, not Verbatim's serif, because Vectorize has no display face.
+It shows once (until `TOUR_VERSION` goes up), and again from Help › Welcome Tour or "Show the welcome tour" in Setup. Finishing, skipping, or pressing Escape marks it seen. Automated test browsers never see it. Titles use the serif at 32 pt, as Verbatim's do.
 
 ### Text tab (1.9.0)
 
@@ -122,6 +127,14 @@ It shows once (until `TOUR_VERSION` goes up), and again from Help › Welcome To
 - **Compare with the original** draws the font's outline in magenta over the original crop, the same functional magenta as selection and anchor points.
 - In Cleaned mode, the two cleanup switches sit right under the Traced / Cleaned / Font buttons on a `mist-tint` panel, both off by default. Their help line turns into the reason when a tool can't run ("Some letters touch or are in pieces…").
 - Arc words say "on an arc" on the card. Multicolor words are titled "Multicolor word".
+
+## Sibling redesign (October 21, 2026)
+
+Vectorize and Verbatim read as siblings: the same paper, ink, and family colors, the same serif titles, mono kickers (`VECTORIZE / SHAPES IN ORDER · WED 21 OCT`), dotted-leader section headings, and fine-line icons. Each owns one color: Verbatim persimmon, Vectorize sage.
+
+- **Icons** are fine-line (`svg.ln`): a 24-unit grid, 1.5 stroke (1.2 on preset tiles), round ends and joins, in Verbatim's vocabulary of anchor squares, circles, axes with crossbars, and dots at nodes. The split knob's arrows, the shape glyphs (they picture the shapes themselves), and the grip stay filled.
+- **The mark and app icon** are the node ring, ink on sage. The app icon places the 120-unit grid as Verbatim's does (560 of 1024); the 28 pt toolbar tile and the logo lockups let the grid fill the tile so the ring reads at small sizes. `packaging/icon/make_icon.py` writes both.
+- The brand book is the "Vectorize Brand" design system on claude.ai; the mockups are the "Vectorize sibling redesign" canvas.
 
 ## Departures from the family doc, and why
 

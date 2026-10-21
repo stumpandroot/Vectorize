@@ -238,12 +238,12 @@ function markTourSeen() {
 function maybeShowTour() { if (!tourSeen() && !$("#tour")) openTour(); }
 function tourBody(step) {
   const where = NATIVE ? "on this Mac" : "in your browser";
-  if (step === 0) return `<h3 id="tourTitle">Clean vectors from any logo.</h3>
+  if (step === 0) return `<h3 id="tourTitle">Drop an image. Get a vector.</h3>
     <p class="lead">Drop in a PNG or JPEG. Vectorize traces it into shapes you can edit and export, and it all stays ${where}.</p>
     <div class="tour-pillars">
-      <div class="pillar" style="background:var(--fill-butter)"><div class="top">01${tsvg("trace")}</div><b>Trace</b><small>Presets for logos, sketches, and more</small></div>
-      <div class="pillar" style="background:var(--fill-sage)"><div class="top">02${tsvg("tune")}</div><b>Fine-tune</b><small>True shapes, real fonts, exact alignment</small></div>
-      <div class="pillar" style="background:var(--fill-petal)"><div class="top">03${tsvg("export")}</div><b>Export</b><small>SVG, PDF, EPS, and PNG</small></div>
+      <div class="pillar" style="background:var(--fill-sage)"><div class="top"><span>01</span>${tsvg("trace")}</div><b>Trace</b><small>Presets for logos, sketches, and more</small></div>
+      <div class="pillar" style="background:var(--fill-butter)"><div class="top"><span>02</span>${tsvg("tune")}</div><b>Refine</b><small>True shapes, real fonts, exact alignment</small></div>
+      <div class="pillar" style="background:var(--fill-petal)"><div class="top"><span>03</span>${tsvg("export")}</div><b>Export</b><small>SVG, PDF, EPS, and PNG</small></div>
     </div>`;
   if (step === 1) return `<h3 id="tourTitle">Tell it what it is.</h3>
     <p class="lead">A preset sets up the trace for that kind of art. Pick one now; you can change it anytime in Setup.</p>

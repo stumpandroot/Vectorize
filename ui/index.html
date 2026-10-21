@@ -8,7 +8,7 @@
   --ink:#26352E; --text2:#545E56; --text3:#606962;
   --hairline:rgba(38,53,46,.14); --outline-strong:rgba(38,53,46,.36); --track:rgba(38,53,46,.065); --track-strong:rgba(38,53,46,.16);
   --interactive:#26352E; --on-interactive:#FFFDF9; --interactive-hover:#33463C; --interactive-press:#1B2621;
-  --accent:#F4C76B; --accent-wash:#FCECCC; --accent-text:#8A6414;
+  --accent:#AFC398; --accent-wash:#E9EFE0; --accent-text:#4F6440; --butter-wash:#FCECCC; --butter-text:#8A6414;
   --warn:#FA6B47; --warn-wash:#FDE3D9; --warn-text:#B23F24;
   --ok-wash:#E9EFE0; --ok-text:#4F6440;
   --switch-on:#4F6440; --fill-butter:#F4C76B; --fill-sage:#AFC398; --fill-petal:#EFB6C8; --fixed-ink:#26352E;
@@ -22,6 +22,7 @@
   --m-press:100ms ease-out; --m-touch:150ms ease-out; --m-snappy:200ms ease-out; --m-calm:300ms ease-out; --m-card:300ms cubic-bezier(.2,.8,.2,1);
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro",system-ui,"Helvetica Neue",sans-serif;
   --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  --serif:"New York",ui-serif,Newsreader,Georgia,serif;   /* Verbatim's display face: titles and the wordmark only */
   --ease:cubic-bezier(.2,.8,.2,1); --ease-card:cubic-bezier(.2,.8,.2,1); --spring:cubic-bezier(.2,.8,.2,1);   /* no bounce in a pro tool */
   /* Legacy names, kept so older rules keep working. New rules use the family names above. */
   --bg:var(--paper); --surface:var(--card); --panel:var(--paper); --stage:var(--bar); --line:var(--hairline);
@@ -37,7 +38,7 @@
   --ink:#F5F0E6; --text2:#D4CDC0; --text3:#A1A29A;
   --hairline:rgba(245,240,230,.12); --outline-strong:rgba(245,240,230,.36); --track:rgba(245,240,230,.07); --track-strong:rgba(245,240,230,.2);
   --interactive:#E9E3D6; --on-interactive:#18241F; --interactive-hover:#F5F0E6; --interactive-press:#D4CDC0;
-  --accent:#D4AB55; --accent-wash:#484A32; --accent-text:#E8C27A;
+  --accent:#93A87C; --accent-wash:#26322A; --accent-text:#B9CDA3; --butter-wash:#484A32; --butter-text:#E8C27A;
   --warn:#F27A57; --warn-wash:#463D30; --warn-text:#FF8A6B;
   --ok-wash:#394A3A; --ok-text:#B9CDA3;
   --switch-on:#6E8A58; --fill-butter:#D4AB55; --fill-sage:#93A87C; --fill-petal:#C98EA2;
@@ -52,7 +53,7 @@
   --ink:#F5F0E6; --text2:#D4CDC0; --text3:#A1A29A;
   --hairline:rgba(245,240,230,.12); --outline-strong:rgba(245,240,230,.36); --track:rgba(245,240,230,.07); --track-strong:rgba(245,240,230,.2);
   --interactive:#E9E3D6; --on-interactive:#18241F; --interactive-hover:#F5F0E6; --interactive-press:#D4CDC0;
-  --accent:#D4AB55; --accent-wash:#484A32; --accent-text:#E8C27A;
+  --accent:#93A87C; --accent-wash:#26322A; --accent-text:#B9CDA3; --butter-wash:#484A32; --butter-text:#E8C27A;
   --warn:#F27A57; --warn-wash:#463D30; --warn-text:#FF8A6B;
   --ok-wash:#394A3A; --ok-text:#B9CDA3;
   --switch-on:#6E8A58; --fill-butter:#D4AB55; --fill-sage:#93A87C; --fill-petal:#C98EA2;
@@ -715,14 +716,50 @@ html.limit .export-split.celebrate::after{animation:fade-out .3s ease-out both}
   .alignbar{padding:8px 10px}
   .insp-head{position:static}
 }
+
+/* Sibling redesign with Verbatim (October 21, 2026): sage is Vectorize's color where Verbatim has persimmon,
+   serif titles and wordmark, mono kickers, fine-line icons (24-unit grid, 1.5 stroke), one sage block per screen. */
+svg.ln{width:18px;height:18px;flex:none;fill:none!important;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.brand{gap:9px}
+.brand svg,.brand .app-icon{width:28px;height:28px;border-radius:0;box-shadow:none}
+.brand b{font:400 21px/1 var(--serif);letter-spacing:-.01em}
+.kicker{display:flex;justify-content:space-between;gap:12px;font:400 10.5px/1.3 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--text3);padding:2px 2px 0}
+.file h2{font:400 26px/1.15 var(--serif);letter-spacing:-.01em}
+.file span{margin-top:2px}
+.status{background:none!important;box-shadow:none!important;padding:0;border-radius:0;font:400 10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--text3)}
+.status::before{display:none}
+.status[data-s="done"]{color:var(--accent-text)}
+.status[data-s="working"]{color:var(--butter-text)}
+.status[data-s="error"]{color:var(--warn-text)}
+.count{background:none;color:var(--text3);font:500 11px var(--mono);min-width:0;height:auto;padding:0 0 0 1px}
+.seg button[aria-selected="true"] .count{color:inherit;opacity:.75}
+/* Presets: the selected one is the screen's one sage block, ink on sage, with the check (never color alone). */
+.preset{border-radius:12px;box-shadow:inset 0 0 0 1px var(--hairline);color:var(--ink);padding:14px 4px 10px}
+.preset .tile{background:none;width:30px;height:30px}
+.preset .tile svg.ln{width:28px;height:28px;stroke-width:1.2}
+.preset[aria-pressed="true"]{background:var(--accent);color:#26352E;box-shadow:none}
+.preset[aria-pressed="true"] .tile{background:none}
+.preset[aria-pressed="true"].hot{box-shadow:var(--sx,0) 8px 14px var(--card-shadow)}
+.out-chip{display:inline-flex;align-items:center;justify-content:flex-start;gap:6px;padding:0 10px 0 9px;border-radius:999px;font-weight:500}
+.out-chip svg.ln{width:16px;height:16px}
+.out-chip[aria-pressed="true"]{background:var(--accent-wash);box-shadow:inset 0 0 0 1.5px var(--accent-text);font-weight:600}
+.out-chip[aria-pressed="true"]::after{position:static;margin-left:auto;flex:none}
+.obj-row.on,.batch-item[aria-current="true"]{background:var(--accent-wash)}
+/* Tour: the welcome. Serif titles; the three method cards run through the family colors. */
+.tour h3{font:400 32px/1.12 var(--serif);letter-spacing:-.015em}
+.pillar{border-radius:16px;min-height:150px;padding:14px 16px}
+.pillar b{font:400 26px/1.1 var(--serif);letter-spacing:-.01em}
+.pillar .top span{display:inline-block;border-bottom:1px solid currentColor;padding-bottom:2px}
+.pillar svg{width:40px;height:40px}
+@media (max-width:860px){ .kicker{display:none} .file h2{font-size:18px} }
 </style>
 
 <div class="app" id="app">
   <header class="toolbar">
-    <div class="brand"><svg aria-hidden="true" class="app-icon" xmlns="http://www.w3.org/2000/svg" viewBox="100 100 824 824"><rect x="100" y="100" width="824" height="824" rx="185" fill="#F4C76B"/><g transform="translate(260.91 229.65) scale(0.28478)"><path d="M530.75 1794.11C530.6 1793.82 530.28 1793.56 530.28 1793.23L530.28 1728.31C530.27 1721.96 530.18 1715.33 529.53 1708.92L430.92 1708.92C430.74 1708.64 430.05 1707.68 430.05 1707.36L430.05 1531.5C430.04 1529.94 428.3 1529.43 427.57 1528.37C420.01 1528.67 412.47 1527.9 404.88 1527.8L333.08 1527.8C332.62 1526.89 332.11 1526.73 332.1 1525.6L332.1 1358.89C331.83 1358.72 330.64 1357.72 330.31 1357.71L232.63 1357.71C232.14 1356.83 231.57 1355.69 231.58 1354.53L231.58 1181.84C231.86 1181.67 232.43 1180.63 232.76 1180.63L358.34 1180.63C358.21 1177.18 358.3 1172.77 358.28 1169.27L358.28 1005.04L273.18 1005.04C272.76 1004.27 272.52 1003.73 272.52 1002.73L272.52 830.01C275.78 829.95 279.93 829.23 283.37 829.21L376.31 829.21A158.42 158.42 0 0 0 398.24 828.57C399.11 823.08 399.77 816.57 399.74 810.92L399.74 761.03L399.74 707.25C399.84 696.32 400.88 659.24 398.73 651.11L333.13 651.11C332.71 650.29 332.1 649.72 332.1 648.67L332.1 471.95C332.37 471.76 333.28 470.71 333.61 470.71L470.24 470.71C470.38 470.42 471.42 469.47 471.43 469.15L471.43 283.97L625.9 283.97C626.34 283.08 627.79 282.73 627.79 281.63L627.79 114.92C628.07 114.74 628.33 114.38 628.65 114.38L714.53 114.38C717.13 114.38 719.74 114.44 722.34 114.38L767 114.38L909.96 114.38C930.11 114.42 951.4 115.62 971.42 118.01L1018.6 123.63A392.66 392.66 0 0 1 1065.26 132.16L1110.38 144.11C1116.53 145.74 1123.35 147.8 1129.23 150.14L1170.63 166.61A472.49 472.49 0 0 1 1262.37 220.28L1297.03 248.61A352.08 352.08 0 0 1 1337.43 289.93L1365.71 324.62L1392.5 364.24A186.06 186.06 0 0 1 1409.81 393.27L1431.67 435.62L1453.73 487.8L1471.86 538.45C1472.95 541.49 1474.07 544.8 1474.95 547.91L1489.6 599.54C1491.21 605.22 1492.69 611.09 1493.97 616.87L1503.59 660.43L1512.87 712.08L1520 763.04L1524.99 811.31C1525.26 813.88 1525.74 816.61 1525.88 819.18L1529 875.72C1529.21 879.58 1529.62 883.82 1529.62 887.63L1529.62 982.52C1529.62 988.97 1529.37 995.94 1529 1002.44L1525.86 1056.98L1519.49 1121.05L1509.79 1188.63L1498.72 1248.01L1487.37 1299.29L1471.25 1358.75L1455.19 1409.93L1439.54 1452.91L1422.65 1494.24L1403.33 1536.85L1379.78 1581.75C1378.74 1583.75 1377.54 1585.85 1376.37 1587.78L1351.64 1628.54C1348.24 1634.15 1344.47 1639.85 1340.57 1645.14L1313.42 1682.01L1284.4 1716.1A463.17 463.17 0 0 1 1138.82 1822.09L1096.35 1839.05C1091.56 1840.96 1086.34 1842.76 1081.34 1844.05L1038.21 1855.19A260.8 260.8 0 0 1 1011.03 1860.7L964.94 1866.95L919.38 1870C914.24 1870.34 908.58 1870.62 903.47 1870.62L844.58 1870.62C832.49 1870.62 819.87 1870.1 807.82 1869L757.49 1864.39C751.33 1863.82 744.94 1862.96 738.86 1861.85L693.11 1853.51L646.99 1841.83L601.02 1826.38C599.17 1825.76 597.21 1825.07 595.42 1824.3L551.5 1805.5C544.47 1802.49 536.77 1798.66 530.75 1794.11ZM702.47 962.62C648.9 966.76 627.79 896.81 627.79 853.95L627.79 805.05C627.79 765.85 650.82 687.99 702.66 696.65C714.02 698.55 724.83 704.56 732.6 713.12C768.89 753.08 770.49 849.25 756.11 898.57C747.83 926.93 734.16 956.3 702.47 962.62ZM1172.47 962.61C1136.15 965.45 1115.67 933.52 1107.3 902.23C1092.95 848.56 1091.37 769.73 1122.94 721.6C1156.31 670.75 1206.96 700.03 1223.39 750.68C1228.87 767.56 1233.72 787.33 1233.71 805.12L1233.71 852.05C1233.69 884.54 1221.1 934.52 1193.61 954.5C1187.19 959.17 1180.01 960.78 1172.47 962.61ZM946.47 1060.62C908.26 1068.33 853.81 1046.84 826.7 1020.2C813.77 1007.49 797.43 984.79 811.08 966.92C831.45 940.26 857.23 972.08 874.24 983.4C885.96 991.21 899.49 997.35 913.43 999.78C942.73 1004.9 973.25 995.81 996.16 977.12C1003.19 971.39 1009.61 963.71 1018.03 960.02C1029.59 954.96 1045.79 958.43 1052.35 969.79C1061.34 985.36 1049.84 1004.14 1039.2 1015.3C1012.02 1043.82 983.92 1053.06 946.47 1060.62Z" fill="#26352E" fill-rule="evenodd"/></g></svg><b>Vectorize</b><small id="badge">Web</small></div>
+    <div class="brand"><svg aria-hidden="true" class="app-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="27" fill="#AFC398"/><path d="M92.18 71C88.79 80.93 80.93 88.79 71 92.18L71 98L49 98L49 92.18C39.07 88.79 31.21 80.93 27.82 71L22 71L22 49L27.82 49C31.21 39.07 39.07 31.21 49 27.82L49 22L71 22L71 27.82C80.93 31.21 88.79 39.07 92.18 49L98 49L98 71ZM80 60C80 48.95 71.05 40 60 40C48.95 40 40 48.95 40 60C40 71.05 48.95 80 60 80C71.05 80 80 71.05 80 60Z" fill="#26352E" fill-rule="evenodd"/></svg><b>Vectorize</b><small id="badge">Web</small></div>
     <div class="tools" role="group" aria-label="Tool">
-      <button type="button" data-tool="select" aria-pressed="true" title="Select (V)" aria-label="Select tool (V)"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.6 3.2a1 1 0 0 1 1.1-.1l12.4 7.2a1 1 0 0 1-.2 1.8l-5.1 1.5 3 5.3a1 1 0 0 1-.4 1.4l-1.8 1a1 1 0 0 1-1.4-.4l-3-5.2-3.7 3.8A1 1 0 0 1 5 19V4a1 1 0 0 1 .6-.8z"/></svg></button>
-      <button type="button" data-tool="hand" aria-pressed="false" title="Hand (H). Hold Space to pan with any tool." aria-label="Hand tool (H)"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a1.6 1.6 0 0 1 1.6 1.6V10h.4V5.4a1.6 1.6 0 0 1 3.2 0V11h.4V7.6a1.6 1.6 0 0 1 3.2 0V14a8 8 0 0 1-8 8h-.9a7 7 0 0 1-5.6-2.8L2.8 14.5a1.6 1.6 0 0 1 2.4-2.1L7 14V6.1a1.6 1.6 0 0 1 3.2 0V10h.2V4.1A1.6 1.6 0 0 1 12 2.5z"/></svg></button>
+      <button type="button" data-tool="select" aria-pressed="true" title="Select (V)" aria-label="Select tool (V)"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5V18l4-4 3 6.5 2.5-1.1-2.9-6.4H18Z"/></svg></button>
+      <button type="button" data-tool="hand" aria-pressed="false" title="Hand (H). Hold Space to pan with any tool." aria-label="Hand tool (H)"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M10 3h4M10 21h4M3 10v4M21 10v4"/></svg></button>
     </div>
     <div class="seg" role="tablist" aria-label="View">
       <button role="tab" id="v-compare" data-view="compare" aria-selected="true" data-press><span class="inner">Compare</span></button>
@@ -731,11 +768,11 @@ html.limit .export-split.celebrate::after{animation:fade-out .3s ease-out both}
       <button role="tab" id="v-align" data-view="align" aria-selected="false" data-press title="Line parts up with the original"><span class="inner">Align</span></button>
     </div>
     <div class="tb-right">
-      <button class="btn btn-soft" id="addBtn" data-press><span class="inner"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5a1.5 1.5 0 0 1 1.5 1.5v4.5H18a1.5 1.5 0 0 1 0 3h-4.5V18a1.5 1.5 0 0 1-3 0v-4.5H6a1.5 1.5 0 0 1 0-3h4.5V6A1.5 1.5 0 0 1 12 4.5z"/></svg>Choose image</span></button>
-      <button class="btn btn-soft" id="versaBtn" data-press disabled title="Save a package Versa opens to make the full logo kit"><span class="inner"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="15" cy="12" r="6"/><circle cx="9" cy="12" r="6" opacity=".45"/></svg>Send to Versa</span></button>
+      <button class="btn btn-soft" id="addBtn" data-press><span class="inner"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13v7h16v-7M12 15V3.5M8 7.5l4-4 4 4"/></svg>Choose image</span></button>
+      <button class="btn btn-soft" id="versaBtn" data-press disabled title="Save a package Versa opens to make the full logo kit"><span class="inner"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5a5.5 5.5 0 1 1 0 11a5.5 5.5 0 1 1 0-11M15 6.5a5.5 5.5 0 1 1 0 11a5.5 5.5 0 1 1 0-11"/></svg>Send to Versa</span></button>
       <div class="export-split">
         <button class="btn btn-dark" id="exportBtn" data-press disabled title="Export (⌘E)"><span class="inner" id="exportLabel">Export SVG</span></button>
-        <button class="btn btn-dark caret" id="exportMenuBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Export format and options" disabled><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.3 9.3a1 1 0 0 1 1.4 0L12 12.6l3.3-3.3a1 1 0 1 1 1.4 1.4l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 0 1 0-1.4z"/></svg></button>
+        <button class="btn btn-dark caret" id="exportMenuBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Export format and options" disabled><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg></button>
         <div class="menu" id="exportMenu" role="menu" hidden>
           <div class="menu-title">Format</div>
           <button type="button" role="menuitemradio" data-fmt="svg" aria-checked="true">SVG<small>Design apps, websites, and cutting machines</small></button>
@@ -753,6 +790,7 @@ html.limit .export-split.celebrate::after{animation:fade-out .3s ease-out both}
 
   <div class="main">
     <section class="canvas-col" aria-label="Canvas">
+      <div class="kicker"><span>Vectorize / shapes in order</span><span id="kickerRight"></span></div>
       <div class="canvas-head">
         <div class="file"><h2 id="fileName">Sample logo</h2><span id="fileMeta">Example image · 360 × 360 JPEG</span></div>
         <span class="status" id="status" data-s="idle">Ready</span>
@@ -774,12 +812,12 @@ html.limit .export-split.celebrate::after{animation:fade-out .3s ease-out both}
         </div>
         <div class="ab-row">
           <div class="ab-icons" role="group" aria-label="Align selected parts">
-            <button type="button" data-align="left" title="Align left edges" aria-label="Align left edges"><svg viewBox="0 0 24 24"><path d="M4 3h1.6v18H4zM7.5 6h9a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-9zM7.5 13H20a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H7.5z"/></svg></button>
-            <button type="button" data-align="hcenter" title="Align centers" aria-label="Align centers"><svg viewBox="0 0 24 24"><path d="M11.2 3h1.6v3H17a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-4.2v2H19a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-6.2v3h-1.6v-3H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h6.2v-2H7a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h4.2z"/></svg></button>
-            <button type="button" data-align="right" title="Align right edges" aria-label="Align right edges"><svg viewBox="0 0 24 24"><path d="M18.4 3H20v18h-1.6zM16.5 6h-9a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h9zM16.5 13H4a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h12.5z"/></svg></button>
-            <button type="button" data-align="top" title="Align tops" aria-label="Align tops"><svg viewBox="0 0 24 24"><path d="M3 4h18v1.6H3zM6 7.5v9a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-9zM13 7.5V20a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7.5z"/></svg></button>
-            <button type="button" data-align="vmiddle" title="Align middles" aria-label="Align middles"><svg viewBox="0 0 24 24"><path d="M3 11.2h3V7a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v4.2h2V5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v6.2h3v1.6h-3V19a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-6.2h-2V17a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-4.2H3z"/></svg></button>
-            <button type="button" data-align="bottom" title="Align bottoms" aria-label="Align bottoms"><svg viewBox="0 0 24 24"><path d="M3 18.4h18V20H3zM6 16.5v-9a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v9zM13 16.5V4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v12.5z"/></svg></button>
+            <button type="button" data-align="left" title="Align left edges" aria-label="Align left edges"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3v18M8 7h10v4H8zM8 14h6v4H8z"/></svg></button>
+            <button type="button" data-align="hcenter" title="Align centers" aria-label="Align centers"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M7 7h10v4H7zM9 14h6v4H9z"/></svg></button>
+            <button type="button" data-align="right" title="Align right edges" aria-label="Align right edges"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 3v18M6 7h10v4H6zM10 14h6v4h-6z"/></svg></button>
+            <button type="button" data-align="top" title="Align tops" aria-label="Align tops"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18M7 8h4v10H7zM14 8h4v6h-4z"/></svg></button>
+            <button type="button" data-align="vmiddle" title="Align middles" aria-label="Align middles"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h18M7 7h4v10H7zM14 9h4v6h-4z"/></svg></button>
+            <button type="button" data-align="bottom" title="Align bottoms" aria-label="Align bottoms"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M7 6h4v10H7zM14 10h4v6h-4z"/></svg></button>
           </div>
           <button type="button" class="link-btn" id="resetPos">Reset positions</button>
           <button type="button" class="link-btn" id="clearGuides" hidden>Clear guides</button>
@@ -850,15 +888,15 @@ html.limit .export-split.celebrate::after{animation:fade-out .3s ease-out both}
         <div class="group">
           <span class="group-title"><span class="gt">What is it?</span><i class="gt-rule" aria-hidden="true"></i></span>
           <div class="presets" role="group" aria-label="Presets">
-            <button class="preset" data-card="4" data-preset="onecolor" aria-pressed="false" data-press><span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zm0 2v14a7 7 0 0 0 0-14z"/></svg></span>One color</button>
-            <button class="preset" data-card="4" data-preset="logo" aria-pressed="true" data-press><span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 8.8l6.1-.7z"/></svg></span>Logo</button>
-            <button class="preset" data-card="4" data-preset="detailed" aria-pressed="false" data-press><span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3zM6.5 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg></span>Detailed logo</button>
-            <button class="preset" data-card="4" data-preset="silhouette" aria-pressed="false" data-press><span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l6.5 8.5H15l4.5 6.5H13.6V22h-3.2v-5H4.5L9 10.5H5.5z"/></svg></span>Silhouette</button>
-            <button class="preset" data-card="4" data-preset="sketch" aria-pressed="false" data-press><span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21l1.4-5.4L15.9 4.1a2 2 0 0 1 2.8 0l1.2 1.2a2 2 0 0 1 0 2.8L8.4 19.6z"/></svg></span>Sketch</button>
-            <button class="preset" data-card="4" data-preset="gray" aria-pressed="false" data-press><span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="5" height="14" rx="1.5" opacity=".28"/><rect x="9.5" y="5" width="5" height="14" rx="1.5" opacity=".6"/><rect x="16" y="5" width="5" height="14" rx="1.5"/></svg></span>Grayscale</button>
+            <button class="preset" data-card="4" data-preset="onecolor" aria-pressed="false" data-press><span class="tile"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 1 1 0 17a8.5 8.5 0 1 1 0-17M12 3.5v17M12 7.5h4.5M12 11.5h6.6M12 15.5h5.6"/></svg></span>One color</button>
+            <button class="preset" data-card="4" data-preset="logo" aria-pressed="true" data-press><span class="tile"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a9.5 9.5 0 1 1 0 19a9.5 9.5 0 1 1 0-19M12 6.5l1.7 3.5 3.8.5-2.8 2.7.7 3.8L12 15.2 8.6 17l.7-3.8-2.8-2.7 3.8-.5z"/></svg></span>Logo</button>
+            <button class="preset" data-card="4" data-preset="detailed" aria-pressed="false" data-press><span class="tile"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5a5.5 5.5 0 1 1 0 11a5.5 5.5 0 1 1 0-11M8.5 9.5a5.5 5.5 0 1 1 0 11a5.5 5.5 0 1 1 0-11M15.5 9.5a5.5 5.5 0 1 1 0 11a5.5 5.5 0 1 1 0-11"/></svg></span>Detailed logo</button>
+            <button class="preset" data-card="4" data-preset="silhouette" aria-pressed="false" data-press><span class="tile"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 19.5h19M3.5 19.5l6-9.5 3.5 5 3-4 4.5 8.5M14.5 5.5a1.5 1.5 0 1 1 0 3a1.5 1.5 0 1 1 0-3"/></svg></span>Silhouette</button>
+            <button class="preset" data-card="4" data-preset="sketch" aria-pressed="false" data-press><span class="tile"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 17.5c2.5-5 4.5-5 6 0s3.5 5 5.5-1 3.5-7 5.5-9M3 20.5h18"/></svg></span>Sketch</button>
+            <button class="preset" data-card="4" data-preset="gray" aria-pressed="false" data-press><span class="tile"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 1 1 0 17a8.5 8.5 0 1 1 0-17M12 3.5v17M14.5 4.5l-2.5 3M17 6.5l-5 6M19 9.5l-7 8.5M20 14l-5 6"/></svg></span>Grayscale</button>
           </div>
           <div class="presets" id="morePresets" role="group" aria-label="More presets" hidden>
-            <button class="preset" data-card="4" data-preset="photo" aria-pressed="false" data-press><span class="tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm1 13h12l-3.8-5-3 3.8-2.1-2.6zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg></span>Photo</button>
+            <button class="preset" data-card="4" data-preset="photo" aria-pressed="false" data-press><span class="tile"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 5h17v14h-17zM3.5 16l5-5 4 4 3-3 5 5M15.5 7.8a1.2 1.2 0 1 1 0 2.4a1.2 1.2 0 1 1 0-2.4"/></svg></span>Photo</button>
           </div>
           <div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px"><p class="help" id="presetHelp" style="margin:0">Flat-color logos and wordmarks, up to 10 colors.</p><button class="link-btn" id="morePresetsBtn" type="button" aria-expanded="false" aria-controls="morePresets" style="white-space:nowrap">More presets</button></div>
         </div>
@@ -866,12 +904,12 @@ html.limit .export-split.celebrate::after{animation:fade-out .3s ease-out both}
         <div class="group">
           <span class="group-title"><span class="gt">Made for</span><i class="gt-rule" aria-hidden="true"></i></span>
           <div class="outputs" role="group" aria-label="Made for">
-            <button class="out-chip" data-output="screen" aria-pressed="false">Screen print</button>
-            <button class="out-chip" data-output="vinyl" aria-pressed="false">Vinyl and HTV</button>
-            <button class="out-chip" data-output="sticker" aria-pressed="false">Sticker</button>
-            <button class="out-chip" data-output="laser" aria-pressed="false">Laser engrave</button>
-            <button class="out-chip" data-output="brand" aria-pressed="false">Print and brand</button>
-            <button class="out-chip" data-output="web" aria-pressed="false">Web icon</button>
+            <button class="out-chip" data-output="screen" aria-pressed="false"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4.5h16v11H4zM8 19.5h8M12 15.5v4M7 8h10"/></svg>Screen print</button>
+            <button class="out-chip" data-output="vinyl" aria-pressed="false"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 4.5a4 4 0 1 1 0 8a4 4 0 1 1 0-8M7.5 12.5H20v6H7.5M7.5 7.5a1 1 0 1 1 0 2a1 1 0 1 1 0-2"/></svg>Vinyl and HTV</button>
+            <button class="out-chip" data-output="sticker" aria-pressed="false"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 4.5h15v9l-6 6h-9zM13.5 19.5v-6h6"/></svg>Sticker</button>
+            <button class="out-chip" data-output="laser" aria-pressed="false"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5v9M9 2.5h6M12 11.5l-3 5h6zM4 20.5h16"/></svg>Laser engrave</button>
+            <button class="out-chip" data-output="brand" aria-pressed="false"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h12v17H6zM9 8h6M9 12h6M9 16h3.5"/></svg>Print and brand</button>
+            <button class="out-chip" data-output="web" aria-pressed="false"><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 4.5h15v15h-15zM12 8.5a3.5 3.5 0 1 1 0 7a3.5 3.5 0 1 1 0-7"/></svg>Web icon</button>
           </div>
           <p class="help" id="outHelp">Pick what it's for. Vectorize sets the options below and checks the result at the size you'll use.</p>
           <div class="dest-box" id="destBox" hidden>
@@ -3402,9 +3440,9 @@ $("#useAll").onclick = () => { pushUndo(); result.shapes.forEach(s => useShape[s
 $("#traceAll").onclick = () => { pushUndo(); result.shapes.forEach(s => useShape[s.id] = false); render(); };
 
 /* ---------- Colors panel ---------- */
-const EYE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.6 4.2 9.7 6.2a1.6 1.6 0 0 1 0 1.6C20.6 14.8 17 19 12 19s-8.6-4.2-9.7-6.2a1.6 1.6 0 0 1 0-1.6C3.4 9.2 7 5 12 5zm0 3.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z"/></svg>';
-const EYE_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.3 3.3a1 1 0 0 1 1.4 0l16 16a1 1 0 0 1-1.4 1.4l-2.6-2.6A10 10 0 0 1 12 19c-5 0-8.6-4.2-9.7-6.2a1.6 1.6 0 0 1 0-1.6 15 15 0 0 1 3.4-4L3.3 4.7a1 1 0 0 1 0-1.4zM12 5c5 0 8.6 4.2 9.7 6.2.3.5.3 1.1 0 1.6a15 15 0 0 1-2.4 3.1L8.2 5.6C9.4 5.2 10.7 5 12 5z"/></svg>';
-const DROPPER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.6 3.4a2.6 2.6 0 0 1 3.7 3.7l-2 2 .9.9a1.2 1.2 0 0 1-1.7 1.7l-.6-.6-7.6 7.6a2 2 0 0 1-1 .5l-2.6.6a1 1 0 0 1-1.2-1.2l.6-2.6a2 2 0 0 1 .5-1l7.6-7.6-.6-.6a1.2 1.2 0 0 1 1.7-1.7l.9.9z"/></svg>';
+const EYE = '<svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12ZM12 9a3 3 0 1 1 0 6a3 3 0 1 1 0-6"/></svg>';
+const EYE_OFF = '<svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12ZM4 4l16 16"/></svg>';
+const DROPPER = '<svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4.5l5.5 5.5M16.75 7.25L7.5 16.5l-3 3 3-3M10.5 7.5l6 6M4.5 19.5l3-3"/></svg>';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const normHex = v => { v = String(v).trim().replace(/^#/, ""); if (/^[0-9a-f]{3}$/i.test(v)) v = v.split("").map(c => c + c).join(""); return /^[0-9a-f]{6}$/i.test(v) ? "#" + v.toUpperCase() : null; };
 function setRecolor(orig, hex) { pushUndo("color:" + orig); if (!hex || hex === orig) delete recolor[orig]; else recolor[orig] = hex; render(); }
@@ -3807,7 +3845,7 @@ function undo() {
 /* ---------- Layers panel ---------- */
 const GRIP = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
 const CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.3 9.3a1 1 0 0 1 1.4 0L12 11.6l2.3-2.3a1 1 0 1 1 1.4 1.4l-3 3a1 1 0 0 1-1.4 0l-3-3a1 1 0 0 1 0-1.4z"/></svg>';
-const TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6a1 1 0 0 1 1 1v1h4a1 1 0 1 1 0 2h-1l-1 12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 7H4a1 1 0 0 1 0-2h4V4a1 1 0 0 1 1-1zm-1.9 4 .9 12h8l.9-12z"/></svg>';
+const TRASH = '<svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 6.5h15M9.5 6.5V4h5v2.5M6.5 6.5l1 14h9l1-14M10 10.5v6.5M14 10.5v6.5"/></svg>';
 const OBJ_LIMIT = 120;
 function wordOf(li, ii) { return (result.texts || []).find(T => !T.removed && wordParts(T).some(p => p.li === li && p.ii === ii)); }
 function itemLabel(li, ii) {
@@ -4949,6 +4987,8 @@ window.addEventListener("pywebviewready", initNative);
 /* ---------- Start ---------- */
 (async function start() {
   syncControls(); applyView(); setTool("select");
+  { const d = new Date(), M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], W = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    $("#kickerRight").textContent = `${W[d.getDay()]} ${d.getDate()} ${M[d.getMonth()]}`; }   // as Verbatim: WED 21 OCT
   // The welcome tour and the first paint's rise-in come first: tracing the sample keeps the page busy for a few
   // seconds, which would stall both.
   initNative();
@@ -6765,12 +6805,12 @@ function markTourSeen() {
 function maybeShowTour() { if (!tourSeen() && !$("#tour")) openTour(); }
 function tourBody(step) {
   const where = NATIVE ? "on this Mac" : "in your browser";
-  if (step === 0) return `<h3 id="tourTitle">Clean vectors from any logo.</h3>
+  if (step === 0) return `<h3 id="tourTitle">Drop an image. Get a vector.</h3>
     <p class="lead">Drop in a PNG or JPEG. Vectorize traces it into shapes you can edit and export, and it all stays ${where}.</p>
     <div class="tour-pillars">
-      <div class="pillar" style="background:var(--fill-butter)"><div class="top">01${tsvg("trace")}</div><b>Trace</b><small>Presets for logos, sketches, and more</small></div>
-      <div class="pillar" style="background:var(--fill-sage)"><div class="top">02${tsvg("tune")}</div><b>Fine-tune</b><small>True shapes, real fonts, exact alignment</small></div>
-      <div class="pillar" style="background:var(--fill-petal)"><div class="top">03${tsvg("export")}</div><b>Export</b><small>SVG, PDF, EPS, and PNG</small></div>
+      <div class="pillar" style="background:var(--fill-sage)"><div class="top"><span>01</span>${tsvg("trace")}</div><b>Trace</b><small>Presets for logos, sketches, and more</small></div>
+      <div class="pillar" style="background:var(--fill-butter)"><div class="top"><span>02</span>${tsvg("tune")}</div><b>Refine</b><small>True shapes, real fonts, exact alignment</small></div>
+      <div class="pillar" style="background:var(--fill-petal)"><div class="top"><span>03</span>${tsvg("export")}</div><b>Export</b><small>SVG, PDF, EPS, and PNG</small></div>
     </div>`;
   if (step === 1) return `<h3 id="tourTitle">Tell it what it is.</h3>
     <p class="lead">A preset sets up the trace for that kind of art. Pick one now; you can change it anytime in Setup.</p>

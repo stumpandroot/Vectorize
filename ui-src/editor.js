@@ -173,7 +173,7 @@ function undo() {
 /* ---------- Layers panel ---------- */
 const GRIP = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
 const CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.3 9.3a1 1 0 0 1 1.4 0L12 11.6l2.3-2.3a1 1 0 1 1 1.4 1.4l-3 3a1 1 0 0 1-1.4 0l-3-3a1 1 0 0 1 0-1.4z"/></svg>';
-const TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6a1 1 0 0 1 1 1v1h4a1 1 0 1 1 0 2h-1l-1 12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 7H4a1 1 0 0 1 0-2h4V4a1 1 0 0 1 1-1zm-1.9 4 .9 12h8l.9-12z"/></svg>';
+const TRASH = '<svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 6.5h15M9.5 6.5V4h5v2.5M6.5 6.5l1 14h9l1-14M10 10.5v6.5M14 10.5v6.5"/></svg>';
 const OBJ_LIMIT = 120;
 function wordOf(li, ii) { return (result.texts || []).find(T => !T.removed && wordParts(T).some(p => p.li === li && p.ii === ii)); }
 function itemLabel(li, ii) {
@@ -1315,6 +1315,8 @@ window.addEventListener("pywebviewready", initNative);
 /* ---------- Start ---------- */
 (async function start() {
   syncControls(); applyView(); setTool("select");
+  { const d = new Date(), M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], W = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    $("#kickerRight").textContent = `${W[d.getDay()]} ${d.getDate()} ${M[d.getMonth()]}`; }   // as Verbatim: WED 21 OCT
   // The welcome tour and the first paint's rise-in come first: tracing the sample keeps the page busy for a few
   // seconds, which would stall both.
   initNative();

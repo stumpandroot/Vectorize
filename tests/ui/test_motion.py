@@ -164,7 +164,7 @@ async def main():
         await pg.goto("file://" + UI)
         await pg.wait_for_selector("#tour", timeout=5000)
         h = await pg.evaluate("[$('#tourLabel').textContent, $('#tourCount').textContent, $('#tourTitle').textContent, document.activeElement.id, $('#tour').getAttribute('aria-modal')]")
-        check("the tour opens on first launch with focus on its primary button", h == ["Welcome to Vectorize", "01 / 04", "Clean vectors from any logo.", "tourNext", "true"], h)
+        check("the tour opens on first launch with focus on its primary button", h == ["Welcome to Vectorize", "01 / 04", "Drop an image. Get a vector.", "tourNext", "true"], h)
         await pg.wait_for_function("document.querySelector('#status').dataset.s==='done'", timeout=60000)
         await pg.click("#tourNext"); await pg.wait_for_timeout(60)
         st = await pg.evaluate("(s => [getComputedStyle(s).animationName, s.style.getPropertyValue('--dx')])($('.tour-step'))")

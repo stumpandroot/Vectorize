@@ -2,6 +2,17 @@
 
 The app shows its version and build in the window title and the toolbar. Each GitHub build has a new build number; the version changes when features change.
 
+## 1.12.0
+
+Vectorize now looks like Verbatim's sibling.
+
+- **Sage is Vectorize's color,** the way persimmon is Verbatim's. The selected preset is a solid sage card, the one bold color on the screen, and the done status, the scope bar, and switches use sage. Paper, ink, and the family colors are the same in both apps.
+- **A new mark and app icon:** the node ring, a circle with its four anchor points, ink on sage, drawn on the same grid as Verbatim's bars. The mascot is retired.
+- **Serif titles.** The app name, the open file's title, and the welcome tour's titles are set in New York, Verbatim's serif. A mono line over the canvas reads "VECTORIZE / SHAPES IN ORDER" with the date, as Verbatim's does.
+- **Fine-line icons** for the tools, buttons, presets, destinations, alignment, and layer controls, in Verbatim's drawing style. Each destination now has an icon.
+- **The welcome tour opens with "Drop an image. Get a vector."** over three method cards: Trace in sage, Refine in butter, and Export in petal.
+- Counts on the Shapes and Text tabs and the status line are quiet mono text, with no colored badges or dots.
+
 ## 1.11.0
 
 - **Canvas background.** Three buttons beside Outlines show transparent art over the checkerboard, white, or black, so you can check light and dark artwork. The choice is kept between sessions and never changes what you export. On a Mac, the View menu has the same three choices.

@@ -1495,9 +1495,9 @@ $("#useAll").onclick = () => { pushUndo(); result.shapes.forEach(s => useShape[s
 $("#traceAll").onclick = () => { pushUndo(); result.shapes.forEach(s => useShape[s.id] = false); render(); };
 
 /* ---------- Colors panel ---------- */
-const EYE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.6 4.2 9.7 6.2a1.6 1.6 0 0 1 0 1.6C20.6 14.8 17 19 12 19s-8.6-4.2-9.7-6.2a1.6 1.6 0 0 1 0-1.6C3.4 9.2 7 5 12 5zm0 3.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z"/></svg>';
-const EYE_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.3 3.3a1 1 0 0 1 1.4 0l16 16a1 1 0 0 1-1.4 1.4l-2.6-2.6A10 10 0 0 1 12 19c-5 0-8.6-4.2-9.7-6.2a1.6 1.6 0 0 1 0-1.6 15 15 0 0 1 3.4-4L3.3 4.7a1 1 0 0 1 0-1.4zM12 5c5 0 8.6 4.2 9.7 6.2.3.5.3 1.1 0 1.6a15 15 0 0 1-2.4 3.1L8.2 5.6C9.4 5.2 10.7 5 12 5z"/></svg>';
-const DROPPER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.6 3.4a2.6 2.6 0 0 1 3.7 3.7l-2 2 .9.9a1.2 1.2 0 0 1-1.7 1.7l-.6-.6-7.6 7.6a2 2 0 0 1-1 .5l-2.6.6a1 1 0 0 1-1.2-1.2l.6-2.6a2 2 0 0 1 .5-1l7.6-7.6-.6-.6a1.2 1.2 0 0 1 1.7-1.7l.9.9z"/></svg>';
+const EYE = '<svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12ZM12 9a3 3 0 1 1 0 6a3 3 0 1 1 0-6"/></svg>';
+const EYE_OFF = '<svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12ZM4 4l16 16"/></svg>';
+const DROPPER = '<svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4.5l5.5 5.5M16.75 7.25L7.5 16.5l-3 3 3-3M10.5 7.5l6 6M4.5 19.5l3-3"/></svg>';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const normHex = v => { v = String(v).trim().replace(/^#/, ""); if (/^[0-9a-f]{3}$/i.test(v)) v = v.split("").map(c => c + c).join(""); return /^[0-9a-f]{6}$/i.test(v) ? "#" + v.toUpperCase() : null; };
 function setRecolor(orig, hex) { pushUndo("color:" + orig); if (!hex || hex === orig) delete recolor[orig]; else recolor[orig] = hex; render(); }
