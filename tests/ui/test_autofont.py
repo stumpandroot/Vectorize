@@ -55,7 +55,7 @@ async def main():
           document.fonts.add(f); window.__fontLoad = f.load().then(() => true, () => false);
           window.addEventListener('DOMContentLoaded', () => { FONTS = [['Nunito', [800]]]; fontsReady = null; });
         """)
-        await pg.goto("file://" + UI)
+        await pg.goto("file://" + UI + "?sample=sunny")
         await pg.wait_for_function("document.querySelector('#status').dataset.s==='done'", timeout=120000)
         await pg.wait_for_function("typeof NATIVE !== 'undefined' && NATIVE !== null")
         check("a test font is installed", await pg.evaluate("window.__fontLoad"))

@@ -76,15 +76,19 @@ async def main():
         check("no old purple, old navy, or old fonts in the styles", not leftovers, leftovers)
         check("no web font requests", await pg.evaluate("!document.querySelector('link[href*=\"fonts.googleapis\"]')"))
         check("UI font is the system font (SF Pro on a Mac)", "-apple-system" in await pg.evaluate("getComputedStyle(document.body).fontFamily"))
+        await pg.wait_for_function("!!result")
+        hexes = await pg.evaluate("visibleLayers().map(L => L.hex)")
+        fam = await pg.evaluate("['#26352E', '#AFC398', '#F4C76B', '#EFB6C8'].every(h => visibleLayers().some(L => hexNear(L.hex, h)))")
+        check("the sample is the badge in the family palette (ink, sage, butter, petal)", len(hexes) == 4 and fam, hexes)
 
         # Primary button: raised ink; selected segment: ink.
         btn = await pg.evaluate("(s => [s.backgroundColor, s.boxShadow])(getComputedStyle($('#exportBtn')))")
         check("Export is a raised ink button", "38, 53, 46" in btn[0] and "inset" in btn[1], btn)
         seg = await pg.evaluate("(b => [getComputedStyle(b.parentElement.querySelector('.seg-pill')).backgroundColor, Math.abs(b.getBoundingClientRect().left - b.parentElement.querySelector('.seg-pill').getBoundingClientRect().left)])($('#v-compare'))")
         check("the selected view segment is ink (the sliding pill under it)", "38, 53, 46" in seg[0] and seg[1] < 1, seg)
-        # Selection never relies on color alone: the selected preset has an outline and a check.
-        sel = await pg.evaluate("(el => [getComputedStyle(el).boxShadow, getComputedStyle(el, '::after').content])($('[data-preset=logo]'))")
-        check("the selected preset has an ink outline and a check", "1.5px" in sel[0] and sel[1] not in ("none", "normal"), sel)
+        # The selected preset is the screen's one sage block, and it carries a check, so selection never relies on color alone.
+        sel = await pg.evaluate("(el => [getComputedStyle(el).backgroundColor, getComputedStyle(el, '::after').content, getComputedStyle(el, '::after').width])($('[data-preset=logo]'))")
+        check("the selected preset is a sage block with a check", "175, 195, 152" in sel[0] and sel[1] not in ("none", "normal") and sel[2] == "14px", sel)
 
         # One primary per view, including Align view.
         await pg.click("#v-align"); await pg.wait_for_timeout(300)

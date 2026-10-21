@@ -24,7 +24,7 @@ async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch(); pg = await b.new_page(viewport={"width": 1400, "height": 1000})
         errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
-        await pg.goto("file://" + UI); await done(pg)
+        await pg.goto("file://" + UI + "?sample=sunny"); await done(pg)
         await pg.evaluate("S.textMode = 'off'")
         url = "data:image/png;base64," + base64.b64encode((IMAGES / "rounded-badge.png").read_bytes()).decode()
         await pg.evaluate("async u => { const d = convertDone(); await openImage(u, 'badge.png', ''); await d; }", url)

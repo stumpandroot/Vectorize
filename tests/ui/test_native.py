@@ -55,7 +55,7 @@ async def main():
         pg = await b.new_page(viewport={"width": 1280, "height": 800})
         errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
         await pg.add_init_script(MOCK)
-        await pg.goto("file://" + UI); await done(pg)
+        await pg.goto("file://" + UI + "?sample=sunny"); await done(pg)
         await pg.wait_for_function("NATIVE !== null")
 
         check("native mode: badge shows the version", (await pg.inner_text("#badge")).startswith("v1.0.0 · build"), await pg.inner_text("#badge"))

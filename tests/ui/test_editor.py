@@ -21,7 +21,7 @@ async def main():
         b = await p.chromium.launch()
         pg = await b.new_page(viewport={"width": 1280, "height": 800}, accept_downloads=True)
         errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
-        await pg.goto("file://" + UI); await done(pg)
+        await pg.goto("file://" + UI + "?sample=sunny"); await done(pg)
         await pg.click("#v-vector")
         n0 = await pg.evaluate("visibleLayers().reduce((s,L)=>s+L.items.filter(it=>!it.off).length,0)")
 

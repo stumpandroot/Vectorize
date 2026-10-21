@@ -1710,6 +1710,11 @@ document.addEventListener("pointerup", () => document.querySelectorAll(".is-pres
 
 /* ---------- Sample: a small, slightly blurry JPEG logo, drawn here so the page opens working ---------- */
 async function makeSample() {
+  // The interface tests were written against the first sample (SUNNY CO); they open the page with ?sample=sunny.
+  if (new URLSearchParams(location.search).get("sample") === "sunny") return makeSunnySample();
+  return makeBadgeSample();
+}
+async function makeSunnySample() {
   try { await document.fonts.load('800 64px Nunito'); } catch {}
   const S0 = 360, c = document.createElement("canvas"); c.width = c.height = S0 * 2; const x = c.getContext("2d"); x.scale(2, 2);
   x.fillStyle = "#FBF6EA"; x.fillRect(0, 0, S0, S0);
@@ -1720,7 +1725,39 @@ async function makeSample() {
   x.closePath(); x.fill();
   x.fillStyle = "#1E2340"; x.font = '800 44px Nunito, "Avenir Next", sans-serif'; x.textAlign = "center"; x.fillText("SUNNY CO", 180, 310);
   x.fillStyle = "#2E7D5B"; x.fillRect(110, 326, 140, 10);
-  // Downsample to 360 px and save as a medium-quality JPEG, like a logo pulled off a website.
   const o = document.createElement("canvas"); o.width = o.height = S0; const ox = o.getContext("2d"); ox.imageSmoothingQuality = "high"; ox.drawImage(c, 0, 0, S0, S0);
   return o.toDataURL("image/jpeg", 0.6);
+}
+async function makeBadgeSample() {
+  // An invented badge in the family palette: lettering on a ring (over the top and along the bottom), true
+  // circles, and a mountain mark. It shows off curves, shape matching, and font matching on a circle.
+  try { await document.fonts.load('800 30px Nunito'); } catch {}
+  const S0 = 360, c = document.createElement("canvas"); c.width = c.height = S0 * 2; const x = c.getContext("2d"); x.scale(2, 2);
+  const INK = "#26352E", SAGE = "#AFC398", BUTTER = "#F4C76B", PETAL = "#EFB6C8", cx = 180, cy = 180;
+  x.fillStyle = "#F5F0E6"; x.fillRect(0, 0, S0, S0);
+  const disc = (r, f, X = cx, Y = cy) => { x.fillStyle = f; x.beginPath(); x.arc(X, Y, r, 0, Math.PI * 2); x.fill(); };
+  disc(158, INK); disc(116, SAGE);
+  // The mark, clipped to the inner disc: a sun, two ink peaks, and a petal hill in front.
+  x.save(); x.beginPath(); x.arc(cx, cy, 116, 0, Math.PI * 2); x.clip();
+  disc(26, BUTTER, 216, 124);
+  x.fillStyle = INK; x.beginPath(); x.moveTo(52, 262); x.lineTo(134, 140); x.lineTo(176, 198); x.lineTo(214, 168); x.lineTo(310, 262); x.closePath(); x.fill();
+  x.fillStyle = PETAL; x.beginPath(); x.moveTo(52, 300); x.quadraticCurveTo(150, 196, 310, 232); x.lineTo(310, 300); x.closePath(); x.fill();
+  x.restore();
+  // Two dots on the ring between the words.
+  disc(6, BUTTER, cx - 137, cy); disc(6, BUTTER, cx + 137, cy);
+  // Lettering on the ring: each letter turned to follow the circle, upright over the top and along the bottom.
+  x.fillStyle = BUTTER; x.font = '800 30px Nunito, "Avenir Next", "Helvetica Neue", Arial, sans-serif'; x.textAlign = "center"; x.textBaseline = "middle";
+  const ring = (text, r, mid, top) => {
+    const track = 3, ws = [...text].map(ch => x.measureText(ch).width + track), total = ws.reduce((a, w) => a + w, 0) - track;
+    let at = -total / 2;
+    [...text].forEach((ch, i) => {
+      const t = mid + (top ? 1 : -1) * (at + ws[i] / 2) / r; at += ws[i];
+      x.save(); x.translate(cx + r * Math.cos(t), cy + r * Math.sin(t)); x.rotate(t + (top ? Math.PI / 2 : -Math.PI / 2)); x.fillText(ch, 0, 1); x.restore();
+    });
+  };
+  ring("HOLLOW PINE", 137, -Math.PI / 2, true);
+  ring("SINCE 2026", 137, Math.PI / 2, false);
+  // Downsample to 360 px and save as a good-quality JPEG, like a logo pulled off a website.
+  const o = document.createElement("canvas"); o.width = o.height = S0; const ox = o.getContext("2d"); ox.imageSmoothingQuality = "high"; ox.drawImage(c, 0, 0, S0, S0);
+  return o.toDataURL("image/jpeg", 0.85);
 }

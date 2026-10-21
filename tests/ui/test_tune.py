@@ -21,7 +21,7 @@ async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch(); pg = await b.new_page(viewport={"width": 1320, "height": 860})
         errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
-        await pg.goto("file://" + UI); await done(pg)
+        await pg.goto("file://" + UI + "?sample=sunny"); await done(pg)
         await pg.evaluate("S.textMode = 'off'; convert()"); await done(pg)
         coral = await pg.evaluate("result.layers.find(L => colorName(L.hex) === 'Coral').hex")
         navy = await pg.evaluate("result.layers.find(L => colorName(L.hex) === 'Navy').hex")
@@ -66,7 +66,7 @@ async def main():
         # The dials do something you can see (1.8.0): the ends of each slider change the trace a lot, and the
         # middle gives the same trace as before.
         pg = await b.new_page(viewport={"width": 1400, "height": 900}); errs2 = []; pg.on("pageerror", lambda e: errs2.append(str(e)))
-        await pg.goto("file://" + UI); await done(pg)
+        await pg.goto("file://" + UI + "?sample=sunny"); await done(pg)
         pts = "anchorCount(buildSVG(false, { part: 'all' }))"
         base = await pg.evaluate(pts)
         P = await pg.evaluate("tuneParams({ detail: 70, straight: 50, smooth: 50, corners: 50 }, 2)")
